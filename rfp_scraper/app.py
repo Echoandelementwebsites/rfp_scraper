@@ -1,10 +1,18 @@
 import streamlit as st
 import pandas as pd
 import os
+import sys
 import time
 from playwright.sync_api import sync_playwright
-from rfp_scraper.factory import ScraperFactory
 import datetime
+
+# Ensure project root is in sys.path so 'rfp_scraper' package can be imported
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+from rfp_scraper.factory import ScraperFactory
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
