@@ -1,0 +1,11 @@
+{
+    "California": "https://caleprocure.ca.gov/pages/Events-BS3/event-search.aspx",
+    "Texas": "https://www.txsmartbuy.gov/esbd",
+    "Florida": "https://www.myflorida.com/apps/vbs/vbs_www.search_r1.crit1",
+    "New York": "https://ogs.ny.gov/design-construction-bid-openings",
+    "Illinois": "https://www.bidbuy.illinois.gov/bso/",
+    "Connecticut": {
+        "CTSource": "https://portal.ct.gov/das/ctsource/bidboard",
+        "UConn": "https://cpfp.procurement.uconn.edu/construction-current-opportunities-2020-2/"
+    }
+}
