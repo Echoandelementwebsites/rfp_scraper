@@ -19,7 +19,7 @@ class ScraperFactory:
         prefix = package.__name__ + "."
 
         for _, name, _ in pkgutil.iter_modules(path, prefix):
-            if name.endswith("base") or name.endswith("generic"):
+            if name.endswith("base") or name.endswith("generic") or name.endswith("hierarchical"):
                 continue
 
             try:

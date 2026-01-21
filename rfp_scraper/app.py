@@ -3,8 +3,13 @@ import pandas as pd
 import os
 import sys
 import time
+import io
 from playwright.sync_api import sync_playwright
 import datetime
+from dotenv import load_dotenv
+
+# Load env vars at startup
+load_dotenv()
 
 # Ensure project root is in sys.path so 'rfp_scraper' package can be imported
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -13,6 +18,8 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 from rfp_scraper.factory import ScraperFactory
+from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
+from rfp_scraper.db import DatabaseHandler
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -24,6 +31,17 @@ available_states = factory.get_available_states()
 
 # Sidebar
 st.sidebar.header("Configuration")
+
+# API Key Status
+api_key = os.getenv("DEEPSEEK_API_KEY")
+if api_key:
+    st.sidebar.success("✅ API Key loaded from .env")
+else:
+    api_key = st.sidebar.text_input("DeepSeek API Key", type="password")
+
+# Mode Selection
+deep_scan_mode = st.sidebar.checkbox("Deep Scan Mode (Slower)", help="Enables hierarchical discovery of local agency bids using AI.")
+
 mode = st.sidebar.radio("Operation Mode", ["Single State", "Scrape All States"])
 
 if mode == "Single State":
@@ -39,12 +57,14 @@ st.markdown(
     """
 )
 
-def run_scraping(states_to_scrape):
+def run_scraping(states_to_scrape, use_deep_scan, api_key_val):
     progress_bar = st.progress(0)
     status_text = st.empty()
     all_results = pd.DataFrame()
 
     total_states = len(states_to_scrape)
+
+    db = DatabaseHandler()
 
     with sync_playwright() as p:
         # Launch Browser once
@@ -59,7 +79,15 @@ def run_scraping(states_to_scrape):
             status_text.text(f"Scraping {state} ({i+1}/{total_states})...")
 
             try:
-                scraper = factory.get_scraper(state)
+                # Get base scraper
+                base_scraper = factory.get_scraper(state)
+
+                if use_deep_scan:
+                    # Use Hierarchical wrapper
+                    scraper = HierarchicalScraper(state, base_scraper=base_scraper, api_key=api_key_val)
+                else:
+                    scraper = base_scraper
+
                 page = context.new_page()
 
                 # Run Scrape
@@ -80,39 +108,136 @@ def run_scraping(states_to_scrape):
     status_text.success("Scraping Complete!")
     return all_results
 
+def export_to_excel(df):
+    """
+    Export DataFrame to Excel with formatting and deduplication check.
+    """
+    output = io.BytesIO()
+    db = DatabaseHandler()
+
+    fresh_rows = []
+
+    current_time = datetime.datetime.now()
+
+    for index, row in df.iterrows():
+        title = row.get('title', '')
+        client = row.get('client', row.get('agency', '')) # Normalize
+        link = row.get('link', '')
+
+        slug = db.generate_slug(title, client, link)
+
+        # Check DB
+        # We need to query the `scraped_at` for this slug.
+        conn = sqlite3.connect(db.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT scraped_at FROM scraped_bids WHERE slug = ?", (slug,))
+        result = cursor.fetchone()
+        conn.close()
+
+        is_fresh = False
+        if result:
+            scraped_at_str = result[0]
+            try:
+                scraped_at = datetime.datetime.fromisoformat(scraped_at_str)
+                # If scraped within last 10 minutes, consider it new/fresh from this run
+                if (current_time - scraped_at).total_seconds() < 600:
+                    is_fresh = True
+            except:
+                pass
+        else:
+            # If from Standard Scraper, it's "fresh" if not in DB.
+            # We insert it now to mark it as seen.
+            db.insert_bid(slug, client, title, row.get('deadline', ''), link)
+            is_fresh = True
+
+        if is_fresh:
+            fresh_rows.append(row)
+
+    fresh_df = pd.DataFrame(fresh_rows)
+
+    if fresh_df.empty:
+        return None
+
+    # Write to Excel
+    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+    worksheet = workbook.add_worksheet()
+
+    # Formats
+    header_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#00008B', # Dark Blue
+        'font_color': '#FFFFFF' # White
+    })
+
+    # Write Header
+    headers = fresh_df.columns.tolist()
+    for col_num, header in enumerate(headers):
+        worksheet.write(0, col_num, header, header_format)
+
+    # Write Data
+    for row_num, row_data in enumerate(fresh_df.values, 1):
+        for col_num, cell_data in enumerate(row_data):
+            # Check for link column to make hyperlink
+            header_name = headers[col_num].lower()
+            if 'link' in header_name and isinstance(cell_data, str) and cell_data.startswith('http'):
+                worksheet.write_url(row_num, col_num, cell_data, string=cell_data)
+            else:
+                worksheet.write(row_num, col_num, cell_data)
+
+    # Auto-width (approximate)
+    for i, col in enumerate(headers):
+        worksheet.set_column(i, i, 20)
+
+    # Freeze Top Row
+    worksheet.freeze_panes(1, 0)
+
+    workbook.close()
+    output.seek(0)
+    return output
+
+import sqlite3
+import xlsxwriter
+
 if st.button("🚀 Start Scraping"):
-    if mode == "Single State":
-        target_states = [selected_state]
+    if deep_scan_mode and not api_key:
+        st.error("Deep Scan Mode requires a DeepSeek API Key.")
     else:
-        target_states = available_states
+        if mode == "Single State":
+            target_states = [selected_state]
+        else:
+            target_states = available_states
 
-    results_df = run_scraping(target_states)
+        results_df = run_scraping(target_states, deep_scan_mode, api_key)
 
-    if not results_df.empty:
-        # Metrics
-        st.divider()
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Found", len(results_df))
-        with col2:
-            st.metric("States Scraped", len(target_states))
-        with col3:
-            st.metric("Earliest Deadline", results_df['deadline'].min() if 'deadline' in results_df else "-")
+        if not results_df.empty:
+            # Metrics
+            st.divider()
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Found", len(results_df))
+            with col2:
+                st.metric("States Scraped", len(target_states))
+            with col3:
+                st.metric("Earliest Deadline", results_df['deadline'].min() if 'deadline' in results_df else "-")
 
-        # Display Data
-        st.subheader("Filtered Opportunities")
-        st.dataframe(results_df, use_container_width=True)
+            # Display Data
+            st.subheader("All Opportunities Found (Session)")
+            st.dataframe(results_df, use_container_width=True)
 
-        # CSV Download
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"national_rfps_{timestamp}.csv"
-        csv = results_df.to_csv(index=False).encode('utf-8')
+            # Excel Download
+            excel_file = export_to_excel(results_df)
 
-        st.download_button(
-            label="📥 Download Master CSV",
-            data=csv,
-            file_name=filename,
-            mime="text/csv"
-        )
-    else:
-        st.warning("No qualified RFPs found.")
+            if excel_file:
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"national_rfps_{timestamp}.xlsx"
+
+                st.download_button(
+                    label="📥 Download Excel Report (Fresh Leads Only)",
+                    data=excel_file,
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                st.info("No fresh leads to export (all found bids are already in database).")
+        else:
+            st.warning("No qualified RFPs found.")

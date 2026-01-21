@@ -3,3 +3,7 @@ pandas
 streamlit
 beautifulsoup4
 python-dateutil
+duckduckgo-search
+openai
+xlsxwriter
+python-dotenv
