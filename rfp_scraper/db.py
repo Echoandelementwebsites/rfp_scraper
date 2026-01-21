@@ -1,7 +1,7 @@
 import sqlite3
 import os
 import datetime
-from typing import Optional
+from typing import Optional, List, Tuple
 
 class DatabaseHandler:
     def __init__(self, db_path: str = "rfp_scraper/rfp_scraper.db"):
@@ -15,12 +15,7 @@ class DatabaseHandler:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        # Create table for scraped bids
-        # slug is a unique identifier (hash of title + client + deadline) or URL
-        # For simplicity and robustness, we'll use URL as slug if available, or a hash.
-        # But user requested 'slug' as PK. We'll use URL as the main dedupe key, or a hash if URL is generic.
-        # Actually, let's use a composite hash as slug to be safe.
-
+        # Table for scraped bids (Successes)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS scraped_bids (
                 slug TEXT PRIMARY KEY,
@@ -29,6 +24,16 @@ class DatabaseHandler:
                 deadline TEXT,
                 scraped_at TEXT,
                 source_url TEXT
+            )
+        """)
+
+        # Table for discovery log (Attempts/Queue)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS discovery_log (
+                url TEXT PRIMARY KEY,
+                state TEXT,
+                status TEXT, -- 'pending', 'processed', 'error'
+                last_attempted_at TEXT
             )
         """)
 
@@ -60,6 +65,45 @@ class DatabaseHandler:
             pass
         finally:
             conn.close()
+
+    def add_discovered_url(self, url: str, state: str):
+        """Add a discovered URL to the log if it doesn't exist."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            # We use INSERT OR IGNORE to avoid overwriting existing status
+            cursor.execute("""
+                INSERT OR IGNORE INTO discovery_log (url, state, status, last_attempted_at)
+                VALUES (?, ?, 'pending', NULL)
+            """, (url, state))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_pending_urls(self, state: str) -> List[str]:
+        """Get all pending URLs for a given state."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT url FROM discovery_log
+            WHERE state = ? AND status = 'pending'
+        """, (state,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [r[0] for r in rows]
+
+    def mark_url_processed(self, url: str, status: str = 'processed'):
+        """Update the status of a URL."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.datetime.now().isoformat()
+        cursor.execute("""
+            UPDATE discovery_log
+            SET status = ?, last_attempted_at = ?
+            WHERE url = ?
+        """, (status, now, url))
+        conn.commit()
+        conn.close()
 
     @staticmethod
     def generate_slug(title: str, client_name: str, source_url: str) -> str:

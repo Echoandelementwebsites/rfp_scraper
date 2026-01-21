@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.xlsx
+*.csv
+.env
+rfp_scraper/rfp_scraper.db
+test_output*.txt
+output_check.txt
+manual_check*.txt
+file_path_check.txt
