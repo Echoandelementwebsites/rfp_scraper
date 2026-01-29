@@ -4,7 +4,6 @@ from playwright.sync_api import Page
 from bs4 import BeautifulSoup
 
 from rfp_scraper.scrapers.base import BaseScraper
-from rfp_scraper.discovery import DiscoveryEngine
 from rfp_scraper.compliance import ComplianceManager
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.db import DatabaseHandler
@@ -13,7 +12,6 @@ class HierarchicalScraper(BaseScraper):
     def __init__(self, state_name: str, base_scraper: Optional[BaseScraper] = None, api_key: Optional[str] = None):
         self.state_name = state_name
         self.base_scraper = base_scraper
-        self.discovery = DiscoveryEngine()
         self.compliance = ComplianceManager()
         self.ai_parser = DeepSeekClient(api_key=api_key)
         self.db = DatabaseHandler()
@@ -35,11 +33,27 @@ class HierarchicalScraper(BaseScraper):
         # 2. Run Deep Scan (Level 2)
         print(f"Running Deep Scan for {self.state_name}...")
 
-        # Discovery
-        agencies = self.discovery.search_agencies(self.state_name)
+        # Fetch agencies from DB
+        # Look up state_id by name
+        df_states = self.db.get_all_states()
+        state_row = df_states[df_states['name'] == self.state_name]
 
-        for agency_name, url in agencies:
-            print(f"Deep Scan: Found agency {agency_name} at {url}")
+        if state_row.empty:
+            print(f"State {self.state_name} not found in DB. Skipping deep scan.")
+            return pd.DataFrame(results)
+
+        state_id = int(state_row.iloc[0]['id'])
+        df_agencies = self.db.get_agencies_by_state(state_id)
+
+        if df_agencies.empty:
+            print(f"No agencies found in DB for {self.state_name}. Skipping deep scan.")
+            return pd.DataFrame(results)
+
+        for _, row in df_agencies.iterrows():
+            agency_name = row['organization_name']
+            url = row['url']
+
+            print(f"Deep Scan: Scanning {agency_name} at {url}")
 
             # Compliance Check
             if not self.compliance.can_fetch(url):
