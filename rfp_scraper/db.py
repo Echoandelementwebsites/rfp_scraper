@@ -2,6 +2,7 @@ import sqlite3
 import os
 import datetime
 from typing import Optional, List, Tuple
+import pandas as pd
 
 class DatabaseHandler:
     def __init__(self, db_path: str = "rfp_scraper/rfp_scraper.db"):
@@ -34,6 +35,28 @@ class DatabaseHandler:
                 state TEXT,
                 status TEXT, -- 'pending', 'processed', 'error'
                 last_attempted_at TEXT
+            )
+        """)
+
+        # Table for States
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS states (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                created_at TEXT
+            )
+        """)
+
+        # Table for Agencies
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS agencies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                state_id INTEGER,
+                organization_name TEXT,
+                url TEXT,
+                verified INTEGER DEFAULT 0,
+                created_at TEXT,
+                FOREIGN KEY(state_id) REFERENCES states(id)
             )
         """)
 
@@ -112,3 +135,80 @@ class DatabaseHandler:
         # Normalize inputs
         raw_string = f"{str(title).lower()}|{str(client_name).lower()}|{str(source_url).lower()}"
         return hashlib.md5(raw_string.encode('utf-8')).hexdigest()
+
+    # --- New Methods for States & Agencies ---
+
+    def add_state(self, name: str):
+        """Insert a state if it doesn't exist."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        created_at = datetime.datetime.now().isoformat()
+        try:
+            cursor.execute("""
+                INSERT INTO states (name, created_at)
+                VALUES (?, ?)
+            """, (name, created_at))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            # Already exists
+            pass
+        finally:
+            conn.close()
+
+    def get_all_states(self) -> pd.DataFrame:
+        """Return all states as a DataFrame."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            df = pd.read_sql_query("SELECT * FROM states ORDER BY name", conn)
+        except Exception:
+             # If table doesn't exist or other error, return empty DF
+             df = pd.DataFrame(columns=['id', 'name', 'created_at'])
+        finally:
+            conn.close()
+        return df
+
+    def add_agency(self, state_id: int, name: str, url: str, verified: bool = False):
+        """Insert an agency linked to a state."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        created_at = datetime.datetime.now().isoformat()
+        verified_int = 1 if verified else 0
+        try:
+            cursor.execute("""
+                INSERT INTO agencies (state_id, organization_name, url, verified, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (state_id, name, url, verified_int, created_at))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error adding agency: {e}")
+        finally:
+            conn.close()
+
+    def get_agencies_by_state(self, state_id: int) -> pd.DataFrame:
+        """Return agencies for a specific state as a DataFrame."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            query = "SELECT * FROM agencies WHERE state_id = ?"
+            df = pd.read_sql_query(query, conn, params=(state_id,))
+        except Exception:
+            df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at'])
+        finally:
+            conn.close()
+        return df
+
+    def get_all_agencies(self) -> pd.DataFrame:
+        """Return all agencies with their associated state names."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            query = """
+                SELECT a.*, s.name as state_name
+                FROM agencies a
+                JOIN states s ON a.state_id = s.id
+                ORDER BY s.name, a.organization_name
+            """
+            df = pd.read_sql_query(query, conn)
+        except Exception:
+             df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'state_name'])
+        finally:
+            conn.close()
+        return df
