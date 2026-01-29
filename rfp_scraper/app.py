@@ -24,6 +24,8 @@ from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url
+from rfp_scraper.discovery import DiscoveryEngine
+from rfp_scraper.config_loader import load_agency_template, extract_search_scope
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -101,17 +103,23 @@ with tab_states:
 # ==========================================
 with tab_agencies:
     st.header("🏛️ State Agency Discovery")
-    st.markdown("Discover and validate agencies and universities for specific states.")
+    st.markdown("Discover and validate agencies and universities for specific states using the constrained discovery workflow.")
+
+    # Initialize Discovery Engine
+    discovery_engine = DiscoveryEngine()
+
+    # Load Template
+    template = load_agency_template()
+    search_scope = extract_search_scope(template)
+
+    st.write(f"Loaded {len(search_scope)} agency types to search for (e.g. {search_scope[:3]}...).")
 
     # Input Options
     col_ag1, col_ag2 = st.columns(2)
     with col_ag1:
         agency_mode = st.radio("Discovery Mode", ["Single State", "All States"], key="agency_mode")
 
-    # Refresh states from DB (in case they were just added in Tab 1)
-    # Since streamlit runs script top to bottom, df_states is available from Tab 1 block,
-    # but strictly speaking scopes in `with` don't leak well if we consider re-runs.
-    # Better to fetch again or use st.session_state, but simple fetch is safe.
+    # Refresh states from DB
     df_current_states = db.get_all_states()
     state_names_list = df_current_states['name'].tolist() if not df_current_states.empty else []
 
@@ -133,44 +141,46 @@ with tab_agencies:
              st.error("No states found in database. Please go to 'States' tab and generate states first.")
         else:
             progress_bar = st.progress(0)
-            status_text = st.empty()
+            status_container = st.container()
 
-            total_states = len(target_agency_states)
-            total_agencies_found = 0
+            total_tasks = len(target_agency_states) * len(search_scope)
+            tasks_completed = 0
+            new_agencies_count = 0
 
-            for i, state_name in enumerate(target_agency_states):
-                status_text.text(f"Scanning {state_name} ({i+1}/{total_states})...")
+            # Create a log area
+            log_area = st.empty()
 
-                # AI Discovery
-                try:
-                    discovered = ai_client.discover_state_agencies(state_name)
+            for state_name in target_agency_states:
+                # Get State ID
+                state_row = df_current_states[df_current_states['name'] == state_name]
+                if state_row.empty:
+                    continue
+                state_id = int(state_row.iloc[0]['id'])
 
-                    # Validate and Save
-                    # Need state_id
-                    state_row = df_current_states[df_current_states['name'] == state_name]
-                    if not state_row.empty:
-                        state_id = int(state_row.iloc[0]['id'])
+                status_container.markdown(f"### Processing {state_name}...")
 
-                        for item in discovered:
-                            org_name = item.get('organization_name')
-                            url = item.get('url')
+                for agency_type in search_scope:
+                    tasks_completed += 1
+                    progress_bar.progress(tasks_completed / total_tasks)
 
-                            if org_name and url:
-                                # Validation
-                                is_valid = validate_url(url)
-                                if is_valid:
-                                    db.add_agency(state_id, org_name, url, verified=True)
-                                    total_agencies_found += 1
-                except Exception as e:
-                    st.error(f"Error processing {state_name}: {e}")
+                    log_area.text(f"Scanning {state_name}: {agency_type}...")
 
-                progress_bar.progress((i + 1) / total_states)
+                    # Discovery
+                    url, method = discovery_engine.find_agency_url(state_name, agency_type, ai_client)
 
-                # Rate Limiting
-                if len(target_agency_states) > 1:
-                    time.sleep(2) # Sleep 2 seconds between states
+                    if url:
+                        # Deduplicate
+                        if not db.agency_exists(state_id, url):
+                            db.add_agency(state_id, agency_type, url, verified=True)
+                            new_agencies_count += 1
+                            status_container.write(f"✅ Found: **{agency_type}** ({method}) -> {url}")
+                        else:
+                            status_container.write(f"⚠️ Duplicate: {agency_type} ({url})")
+                    else:
+                        status_container.write(f"❌ Not Found: {agency_type}")
 
-            status_text.success(f"Discovery Complete! Added {total_agencies_found} new agencies.")
+            log_area.empty()
+            st.success(f"Discovery Complete! Added {new_agencies_count} new agencies.")
 
     # Display Agencies Table
     st.divider()
@@ -180,11 +190,18 @@ with tab_agencies:
 
     # Export
     if not df_agencies.empty:
+        today_str = datetime.datetime.now().strftime("%Y%m%d")
+        if agency_mode == "Single State" and len(target_agency_states) == 1:
+            state_slug = target_agency_states[0].replace(' ', '_')
+            filename = f"{state_slug}_agencies_{today_str}.csv"
+        else:
+            filename = f"all_agencies_{today_str}.csv"
+
         csv_ag = df_agencies.to_csv(index=False).encode('utf-8')
         st.download_button(
             "📥 Download Agencies CSV",
             csv_ag,
-            "state_agencies.csv",
+            filename,
             "text/csv",
             key='download-agencies'
         )

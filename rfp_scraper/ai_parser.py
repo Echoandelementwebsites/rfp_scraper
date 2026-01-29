@@ -152,3 +152,37 @@ class DeepSeekClient:
         except Exception as e:
             print(f"Error discovering agencies for {state_name}: {e}")
             return []
+
+    def find_specific_agency(self, state_name: str, agency_type: str) -> Optional[str]:
+        """
+        Attempts to find a specific agency URL using AI.
+        """
+        if not self.api_key:
+            return None
+
+        prompt = (
+            f"Find the official website URL for the '{agency_type}' in {state_name}. "
+            "Return ONLY a JSON object with one key 'url'. "
+            "Ensure the domain is .gov or .edu."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" },
+            )
+
+            content = response.choices[0].message.content
+            data = self._clean_and_parse_json(content)
+
+            if isinstance(data, dict):
+                return data.get("url")
+
+            return None
+
+        except Exception as e:
+            print(f"Error finding specific agency {agency_type} in {state_name}: {e}")
+            return None

@@ -7,7 +7,9 @@ import pandas as pd
 class DatabaseHandler:
     def __init__(self, db_path: str = "rfp_scraper/rfp_scraper.db"):
         # Ensure directory exists
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
         self.db_path = db_path
         self._init_db()
 
@@ -167,8 +169,78 @@ class DatabaseHandler:
             conn.close()
         return df
 
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        """Normalize URL for deduplication checks."""
+        if not url:
+            return ""
+        url = url.strip().lower()
+
+        # Remove scheme
+        if url.startswith("https://"):
+            url = url[8:]
+        elif url.startswith("http://"):
+            url = url[7:]
+
+        # Remove www.
+        if url.startswith("www."):
+            url = url[4:]
+
+        if url.endswith('/'):
+            url = url[:-1]
+        return url
+
+    def agency_exists(self, state_id: int, url: str) -> bool:
+        """Check if an agency exists for a specific state using normalized URL."""
+        normalized_url = self._normalize_url(url)
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # We need to check all agencies for this state and compare normalized URLs
+        # SQLite doesn't have a great normalize function, so we might need to do some of this in python
+        # or rely on the stored url being normalized?
+        # For safety, let's select all URLs for the state and check in python.
+        # Ideally, we should store normalized URLs, but for now we check against existing.
+
+        cursor.execute("SELECT url FROM agencies WHERE state_id = ?", (state_id,))
+        rows = cursor.fetchall()
+        conn.close()
+
+        for row in rows:
+            existing_url = self._normalize_url(row[0])
+            if existing_url == normalized_url:
+                return True
+        return False
+
+    def get_agency_by_url(self, url: str) -> Optional[dict]:
+        """Retrieve an agency by its URL."""
+        normalized_url = self._normalize_url(url)
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, state_id, organization_name, url, verified FROM agencies")
+        rows = cursor.fetchall()
+        conn.close()
+
+        for row in rows:
+            if self._normalize_url(row[3]) == normalized_url:
+                return {
+                    "id": row[0],
+                    "state_id": row[1],
+                    "organization_name": row[2],
+                    "url": row[3],
+                    "verified": bool(row[4])
+                }
+        return None
+
     def add_agency(self, state_id: int, name: str, url: str, verified: bool = False):
-        """Insert an agency linked to a state."""
+        """Insert an agency linked to a state, ensuring no duplicates."""
+        # Clean inputs
+        url = url.strip()
+
+        if self.agency_exists(state_id, url):
+            print(f"Skipping duplicate agency: {url} for state_id {state_id}")
+            return
+
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         created_at = datetime.datetime.now().isoformat()
