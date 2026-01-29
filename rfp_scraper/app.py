@@ -343,6 +343,10 @@ with tab_scraper:
 
         for row_num, row_data in enumerate(fresh_df.values, 1):
             for col_num, cell_data in enumerate(row_data):
+                # Handle NaN/Inf before writing to avoid xlsxwriter TypeError
+                if pd.isna(cell_data):
+                    cell_data = ""
+
                 header_name = headers[col_num].lower()
                 if 'link' in header_name and isinstance(cell_data, str) and cell_data.startswith('http'):
                     worksheet.write_url(row_num, col_num, cell_data, string=cell_data)
