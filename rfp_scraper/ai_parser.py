@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Optional
+from typing import List, Optional, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -13,12 +13,27 @@ class DeepSeekClient:
         if not self.api_key:
             # We will handle missing key gracefully in the UI or orchestrator,
             # but here we can't do much without it.
-            pass
+            self.client = None
+        else:
+            self.client = OpenAI(
+                api_key=self.api_key,
+                base_url="https://api.deepseek.com"
+            )
 
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url="https://api.deepseek.com"
-        )
+    def _clean_and_parse_json(self, content: str) -> Any:
+        """Helper to clean markdown code blocks and parse JSON."""
+        # Simple cleanup
+        content = content.strip()
+        if content.startswith("```json"):
+            content = content.replace("```json", "", 1)
+            if content.endswith("```"):
+                content = content[:-3]
+        elif content.startswith("```"):
+            content = content.replace("```", "", 1)
+            if content.endswith("```"):
+                content = content[:-3]
+
+        return json.loads(content)
 
     def parse_rfp_content(self, text_content: str) -> List[dict]:
         """
@@ -35,32 +50,22 @@ class DeepSeekClient:
 
         try:
             response = self.client.chat.completions.create(
-                model="deepseek-chat", # Assuming 'deepseek-chat' is the model name, or 'deepseek-r1' etc. using standard 'deepseek-chat' for now.
+                model="deepseek-chat",
                 messages=[
                     {"role": "system", "content": prompt},
-                    {"role": "user", "content": text_content[:10000]} # Limit context window just in case
+                    {"role": "user", "content": text_content[:10000]}
                 ],
-                response_format={ "type": "json_object" }, # DeepSeek supports json_object? If not, we rely on prompt.
-                # Assuming DeepSeek API compatible with OpenAI SDK follows similar conventions.
-                # If json_object not strictly supported, we just parse text.
+                response_format={ "type": "json_object" },
             )
 
             content = response.choices[0].message.content
-
-            # Clean up markdown code blocks if present
-            if content.startswith("```json"):
-                content = content.replace("```json", "").replace("```", "")
-            elif content.startswith("```"):
-                content = content.replace("```", "")
-
-            data = json.loads(content)
+            data = self._clean_and_parse_json(content)
 
             # Ensure it's a list
             if isinstance(data, dict):
-                 # Sometimes models return {"rfps": [...]} or just the object if one found
                  if "rfps" in data:
                      return data["rfps"]
-                 return [data] # Treat as single item list if it matches schema, unlikely but possible
+                 return [data]
             elif isinstance(data, list):
                 return data
 
@@ -68,4 +73,82 @@ class DeepSeekClient:
 
         except Exception as e:
             print(f"Error parsing with DeepSeek: {e}")
+            return []
+
+    def generate_us_states(self) -> List[str]:
+        """
+        Generates a list of all 50 US states.
+        """
+        if not self.api_key:
+            return []
+
+        prompt = "List all 50 United States with their full names. Return ONLY a JSON list of strings."
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" },
+            )
+
+            content = response.choices[0].message.content
+            data = self._clean_and_parse_json(content)
+
+            if isinstance(data, list):
+                return data
+            elif isinstance(data, dict):
+                 if "states" in data:
+                     return data["states"]
+                 # Fallback if structure is unexpected but contains list
+                 for key, value in data.items():
+                     if isinstance(value, list):
+                         return value
+
+            return []
+
+        except Exception as e:
+            print(f"Error generating states: {e}")
+            return []
+
+    def discover_state_agencies(self, state_name: str) -> List[dict]:
+        """
+        Discovers agencies and universities for a given state.
+        """
+        if not self.api_key:
+            return []
+
+        prompt = (
+            f"List major state agencies, departments, and public universities in {state_name} "
+            "that issue construction RFPs. Return a JSON list of objects with keys: "
+            "'organization_name' and 'url'. Filter for .gov or .edu domains only."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" },
+            )
+
+            content = response.choices[0].message.content
+            data = self._clean_and_parse_json(content)
+
+            if isinstance(data, list):
+                return data
+            elif isinstance(data, dict):
+                 if "agencies" in data:
+                     return data["agencies"]
+                 # Fallback: look for any list
+                 for key, value in data.items():
+                     if isinstance(value, list):
+                         return value
+
+            return []
+
+        except Exception as e:
+            print(f"Error discovering agencies for {state_name}: {e}")
             return []
