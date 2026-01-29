@@ -1,0 +1,603 @@
+{
+  "metadata": {
+    "description": "Template for U.S. state agency naming conventions, domains, and related institutions",
+    "last_updated": "2024-10-17",
+    "note": "This is a template structure - actual state institutions will vary by state"
+  },
+  "state": {
+    "name": "Full State Name",
+    "abbreviation": "XX",
+    "domain_root": "state.xx.gov",
+    "portal_root": "statename.gov",
+    "higher_ed_domain_root": "state.xx.us"
+  },
+  "agency_naming_patterns": [
+    {
+      "pattern": "Department of [Function]",
+      "description": "Most common format for executive agencies",
+      "examples": [
+        "Department of Transportation",
+        "Department of Corrections",
+        "Department of Health"
+      ],
+      "prevalence": "primary"
+    },
+    {
+      "pattern": "[State] Department of [Function]",
+      "description": "Full formal name",
+      "examples": [
+        "California Department of Transportation",
+        "Texas Department of Public Safety"
+      ],
+      "prevalence": "formal"
+    },
+    {
+      "pattern": "[State] [Function] Department",
+      "description": "Alternative format used by some states",
+      "examples": [
+        "New York State Police",
+        "Washington State Patrol"
+      ],
+      "prevalence": "common"
+    },
+    {
+      "pattern": "[Function] Administration/Authority",
+      "description": "For semi-independent or regulatory bodies",
+      "examples": [
+        "Transportation Authority",
+        "Liquor Control Board",
+        "Environmental Protection Agency"
+      ],
+      "prevalence": "specialized"
+    },
+    {
+      "pattern": "Office of [Elected Official]",
+      "description": "For constitutional offices",
+      "examples": [
+        "Office of the Attorney General",
+        "Office of the State Treasurer"
+      ],
+      "prevalence": "constitutional"
+    }
+  ],
+  "domain_patterns": [
+    {
+      "pattern": "[agency_acronym].state.[abbreviation].gov",
+      "example": "dot.state.tx.gov",
+      "description": "Standard subdomain pattern for agencies",
+      "format": "subdomain",
+      "institution_type": ["agency", "department"]
+    },
+    {
+      "pattern": "[statename].gov/[agency_path]",
+      "example": "california.gov/transportation",
+      "description": "Central portal with path",
+      "format": "subdirectory",
+      "institution_type": ["agency", "department"]
+    },
+    {
+      "pattern": "[university_acronym].edu",
+      "example": "uc.edu",
+      "description": "Standard for universities (.edu TLD)",
+      "format": "direct_domain",
+      "institution_type": ["university", "college"]
+    },
+    {
+      "pattern": "[hospital_name].org",
+      "example": "massgeneral.org",
+      "description": "Common for hospitals (.org TLD)",
+      "format": "direct_domain",
+      "institution_type": ["hospital", "medical_center"]
+    },
+    {
+      "pattern": "[institution_name].state.[abbreviation].us",
+      "example": "unc.state.nc.us",
+      "description": "State-affiliated institution subdomain",
+      "format": "subdomain",
+      "institution_type": ["university", "hospital", "research_center"]
+    }
+  ],
+  "common_agency_types": {
+    "public_safety": {
+      "typical_name": "Department of Public Safety",
+      "common_subsidiaries": [
+        {
+          "name_pattern": "State Police",
+          "domain_example": "statepolice.state.xx.gov",
+          "function": "Law enforcement, highway patrol"
+        },
+        {
+          "name_pattern": "Highway Patrol",
+          "domain_example": "hpatrol.state.xx.gov",
+          "function": "Traffic enforcement on state highways"
+        }
+      ],
+      "variations": [
+        "Department of State Police",
+        "State Patrol"
+      ]
+    },
+    "transportation": {
+      "typical_name": "Department of Transportation",
+      "acronym": "DOT",
+      "domain_example": "dot.state.xx.gov",
+      "sub_agencies": [
+        "Motor Vehicles Division",
+        "Highway Administration",
+        "Transit Authority"
+      ]
+    },
+    "corrections": {
+      "typical_name": "Department of Corrections",
+      "variations": [
+        "Department of Rehabilitation and Corrections",
+        "Department of Prisons"
+      ],
+      "domain_example": "corrections.state.xx.gov"
+    },
+    "education": {
+      "typical_name": "Department of Education",
+      "variations": [
+        "Department of Public Instruction",
+        "State Board of Education"
+      ],
+      "domain_example": "education.state.xx.gov",
+      "note": "Often led by elected State Superintendent"
+    },
+    "health": {
+      "typical_name": "Department of Health",
+      "variations": [
+        "Department of Health and Human Services",
+        "Department of Public Health"
+      ],
+      "domain_example": "health.state.xx.gov",
+      "related_institutions": [
+        "State Psychiatric Hospitals",
+        "Public Health Laboratories",
+        "Veterans Homes"
+      ]
+    },
+    "environment": {
+      "typical_name": "Department of Environmental Protection",
+      "variations": [
+        "Department of Environmental Quality",
+        "Department of Natural Resources",
+        "Department of Conservation"
+      ],
+      "domain_example": "dep.state.xx.gov"
+    },
+    "revenue": {
+      "typical_name": "Department of Revenue",
+      "variations": [
+        "Department of Taxation",
+        "Franchise Tax Board"
+      ],
+      "domain_example": "revenue.state.xx.gov"
+    },
+    "motor_vehicles": {
+      "typical_name": "Department of Motor Vehicles",
+      "acronym": "DMV",
+      "domain_example": "dmv.state.xx.gov",
+      "note": "Sometimes a division within Transportation"
+    },
+    "labor": {
+      "typical_name": "Department of Labor",
+      "variations": [
+        "Department of Labor and Industries",
+        "Workforce Commission"
+      ],
+      "domain_example": "labor.state.xx.gov"
+    },
+    "emergency_management": {
+      "typical_name": "Department of Emergency Management",
+      "variations": [
+        "Emergency Management Agency",
+        "Office of Emergency Services"
+      ],
+      "domain_example": "ema.state.xx.gov"
+    }
+  },
+  "higher_education_institutions": {
+    "university_systems": {
+      "name_patterns": [
+        "[State] State University System",
+        "[State] University System",
+        "University of [State] System"
+      ],
+      "domain_patterns": [
+        "[system_acronym].state.xx.us",
+        "[system_name].edu",
+        "stateuniversitysystem.edu"
+      ],
+      "governance": {
+        "board_names": [
+          "Board of Regents",
+          "Board of Trustees",
+          "Board of Governors"
+        ],
+        "state_oversight": "Usually a coordinating board or state higher education agency"
+      }
+    },
+    "university_types": [
+      {
+        "type": "Flagship Research University",
+        "naming_patterns": [
+          "University of [State]",
+          "[State] State University",
+          "[State] University"
+        ],
+        "domain_examples": [
+          "umich.edu (University of Michigan)",
+          "utexas.edu (University of Texas at Austin)",
+          "osu.edu (Ohio State University)"
+        ],
+        "domain_patterns": [
+          "[acronym].edu",
+          "[university_name].edu"
+        ]
+      },
+      {
+        "type": "Regional State Universities",
+        "naming_patterns": [
+          "[Direction/Region] [State] University",
+          "[City/Region] State University",
+          "[State] University at [City]"
+        ],
+        "domain_examples": [
+          "uwm.edu (University of Wisconsin-Milwaukee)",
+          "csun.edu (California State University, Northridge)",
+          "unt.edu (University of North Texas)"
+        ]
+      },
+      {
+        "type": "State Colleges/Community Colleges",
+        "naming_patterns": [
+          "[Region] State College",
+          "[Area] Community College",
+          "[County] College"
+        ],
+        "domain_examples": [
+          "austincc.edu (Austin Community College)",
+          "monroecc.edu (Monroe Community College)"
+        ]
+      }
+    ],
+    "state_governing_boards": {
+      "typical_name": "[State] Higher Education Coordinating Board",
+      "variations": [
+        "Board of Higher Education",
+        "Commission on Higher Education",
+        "Department of Higher Education"
+      ],
+      "domain_example": "highered.state.xx.gov",
+      "function": "Coordinates state university systems and funding"
+    }
+  },
+  "state_hospitals_and_medical_facilities": {
+    "state_psychiatric_hospitals": {
+      "name_patterns": [
+        "[State] State Hospital",
+        "[Region] State Hospital",
+        "[City] State Hospital"
+      ],
+      "domain_patterns": [
+        "[hospital_acronym].state.xx.gov",
+        "[hospital_name].org",
+        "health.state.xx.us/[hospital]"
+      ],
+      "governance": "Usually under Department of Health or Mental Health",
+      "examples": [
+        {
+          "name": "Oregon State Hospital",
+          "domain": "oregon.gov/oha/osh",
+          "state": "OR"
+        }
+      ]
+    },
+    "university_medical_centers": {
+      "name_patterns": [
+        "[University Name] Medical Center",
+        "[University Name] Hospital",
+        "[University Name] Health System"
+      ],
+      "domain_patterns": [
+        "[medical_center].edu",
+        "[hospital_name].org",
+        "health.[university].edu"
+      ],
+      "governance": "Often affiliated with state university medical schools",
+      "examples": [
+        {
+          "name": "University of Michigan Health System",
+          "domain": "umichhealth.org",
+          "parent": "University of Michigan"
+        }
+      ]
+    },
+    "public_health_hospitals": {
+      "name_patterns": [
+        "[State] Department of Health Hospital",
+        "[County] Public Hospital",
+        "[Region] Medical Center"
+      ],
+      "domain_patterns": [
+        "health.state.xx.gov/hospitals",
+        "[county]hospital.org",
+        "publichealth.xx.gov"
+      ],
+      "note": "Often county-run with state funding/support"
+    },
+    "veterans_homes": {
+      "name_patterns": [
+        "[State] Veterans Home",
+        "[State] Veterans Affairs Medical Center"
+      ],
+      "domain_patterns": [
+        "veterans.state.xx.gov",
+        "va.gov/locations/[facility]"
+      ],
+      "note": "State veterans homes often separate from federal VA hospitals"
+    }
+  },
+  "agency_structure": {
+    "leadership": {
+      "title_patterns": [
+        "Commissioner",
+        "Director",
+        "Secretary",
+        "Superintendent"
+      ],
+      "appointment_method": "Gubernatorial appointment with legislative confirmation",
+      "exceptions": "Constitutional officers (elected separately)"
+    },
+    "organizational_levels": [
+      "Central Office/Headquarters (in state capital)",
+      "Regional Offices",
+      "District Offices",
+      "Field/Local Offices"
+    ],
+    "common_divisions": [
+      "Administration",
+      "Finance/Budget",
+      "Human Resources",
+      "Legal",
+      "Public Affairs/Communications",
+      "Information Technology",
+      "Enforcement",
+      "Licensing",
+      "Inspections"
+    ]
+  },
+  "domain_validation": {
+    "government": {
+      "required_tld": ".gov",
+      "prohibited_tlds": [".com", ".org", ".net"],
+      "verification_note": "Only official government entities can use .gov domains"
+    },
+    "education": {
+      "primary_tld": ".edu",
+      "restrictions": "Accredited post-secondary institutions only",
+      "alternative_tlds": [".org", ".net", ".us"]
+    },
+    "healthcare": {
+      "common_tlds": [".org", ".edu", ".gov"],
+      "note": "Hospitals often use .org; university hospitals use .edu; state facilities use .gov"
+    },
+    "common_redirects": [
+      "www.[agency].state.[xx].gov",
+      "[xx]gov.[agency].gov"
+    ]
+  },
+  "state_examples": {
+    "california": {
+      "naming_style": "California [Function]",
+      "domain_pattern": "ca.gov/[agency]",
+      "example_agencies": [
+        {
+          "name": "California Department of Transportation",
+          "domain": "dot.ca.gov",
+          "acronym": "Caltrans"
+        },
+        {
+          "name": "California Department of Corrections and Rehabilitation",
+          "domain": "cdcr.ca.gov"
+        }
+      ],
+      "universities": [
+        {
+          "system": "University of California System",
+          "domain": "universityofcalifornia.edu",
+          "flagship": {
+            "name": "University of California, Berkeley",
+            "domain": "berkeley.edu"
+          }
+        },
+        {
+          "system": "California State University System",
+          "domain": "calstate.edu",
+          "example_campus": {
+            "name": "California State University, Northridge",
+            "domain": "csun.edu"
+          }
+        }
+      ],
+      "hospitals": [
+        {
+          "name": "University of California, San Francisco Medical Center",
+          "domain": "ucsfhealth.org",
+          "type": "university_medical_center"
+        },
+        {
+          "name": "Napa State Hospital",
+          "domain": "napastatehospital.org",
+          "type": "state_psychiatric_hospital"
+        }
+      ]
+    },
+    "texas": {
+      "naming_style": "[Function] of Texas",
+      "domain_pattern": "[agency].texas.gov",
+      "example_agencies": [
+        {
+          "name": "Texas Department of Public Safety",
+          "domain": "dps.texas.gov"
+        },
+        {
+          "name": "Texas Department of Transportation",
+          "domain": "txdot.gov"
+        }
+      ],
+      "universities": [
+        {
+          "system": "University of Texas System",
+          "domain": "utsystem.edu",
+          "flagship": {
+            "name": "University of Texas at Austin",
+            "domain": "utexas.edu"
+          }
+        },
+        {
+          "system": "Texas A&M University System",
+          "domain": "tamus.edu",
+          "flagship": {
+            "name": "Texas A&M University",
+            "domain": "tamu.edu"
+          }
+        }
+      ],
+      "hospitals": [
+        {
+          "name": "Texas Department of State Health Services Hospitals",
+          "domain": "dshs.texas.gov/hospitals",
+          "type": "state_health_hospitals"
+        },
+        {
+          "name": "UT Southwestern Medical Center",
+          "domain": "utsouthwestern.edu",
+          "type": "university_medical_center"
+        }
+      ]
+    },
+    "new_york": {
+      "naming_style": "New York State [Function]",
+      "domain_pattern": "[agency].ny.gov",
+      "example_agencies": [
+        {
+          "name": "New York State Department of Transportation",
+          "domain": "dot.ny.gov"
+        },
+        {
+          "name": "New York State Police",
+          "domain": "troopers.ny.gov"
+        }
+      ],
+      "universities": [
+        {
+          "system": "State University of New York (SUNY)",
+          "domain": "suny.edu",
+          "flagship": {
+            "name": "University at Buffalo",
+            "domain": "buffalo.edu"
+          }
+        },
+        {
+          "system": "City University of New York (CUNY)",
+          "domain": "cuny.edu",
+          "note": "New York City public university system"
+        }
+      ],
+      "hospitals": [
+        {
+          "name": "New York State Office of Mental Health Hospitals",
+          "domain": "omh.ny.gov/facilities",
+          "type": "state_psychiatric_hospitals"
+        },
+        {
+          "name": "SUNY Upstate Medical University Hospital",
+          "domain": "upstate.edu/hospital",
+          "type": "university_medical_center"
+        }
+      ]
+    },
+    "florida": {
+      "naming_style": "Florida Department of [Function]",
+      "domain_pattern": "[agency].state.fl.us",
+      "note": "Uses .fl.us instead of .gov for some legacy domains",
+      "example_agencies": [
+        {
+          "name": "Florida Department of Transportation",
+          "domain": "fdot.gov"
+        }
+      ],
+      "universities": [
+        {
+          "system": "State University System of Florida",
+          "domain": "flbog.edu",
+          "flagship": {
+            "name": "University of Florida",
+            "domain": "ufl.edu"
+          }
+        }
+      ],
+      "hospitals": [
+        {
+          "name": "UF Health Shands Hospital",
+          "domain": "ufhealth.org",
+          "type": "university_medical_center",
+          "parent": "University of Florida"
+        },
+        {
+          "name": "Florida State Hospital",
+          "domain": "myflfamilies.com/facilities",
+          "type": "state_psychiatric_hospital"
+        }
+      ]
+    }
+  },
+  "classification_guidelines": {
+    "state_agency_criteria": [
+      "Funded primarily by state budget",
+      "Employees are state civil servants",
+      "Report to governor or appointed board",
+      "Created by state statute"
+    ],
+    "state_university_criteria": [
+      "Part of state university system",
+      "Receive state appropriations",
+      "Governed by state-appointed board",
+      "Considered state agencies for employment purposes"
+    ],
+    "state_hospital_criteria": [
+      "Owned/operated by state government",
+      "Under Department of Health or equivalent",
+      "State employees work at facility",
+      "Receive state funding for operations"
+    ],
+    "hybrid_institutions": [
+      {
+        "type": "Public Hospital Authorities",
+        "description": "Quasi-governmental entities that operate hospitals",
+        "example": "New York City Health and Hospitals Corporation"
+      },
+      {
+        "type": "University-Affiliated Medical Centers",
+        "description": "Part of state university but may have separate governance",
+        "example": "University of California Health system"
+      }
+    ]
+  },
+  "template_usage": {
+    "instruction": "Replace placeholders with actual state data:",
+    "placeholders": {
+      "[Function]": "Specific government function (e.g., Transportation, Health)",
+      "[State]": "Full state name",
+      "[abbreviation]": "Two-letter postal code",
+      "[statename]": "State name in lowercase, no spaces",
+      "[agency_acronym]": "Official agency abbreviation",
+      "[agency_path]": "URL-friendly agency name",
+      "[university_acronym]": "University abbreviation (e.g., UCLA, UT)",
+      "[hospital_name]": "Hospital or medical center name",
+      "[medical_center]": "Medical facility name abbreviation"
+    }
+  }
+}
