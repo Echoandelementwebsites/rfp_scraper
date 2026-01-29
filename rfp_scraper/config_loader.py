@@ -4,12 +4,13 @@ from typing import List, Dict, Any
 
 def load_agency_template(filepath: str = "state_agency_dictionary.json") -> Dict[str, Any]:
     """Load the agency schema from JSON file."""
-    # If path is relative, try to find it relative to project root or current dir
     if not os.path.exists(filepath):
-        # try moving up one level if we are in a subdir?
-        # But generally we run from root.
-        # let's try strict path first.
-        pass
+        # Fallback for different execution contexts
+        alt_path = os.path.join(os.path.dirname(__file__), "..", filepath)
+        if os.path.exists(alt_path):
+            filepath = alt_path
+        else:
+            raise FileNotFoundError(f"Configuration file not found at {filepath}")
 
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
