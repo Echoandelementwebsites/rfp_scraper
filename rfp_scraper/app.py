@@ -241,7 +241,7 @@ with tab_scraper:
         st.info("ℹ️ Deep Scan is now active by default for comprehensive coverage.")
 
     # --- Persistent Data Display ---
-    st.subheader("Active Opportunities (Persistent View)")
+    st.subheader("Active Opportunities")
 
     # 1. Load Data
     state_filter = selected_scraper_state if scraper_mode == "Single State" else None
