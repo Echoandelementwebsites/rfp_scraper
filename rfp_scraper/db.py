@@ -26,9 +26,17 @@ class DatabaseHandler:
                 title TEXT,
                 deadline TEXT,
                 scraped_at TEXT,
-                source_url TEXT
+                source_url TEXT,
+                state TEXT
             )
         """)
+
+        # Migration: Ensure state column exists for existing tables
+        try:
+            cursor.execute("SELECT state FROM scraped_bids LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column missing, add it
+            cursor.execute("ALTER TABLE scraped_bids ADD COLUMN state TEXT DEFAULT 'Unknown'")
 
         # Table for discovery log (Attempts/Queue)
         cursor.execute("""
@@ -74,22 +82,41 @@ class DatabaseHandler:
         conn.close()
         return exists
 
-    def insert_bid(self, slug: str, client_name: str, title: str, deadline: str, source_url: str):
-        """Insert a new bid into the database."""
+    def insert_bid(self, slug: str, client_name: str, title: str, deadline: str, source_url: str, state: str = "Unknown"):
+        """Insert a new bid into the database or update if exists."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         scraped_at = datetime.datetime.now().isoformat()
         try:
             cursor.execute("""
-                INSERT INTO scraped_bids (slug, client_name, title, deadline, scraped_at, source_url)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (slug, client_name, title, deadline, scraped_at, source_url))
+                INSERT INTO scraped_bids (slug, client_name, title, deadline, scraped_at, source_url, state)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(slug) DO UPDATE SET
+                    state=excluded.state,
+                    scraped_at=excluded.scraped_at,
+                    deadline=excluded.deadline
+            """, (slug, client_name, title, deadline, scraped_at, source_url, state))
             conn.commit()
-        except sqlite3.IntegrityError:
-            # Already exists, ignore
-            pass
+        except sqlite3.Error as e:
+            print(f"Error inserting bid: {e}")
         finally:
             conn.close()
+
+    def get_bids(self, state: Optional[str] = None) -> pd.DataFrame:
+        """Retrieve bids, optionally filtered by state."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            if state:
+                query = "SELECT * FROM scraped_bids WHERE state = ?"
+                df = pd.read_sql_query(query, conn, params=(state,))
+            else:
+                query = "SELECT * FROM scraped_bids"
+                df = pd.read_sql_query(query, conn)
+        except Exception:
+            df = pd.DataFrame(columns=['slug', 'client_name', 'title', 'deadline', 'scraped_at', 'source_url', 'state'])
+        finally:
+            conn.close()
+        return df
 
     def add_discovered_url(self, url: str, state: str):
         """Add a discovered URL to the log if it doesn't exist."""
