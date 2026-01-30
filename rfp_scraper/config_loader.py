@@ -15,6 +15,38 @@ def load_agency_template(filepath: str = "state_agency_dictionary.json") -> Dict
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+def load_cities_template(filepath: str = "cities_towns_dictionary.json") -> Dict[str, Any]:
+    """Load the cities/towns/counties schema from JSON file."""
+    if not os.path.exists(filepath):
+        # Fallback for different execution contexts
+        alt_path = os.path.join(os.path.dirname(__file__), "..", filepath)
+        if os.path.exists(alt_path):
+            filepath = alt_path
+        else:
+            raise FileNotFoundError(f"Configuration file not found at {filepath}")
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def get_search_patterns(category: str) -> List[str]:
+    """
+    Get naming patterns for a given category (county, city, town).
+    """
+    try:
+        template = load_cities_template()
+        conventions = template.get("general_naming_conventions", {})
+
+        if category == "county":
+            return conventions.get("county_level", {}).get("patterns", [])
+        elif category == "city":
+            return conventions.get("city_level", {}).get("patterns", [])
+        elif category == "town":
+            return conventions.get("town_level", {}).get("patterns", [])
+    except Exception as e:
+        print(f"Error loading search patterns for {category}: {e}")
+
+    return []
+
 def extract_search_scope(template: Dict[str, Any]) -> List[str]:
     """
     Parses the template to return a flat list of agency types/names to search for.

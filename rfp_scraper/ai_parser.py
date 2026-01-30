@@ -186,3 +186,43 @@ class DeepSeekClient:
         except Exception as e:
             print(f"Error finding specific agency {agency_type} in {state_name}: {e}")
             return None
+
+    def generate_local_jurisdictions(self, state_name: str) -> dict:
+        """
+        Generates lists of counties, cities, and towns for a given state.
+        Returns a dict with keys: 'counties', 'cities', 'towns'.
+        """
+        if not self.api_key:
+            return {"counties": [], "cities": [], "towns": []}
+
+        prompt = (
+            f"List all counties, top 20 major cities, and top 20 major towns for {state_name}. "
+            "Return a JSON object with three keys: 'counties', 'cities', and 'towns'. "
+            "Each value must be a list of strings containing ONLY the names (e.g., 'Cook', 'Chicago', 'Cicero')."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" },
+            )
+
+            content = response.choices[0].message.content
+            data = self._clean_and_parse_json(content)
+
+            if isinstance(data, dict):
+                # Ensure keys exist
+                return {
+                    "counties": data.get("counties", []),
+                    "cities": data.get("cities", []),
+                    "towns": data.get("towns", [])
+                }
+
+            return {"counties": [], "cities": [], "towns": []}
+
+        except Exception as e:
+            print(f"Error generating local jurisdictions for {state_name}: {e}")
+            return {"counties": [], "cities": [], "towns": []}

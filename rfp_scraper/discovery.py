@@ -58,14 +58,23 @@ class DiscoveryEngine:
         Returns the first validated URL found.
         """
         query = f"{state_name} {agency_type} official site"
+        return self.find_url_by_query(query)
+
+    def find_url_by_query(self, query: str) -> Optional[str]:
+        """
+        Search DDG using a specific query string.
+        Returns the first validated URL found.
+        """
         try:
             with DDGS() as ddgs:
+                # Add a small delay to be polite
+                time.sleep(1)
                 results = ddgs.text(query, max_results=5)
                 for res in results:
                     url = res.get('href', '')
                     if validate_url(url):
                         return url
         except Exception as e:
-            print(f"DDG Search error for {agency_type} in {state_name}: {e}")
+            print(f"DDG Search error for query '{query}': {e}")
 
         return None

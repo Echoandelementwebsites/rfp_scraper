@@ -66,9 +66,17 @@ class DatabaseHandler:
                 url TEXT,
                 verified INTEGER DEFAULT 0,
                 created_at TEXT,
+                category TEXT DEFAULT 'state_agency',
                 FOREIGN KEY(state_id) REFERENCES states(id)
             )
         """)
+
+        # Migration: Ensure category column exists for existing tables
+        try:
+            cursor.execute("SELECT category FROM agencies LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column missing, add it
+            cursor.execute("ALTER TABLE agencies ADD COLUMN category TEXT DEFAULT 'state_agency'")
 
         conn.commit()
         conn.close()
@@ -117,6 +125,35 @@ class DatabaseHandler:
         finally:
             conn.close()
         return df
+
+    def get_pending_local_agencies(self, state_id: int) -> List[Tuple[str, str]]:
+        """Get list of (organization_name, category) for agencies without URLs."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT organization_name, category
+            FROM agencies
+            WHERE state_id = ? AND (url IS NULL OR url = '') AND category IN ('county', 'city', 'town')
+        """, (state_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return rows
+
+    def update_agency_url(self, state_id: int, name: str, category: str, url: str):
+        """Update the URL and verification status of an existing agency."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                UPDATE agencies
+                SET url = ?, verified = 1
+                WHERE state_id = ? AND organization_name = ? AND category = ?
+            """, (url, state_id, name, category))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error updating agency URL: {e}")
+        finally:
+            conn.close()
 
     def add_discovered_url(self, url: str, state: str):
         """Add a discovered URL to the log if it doesn't exist."""
@@ -217,26 +254,38 @@ class DatabaseHandler:
             url = url[:-1]
         return url
 
-    def agency_exists(self, state_id: int, url: str) -> bool:
-        """Check if an agency exists for a specific state using normalized URL."""
-        normalized_url = self._normalize_url(url)
+    def agency_exists(self, state_id: int, url: Optional[str] = None, name: Optional[str] = None, category: Optional[str] = None) -> bool:
+        """
+        Check if an agency exists for a specific state.
+        If URL is provided, check by normalized URL.
+        If URL is None, check by (state_id, organization_name, category).
+        """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        # We need to check all agencies for this state and compare normalized URLs
-        # SQLite doesn't have a great normalize function, so we might need to do some of this in python
-        # or rely on the stored url being normalized?
-        # For safety, let's select all URLs for the state and check in python.
-        # Ideally, we should store normalized URLs, but for now we check against existing.
+        if url:
+            normalized_url = self._normalize_url(url)
+            cursor.execute("SELECT url FROM agencies WHERE state_id = ?", (state_id,))
+            rows = cursor.fetchall()
+            conn.close()
 
-        cursor.execute("SELECT url FROM agencies WHERE state_id = ?", (state_id,))
-        rows = cursor.fetchall()
+            for row in rows:
+                existing_url = self._normalize_url(row[0])
+                if existing_url == normalized_url:
+                    return True
+            return False
+
+        # If no URL, check by name and category
+        if name and category:
+            cursor.execute("""
+                SELECT 1 FROM agencies
+                WHERE state_id = ? AND organization_name = ? AND category = ?
+            """, (state_id, name, category))
+            exists = cursor.fetchone() is not None
+            conn.close()
+            return exists
+
         conn.close()
-
-        for row in rows:
-            existing_url = self._normalize_url(row[0])
-            if existing_url == normalized_url:
-                return True
         return False
 
     def get_agency_by_url(self, url: str) -> Optional[dict]:
@@ -259,13 +308,14 @@ class DatabaseHandler:
                 }
         return None
 
-    def add_agency(self, state_id: int, name: str, url: str, verified: bool = False):
+    def add_agency(self, state_id: int, name: str, url: Optional[str] = None, verified: bool = False, category: str = 'state_agency'):
         """Insert an agency linked to a state, ensuring no duplicates."""
         # Clean inputs
-        url = url.strip()
+        if url:
+            url = url.strip()
 
-        if self.agency_exists(state_id, url):
-            print(f"Skipping duplicate agency: {url} for state_id {state_id}")
+        if self.agency_exists(state_id, url=url, name=name, category=category):
+            print(f"Skipping duplicate agency: {name} (URL: {url}) for state_id {state_id}")
             return
 
         conn = sqlite3.connect(self.db_path)
@@ -274,9 +324,9 @@ class DatabaseHandler:
         verified_int = 1 if verified else 0
         try:
             cursor.execute("""
-                INSERT INTO agencies (state_id, organization_name, url, verified, created_at)
-                VALUES (?, ?, ?, ?, ?)
-            """, (state_id, name, url, verified_int, created_at))
+                INSERT INTO agencies (state_id, organization_name, url, verified, created_at, category)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (state_id, name, url, verified_int, created_at, category))
             conn.commit()
         except sqlite3.Error as e:
             print(f"Error adding agency: {e}")
@@ -290,7 +340,7 @@ class DatabaseHandler:
             query = "SELECT * FROM agencies WHERE state_id = ?"
             df = pd.read_sql_query(query, conn, params=(state_id,))
         except Exception:
-            df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at'])
+            df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category'])
         finally:
             conn.close()
         return df
@@ -307,7 +357,7 @@ class DatabaseHandler:
             """
             df = pd.read_sql_query(query, conn)
         except Exception:
-             df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'state_name'])
+             df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'state_name'])
         finally:
             conn.close()
         return df
