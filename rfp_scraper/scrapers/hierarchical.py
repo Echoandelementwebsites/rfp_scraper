@@ -25,8 +25,29 @@ class HierarchicalScraper(BaseScraper):
             try:
                 base_df = self.base_scraper.scrape(page)
                 if not base_df.empty:
-                    # Convert to list of dicts to merge later
-                    results.extend(base_df.to_dict('records'))
+                    # Sanitize: Convert NaN to None to ensure boolean checks work
+                    base_df = base_df.where(pd.notnull(base_df), None)
+                    base_records = base_df.to_dict('records')
+                    results.extend(base_records)
+
+                    # Persistence: Save Level 1 results to DB
+                    for row in base_records:
+                        # Extract fields safely
+                        client = row.get('clientName') or row.get('client') or "Unknown Client"
+                        title = row.get('title') or "Untitled"
+                        deadline = row.get('deadline')
+
+                        # Determine link
+                        link = row.get('portfolioLink') or row.get('link') or ""
+
+                        # Determine slug
+                        if 'slug' in row and row['slug']:
+                            slug = row['slug']
+                        else:
+                            slug = self.db.generate_slug(title, client, link)
+
+                        self.db.insert_bid(slug, client, title, deadline, link, state=self.state_name)
+
             except Exception as e:
                 print(f"Standard scraper failed for {self.state_name}: {e}")
 
@@ -82,7 +103,7 @@ class HierarchicalScraper(BaseScraper):
                     slug = self.db.generate_slug(title, client, url)
 
                     # Save to DB (Persistence)
-                    self.db.insert_bid(slug, client, title, deadline, url)
+                    self.db.insert_bid(slug, client, title, deadline, url, state=self.state_name)
 
                     # Append to results for current run
                     results.append({
