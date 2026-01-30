@@ -25,7 +25,7 @@ from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url
 from rfp_scraper.discovery import DiscoveryEngine
-from rfp_scraper.config_loader import load_agency_template, extract_search_scope
+from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_search_patterns
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -51,7 +51,7 @@ ai_client = DeepSeekClient(api_key=api_key)
 
 
 # --- Tabs ---
-tab_states, tab_agencies, tab_scraper = st.tabs(["States", "State Agencies", "RFP Scraper"])
+tab_states, tab_local_gov, tab_agencies, tab_scraper = st.tabs(["States", "Local Governments", "State Agencies", "RFP Scraper"])
 
 # ==========================================
 # TAB 1: STATES
@@ -99,20 +99,121 @@ with tab_states:
         )
 
 # ==========================================
+# TAB 1A: LOCAL GOVERNMENTS
+# ==========================================
+with tab_local_gov:
+    st.header("🏘️ Local Government Identification")
+    st.markdown("Identify Counties, Cities, and Towns using AI.")
+
+    # Refresh states from DB
+    df_current_states_lg = db.get_all_states()
+    state_names_list_lg = df_current_states_lg['name'].tolist() if not df_current_states_lg.empty else []
+
+    col_lg1, col_lg2 = st.columns(2)
+
+    with col_lg1:
+        lg_mode = st.radio("Identification Mode", ["Single State", "All States"], key="lg_mode")
+
+    target_lg_states = []
+    if lg_mode == "Single State":
+        with col_lg2:
+            selected_lg_state = st.selectbox("Select State", state_names_list_lg, key="lg_state_select")
+            if selected_lg_state:
+                target_lg_states = [selected_lg_state]
+    else:
+        target_lg_states = state_names_list_lg
+        with col_lg2:
+             st.info(f"Will process {len(target_lg_states)} states from DB.")
+
+    if st.button("Identify Jurisdictions", key="identify_jurisdictions_btn"):
+        if not api_key:
+            st.error("DeepSeek API Key is required.")
+        elif not target_lg_states:
+             st.error("No states found. Please generate states first.")
+        else:
+            progress_bar_lg = st.progress(0)
+            status_text_lg = st.empty()
+            total_lg_states = len(target_lg_states)
+
+            for i, state_name in enumerate(target_lg_states):
+                status_text_lg.text(f"Processing {state_name} ({i+1}/{total_lg_states})...")
+
+                # Get State ID
+                state_row = df_current_states_lg[df_current_states_lg['name'] == state_name]
+                if state_row.empty:
+                    continue
+                state_id = int(state_row.iloc[0]['id'])
+
+                # Call AI
+                jurisdictions = ai_client.generate_local_jurisdictions(state_name)
+
+                # Save to DB
+                # Counties
+                for county in jurisdictions.get("counties", []):
+                    db.add_agency(state_id, county, url=None, category="county")
+
+                # Cities
+                for city in jurisdictions.get("cities", []):
+                    db.add_agency(state_id, city, url=None, category="city")
+
+                # Towns
+                for town in jurisdictions.get("towns", []):
+                    db.add_agency(state_id, town, url=None, category="town")
+
+                progress_bar_lg.progress((i + 1) / total_lg_states)
+
+            status_text_lg.success("Identification Complete!")
+
+    # Display Table
+    st.subheader("Identified Local Governments")
+
+    # Get all agencies and filter for local categories
+    df_all_agencies = db.get_all_agencies()
+    local_categories = ['county', 'city', 'town']
+
+    # Filter by category
+    if not df_all_agencies.empty and 'category' in df_all_agencies.columns:
+        df_local_govs = df_all_agencies[df_all_agencies['category'].isin(local_categories)]
+    else:
+        df_local_govs = pd.DataFrame()
+
+    # Filter by state if single mode
+    if lg_mode == "Single State" and selected_lg_state and not df_local_govs.empty:
+        df_local_govs = df_local_govs[df_local_govs['state_name'] == selected_lg_state]
+
+    st.dataframe(df_local_govs, use_container_width=True)
+
+    # Export
+    if not df_local_govs.empty:
+        today_str_lg = datetime.datetime.now().strftime("%Y%m%d")
+        if lg_mode == "Single State" and selected_lg_state:
+            state_slug = selected_lg_state.replace(' ', '_')
+            filename_lg = f"{state_slug}_towns_cities_counties_{today_str_lg}.csv"
+        else:
+            filename_lg = f"all_towns_cities_counties_{today_str_lg}.csv"
+
+        csv_lg = df_local_govs.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            "📥 Download CSV",
+            csv_lg,
+            filename_lg,
+            "text/csv",
+            key='download-lg'
+        )
+
+# ==========================================
 # TAB 2: STATE AGENCIES
 # ==========================================
 with tab_agencies:
-    st.header("🏛️ State Agency Discovery")
-    st.markdown("Discover and validate agencies and universities for specific states using the constrained discovery workflow.")
+    st.header("🏛️ Agency & Local Gov URL Discovery")
+    st.markdown("Unified URL discovery for State Agencies and identified Local Governments.")
 
     # Initialize Discovery Engine
     discovery_engine = DiscoveryEngine()
 
-    # Load Template
+    # Load Template (Standard Agencies)
     template = load_agency_template()
     search_scope = extract_search_scope(template)
-
-    st.write(f"Loaded {len(search_scope)} agency types to search for (e.g. {search_scope[:3]}...).")
 
     # Input Options
     col_ag1, col_ag2 = st.columns(2)
@@ -134,7 +235,7 @@ with tab_agencies:
         with col_ag2:
              st.info(f"Will process {len(target_agency_states)} states from DB.")
 
-    if st.button("🔍 Scrape Agencies", key="scrape_agencies_btn"):
+    if st.button("Start URL Discovery", key="start_url_discovery_btn"):
         if not api_key:
             st.error("DeepSeek API Key is required.")
         elif not target_agency_states:
@@ -142,45 +243,104 @@ with tab_agencies:
         else:
             progress_bar = st.progress(0)
             status_container = st.container()
-
-            total_tasks = len(target_agency_states) * len(search_scope)
-            tasks_completed = 0
-            new_agencies_count = 0
-
-            # Create a log area
             log_area = st.empty()
 
+            # We don't know how many local govs exist until we query DB, so progress bar will be approximate or just update relative to phases.
+            # Let's count total items first to be accurate
+            total_items = 0
+
+            # Prepare task list
+            tasks = [] # (state_id, state_name, type, name, category, phase)
+
             for state_name in target_agency_states:
-                # Get State ID
                 state_row = df_current_states[df_current_states['name'] == state_name]
-                if state_row.empty:
-                    continue
+                if state_row.empty: continue
                 state_id = int(state_row.iloc[0]['id'])
 
-                status_container.markdown(f"### Processing {state_name}...")
-
+                # Phase 1: Standard Agencies
                 for agency_type in search_scope:
-                    tasks_completed += 1
-                    progress_bar.progress(tasks_completed / total_tasks)
+                    tasks.append({
+                        "state_id": state_id, "state_name": state_name,
+                        "name": agency_type, "category": "state_agency",
+                        "phase": "standard", "pattern": None
+                    })
 
-                    log_area.text(f"Scanning {state_name}: {agency_type}...")
+                # Phase 2: Local Govs (url IS NULL)
+                # Get pending agencies without URL
+                pending_agencies = db.get_pending_local_agencies(state_id)
 
-                    # Discovery
-                    url, method = discovery_engine.find_agency_url(state_name, agency_type, ai_client)
+                for name, category in pending_agencies:
+                    tasks.append({
+                        "state_id": state_id, "state_name": state_name,
+                        "name": name, "category": category,
+                        "phase": "local", "pattern": None # Will fetch later
+                    })
 
-                    if url:
-                        # Deduplicate
-                        if not db.agency_exists(state_id, url):
-                            db.add_agency(state_id, agency_type, url, verified=True)
-                            new_agencies_count += 1
-                            status_container.write(f"✅ Found: **{agency_type}** ({method}) -> {url}")
+            total_items = len(tasks)
+            items_completed = 0
+            new_verified_count = 0
+
+            status_container.write(f"Found {total_items} discovery tasks.")
+
+            for task in tasks:
+                items_completed += 1
+                progress_bar.progress(items_completed / total_items)
+
+                state_name = task["state_name"]
+                name = task["name"]
+                category = task["category"]
+
+                log_area.text(f"Processing {state_name}: {name} ({task['phase']})...")
+
+                found_url = None
+                method = ""
+
+                if task["phase"] == "standard":
+                    # Standard Discovery (AI + Browser)
+                    found_url, method = discovery_engine.find_agency_url(state_name, name, ai_client)
+
+                    if found_url:
+                        # Deduplicate using standard logic (checks URL)
+                        if not db.agency_exists(task["state_id"], found_url):
+                            db.add_agency(task["state_id"], name, found_url, verified=True, category=category)
+                            new_verified_count += 1
+                            status_container.write(f"✅ Found Standard: **{name}** -> {found_url}")
                         else:
-                            status_container.write(f"⚠️ Duplicate: {agency_type} ({url})")
-                    else:
-                        status_container.write(f"❌ Not Found: {agency_type}")
+                            # Already exists
+                            pass
+
+                elif task["phase"] == "local":
+                    # Local Gov Discovery (Browser Query)
+                    patterns = get_search_patterns(category)
+
+                    # Construct Query
+                    query_name = name
+                    if patterns:
+                        # Try to format using the first pattern if it contains placeholder
+                        pat = patterns[0]
+                        if "[County Name]" in pat:
+                            query_name = pat.replace("[County Name]", name)
+                        elif "[City Name]" in pat:
+                            query_name = pat.replace("[City Name]", name)
+                        elif "[Town Name]" in pat:
+                            query_name = pat.replace("[Town Name]", name)
+                        else:
+                            query_name = f"{name} {pat}"
+
+                    query = f"{query_name} official site"
+
+                    found_url = discovery_engine.find_url_by_query(query)
+
+                    if found_url:
+                        try:
+                            db.update_agency_url(task["state_id"], name, category, found_url)
+                            new_verified_count += 1
+                            status_container.write(f"✅ Found Local: **{name}** -> {found_url}")
+                        except Exception as e:
+                            print(f"Error updating local gov: {e}")
 
             log_area.empty()
-            st.success(f"Discovery Complete! Added {new_agencies_count} new agencies.")
+            st.success(f"Discovery Process Complete! Verified {new_verified_count} URLs.")
 
     # Display Agencies Table
     st.divider()
