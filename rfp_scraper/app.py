@@ -240,57 +240,6 @@ with tab_scraper:
     with col_conf2:
         st.info("ℹ️ Deep Scan is now active by default for comprehensive coverage.")
 
-    # --- Persistent Data Display ---
-    st.subheader("Active Opportunities")
-
-    # 1. Load Data
-    state_filter = selected_scraper_state if scraper_mode == "Single State" else None
-    persistent_df = db.get_bids(state=state_filter)
-
-    # 2. Filter Logic (Deadline >= Today)
-    if not persistent_df.empty and 'deadline' in persistent_df.columns:
-        # Convert deadline to datetime, coerce errors to NaT
-        persistent_df['deadline_dt'] = pd.to_datetime(persistent_df['deadline'], errors='coerce')
-
-        # Determine today's date (normalized to midnight)
-        today = pd.Timestamp.now().normalize()
-
-        # Filter: Keep if valid date >= today.
-        # Note: We exclude NaT (invalid dates) per instruction "Filter out expired bids".
-        # If strict valid dates are required, drop NaT.
-        # If NaT means "Unknown Deadline", we might want to keep it?
-        # Decision: User said "Filter out expired (Deadline < Today)". NaT is not < Today.
-        # But usually construction bids have dates. I'll include NaT to be safe, or exclude?
-        # Plan says: "Filter rows where date is valid and >= Today". So exclude NaT if it doesn't match condition.
-        # Actually, "expired" usually implies we know it's old.
-        # I'll stick to: Keep if (dt >= today) OR (dt is NaT).
-        # Reason: NaT might be "Contact Agency" text. We don't want to hide those.
-
-        mask = (persistent_df['deadline_dt'] >= today) | (persistent_df['deadline_dt'].isna())
-        persistent_df = persistent_df[mask].drop(columns=['deadline_dt'])
-
-    # Display Container
-    bids_container = st.empty()
-    bids_container.dataframe(persistent_df, use_container_width=True)
-
-    # Export CSV (Persistent Data)
-    if not persistent_df.empty:
-        today_str = datetime.datetime.now().strftime("%Y%m%d")
-        if scraper_mode == "Single State" and selected_scraper_state:
-            state_slug = selected_scraper_state.replace(' ', '_')
-            filename = f"{state_slug}_rfps_{today_str}.csv"
-        else:
-            filename = f"all_rfps_{today_str}.csv"
-
-        csv_rfps = persistent_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            "📥 Download RFPs CSV",
-            csv_rfps,
-            filename,
-            "text/csv",
-            key='download-rfps-csv'
-        )
-
     # --- Scraping Logic ---
     def run_scraping(states_to_scrape, api_key_val):
         progress_bar = st.progress(0)
@@ -332,25 +281,51 @@ with tab_scraper:
         status_text.success("Scraping Complete!")
         return all_results
 
+    # --- Button Section (Moved Up) ---
     if st.button("🚀 Start Scraping", key="start_scraping_btn"):
         if not api_key:
             st.error("Deep Scan requires a DeepSeek API Key. Please provide it in the sidebar.")
         else:
-            results_df = run_scraping(target_states, api_key)
+            run_scraping(target_states, api_key)
+            # After scraping finishes, script continues...
+            # and next lines will fetch updated DB data.
 
-            # Refresh Persistent View
-            updated_df = db.get_bids(state=state_filter)
-            if not updated_df.empty and 'deadline' in updated_df.columns:
-                 updated_df['deadline_dt'] = pd.to_datetime(updated_df['deadline'], errors='coerce')
-                 today = pd.Timestamp.now().normalize()
-                 mask = (updated_df['deadline_dt'] >= today) | (updated_df['deadline_dt'].isna())
-                 updated_df = updated_df[mask].drop(columns=['deadline_dt'])
-            bids_container.dataframe(updated_df, use_container_width=True)
+    # --- Persistent Data Display ---
+    st.subheader("Active Opportunities")
 
-            # Session Results
-            if not results_df.empty:
-                st.divider()
-                st.subheader("Session Results (New & Updated)")
-                st.dataframe(results_df, use_container_width=True)
-            else:
-                st.warning("No opportunities found in this session.")
+    # 1. Load Data
+    state_filter = selected_scraper_state if scraper_mode == "Single State" else None
+    persistent_df = db.get_bids(state=state_filter)
+
+    # 2. Filter Logic (Deadline >= Today)
+    if not persistent_df.empty and 'deadline' in persistent_df.columns:
+        # Convert deadline to datetime, coerce errors to NaT
+        persistent_df['deadline_dt'] = pd.to_datetime(persistent_df['deadline'], errors='coerce')
+
+        # Determine today's date (normalized to midnight)
+        today = pd.Timestamp.now().normalize()
+
+        # Filter: Keep if valid date >= today.
+        mask = (persistent_df['deadline_dt'] >= today) | (persistent_df['deadline_dt'].isna())
+        persistent_df = persistent_df[mask].drop(columns=['deadline_dt'])
+
+    # Display Data
+    st.dataframe(persistent_df, use_container_width=True)
+
+    # Export CSV (Persistent Data)
+    if not persistent_df.empty:
+        today_str = datetime.datetime.now().strftime("%Y%m%d")
+        if scraper_mode == "Single State" and selected_scraper_state:
+            state_slug = selected_scraper_state.replace(' ', '_')
+            filename = f"{state_slug}_rfps_{today_str}.csv"
+        else:
+            filename = f"all_rfps_{today_str}.csv"
+
+        csv_rfps = persistent_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            "📥 Download RFPs CSV",
+            csv_rfps,
+            filename,
+            "text/csv",
+            key='download-rfps-csv'
+        )
