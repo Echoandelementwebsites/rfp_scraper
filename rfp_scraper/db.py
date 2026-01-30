@@ -57,6 +57,19 @@ class DatabaseHandler:
             )
         """)
 
+        # Table: local_jurisdictions (The Container)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS local_jurisdictions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                state_id INTEGER,
+                name TEXT,
+                type TEXT, -- 'county', 'city', 'town'
+                created_at TEXT,
+                FOREIGN KEY(state_id) REFERENCES states(id),
+                UNIQUE(state_id, name, type)
+            )
+        """)
+
         # Table for Agencies
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS agencies (
@@ -67,7 +80,9 @@ class DatabaseHandler:
                 verified INTEGER DEFAULT 0,
                 created_at TEXT,
                 category TEXT DEFAULT 'state_agency',
-                FOREIGN KEY(state_id) REFERENCES states(id)
+                local_jurisdiction_id INTEGER,
+                FOREIGN KEY(state_id) REFERENCES states(id),
+                FOREIGN KEY(local_jurisdiction_id) REFERENCES local_jurisdictions(id)
             )
         """)
 
@@ -77,6 +92,43 @@ class DatabaseHandler:
         except sqlite3.OperationalError:
             # Column missing, add it
             cursor.execute("ALTER TABLE agencies ADD COLUMN category TEXT DEFAULT 'state_agency'")
+
+        # Migration: Ensure local_jurisdiction_id column exists
+        try:
+            cursor.execute("SELECT local_jurisdiction_id FROM agencies LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE agencies ADD COLUMN local_jurisdiction_id INTEGER")
+
+        # --- Data Migration ---
+        # Move "pending" agencies (no URL) to local_jurisdictions
+
+        # 1. Select candidates
+        cursor.execute("""
+            SELECT id, state_id, organization_name, category, created_at
+            FROM agencies
+            WHERE (url IS NULL OR url = '')
+              AND category IN ('county', 'city', 'town')
+        """)
+        pending_rows = cursor.fetchall()
+
+        ids_to_delete = []
+        for row in pending_rows:
+            agency_id, state_id, name, category, created_at = row
+            # Insert into local_jurisdictions
+            try:
+                cursor.execute("""
+                    INSERT INTO local_jurisdictions (state_id, name, type, created_at)
+                    VALUES (?, ?, ?, ?)
+                """, (state_id, name, category, created_at))
+            except sqlite3.IntegrityError:
+                # Duplicate, skip
+                pass
+            ids_to_delete.append(agency_id)
+
+        # 2. Delete migrated rows from agencies
+        if ids_to_delete:
+            cursor.execute(f"DELETE FROM agencies WHERE id IN ({','.join(['?']*len(ids_to_delete))})", ids_to_delete)
+            print(f"Migrated {len(ids_to_delete)} pending agencies to local_jurisdictions.")
 
         conn.commit()
         conn.close()
@@ -126,34 +178,46 @@ class DatabaseHandler:
             conn.close()
         return df
 
-    def get_pending_local_agencies(self, state_id: int) -> List[Tuple[str, str]]:
-        """Get list of (organization_name, category) for agencies without URLs."""
+    def get_local_jurisdictions(self, state_id: Optional[int] = None) -> pd.DataFrame:
+        """Retrieve local jurisdictions, optionally filtered by state."""
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT organization_name, category
-            FROM agencies
-            WHERE state_id = ? AND (url IS NULL OR url = '') AND category IN ('county', 'city', 'town')
-        """, (state_id,))
-        rows = cursor.fetchall()
-        conn.close()
-        return rows
-
-    def update_agency_url(self, state_id: int, name: str, category: str, url: str):
-        """Update the URL and verification status of an existing agency."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
         try:
-            cursor.execute("""
-                UPDATE agencies
-                SET url = ?, verified = 1
-                WHERE state_id = ? AND organization_name = ? AND category = ?
-            """, (url, state_id, name, category))
-            conn.commit()
-        except sqlite3.Error as e:
-            print(f"Error updating agency URL: {e}")
+            if state_id:
+                query = "SELECT * FROM local_jurisdictions WHERE state_id = ?"
+                df = pd.read_sql_query(query, conn, params=(state_id,))
+            else:
+                query = "SELECT * FROM local_jurisdictions"
+                df = pd.read_sql_query(query, conn)
+        except Exception:
+             df = pd.DataFrame(columns=['id', 'state_id', 'name', 'type', 'created_at'])
         finally:
             conn.close()
+        return df
+
+    def append_local_jurisdiction(self, state_id: int, name: str, jurisdiction_type: str) -> int:
+        """
+        Add a local jurisdiction if it doesn't exist.
+        Returns the ID of the jurisdiction.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Check existence
+        cursor.execute("SELECT id FROM local_jurisdictions WHERE state_id = ? AND name = ? AND type = ?", (state_id, name, jurisdiction_type))
+        row = cursor.fetchone()
+
+        if row:
+            conn.close()
+            return row[0]
+
+        # Insert
+        created_at = datetime.datetime.now().isoformat()
+        cursor.execute("INSERT INTO local_jurisdictions (state_id, name, type, created_at) VALUES (?, ?, ?, ?)",
+                       (state_id, name, jurisdiction_type, created_at))
+        new_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return new_id
 
     def add_discovered_url(self, url: str, state: str):
         """Add a discovered URL to the log if it doesn't exist."""
@@ -254,11 +318,11 @@ class DatabaseHandler:
             url = url[:-1]
         return url
 
-    def agency_exists(self, state_id: int, url: Optional[str] = None, name: Optional[str] = None, category: Optional[str] = None) -> bool:
+    def agency_exists(self, state_id: int, url: Optional[str] = None, name: Optional[str] = None, category: Optional[str] = None, local_jurisdiction_id: Optional[int] = None) -> bool:
         """
         Check if an agency exists for a specific state.
         If URL is provided, check by normalized URL.
-        If URL is None, check by (state_id, organization_name, category).
+        If URL is None, check by (state_id, organization_name, category, local_jurisdiction_id).
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -275,12 +339,20 @@ class DatabaseHandler:
                     return True
             return False
 
-        # If no URL, check by name and category
+        # If no URL, check by name, category, and local_jurisdiction_id
         if name and category:
-            cursor.execute("""
-                SELECT 1 FROM agencies
-                WHERE state_id = ? AND organization_name = ? AND category = ?
-            """, (state_id, name, category))
+            # Handle NULL explicitly for local_jurisdiction_id in SQL
+            if local_jurisdiction_id is None:
+                cursor.execute("""
+                    SELECT 1 FROM agencies
+                    WHERE state_id = ? AND organization_name = ? AND category = ? AND local_jurisdiction_id IS NULL
+                """, (state_id, name, category))
+            else:
+                cursor.execute("""
+                    SELECT 1 FROM agencies
+                    WHERE state_id = ? AND organization_name = ? AND category = ? AND local_jurisdiction_id = ?
+                """, (state_id, name, category, local_jurisdiction_id))
+
             exists = cursor.fetchone() is not None
             conn.close()
             return exists
@@ -288,33 +360,13 @@ class DatabaseHandler:
         conn.close()
         return False
 
-    def get_agency_by_url(self, url: str) -> Optional[dict]:
-        """Retrieve an agency by its URL."""
-        normalized_url = self._normalize_url(url)
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, state_id, organization_name, url, verified FROM agencies")
-        rows = cursor.fetchall()
-        conn.close()
-
-        for row in rows:
-            if self._normalize_url(row[3]) == normalized_url:
-                return {
-                    "id": row[0],
-                    "state_id": row[1],
-                    "organization_name": row[2],
-                    "url": row[3],
-                    "verified": bool(row[4])
-                }
-        return None
-
-    def add_agency(self, state_id: int, name: str, url: Optional[str] = None, verified: bool = False, category: str = 'state_agency'):
+    def add_agency(self, state_id: int, name: str, url: Optional[str] = None, verified: bool = False, category: str = 'state_agency', local_jurisdiction_id: Optional[int] = None):
         """Insert an agency linked to a state, ensuring no duplicates."""
         # Clean inputs
         if url:
             url = url.strip()
 
-        if self.agency_exists(state_id, url=url, name=name, category=category):
+        if self.agency_exists(state_id, url=url, name=name, category=category, local_jurisdiction_id=local_jurisdiction_id):
             print(f"Skipping duplicate agency: {name} (URL: {url}) for state_id {state_id}")
             return
 
@@ -324,9 +376,9 @@ class DatabaseHandler:
         verified_int = 1 if verified else 0
         try:
             cursor.execute("""
-                INSERT INTO agencies (state_id, organization_name, url, verified, created_at, category)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (state_id, name, url, verified_int, created_at, category))
+                INSERT INTO agencies (state_id, organization_name, url, verified, created_at, category, local_jurisdiction_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (state_id, name, url, verified_int, created_at, category, local_jurisdiction_id))
             conn.commit()
         except sqlite3.Error as e:
             print(f"Error adding agency: {e}")
@@ -340,7 +392,7 @@ class DatabaseHandler:
             query = "SELECT * FROM agencies WHERE state_id = ?"
             df = pd.read_sql_query(query, conn, params=(state_id,))
         except Exception:
-            df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category'])
+            df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'local_jurisdiction_id'])
         finally:
             conn.close()
         return df
@@ -357,7 +409,7 @@ class DatabaseHandler:
             """
             df = pd.read_sql_query(query, conn)
         except Exception:
-             df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'state_name'])
+             df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'local_jurisdiction_id', 'state_name'])
         finally:
             conn.close()
         return df

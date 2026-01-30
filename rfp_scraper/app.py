@@ -25,7 +25,7 @@ from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url
 from rfp_scraper.discovery import DiscoveryEngine
-from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_search_patterns
+from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_patterns
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -147,18 +147,18 @@ with tab_local_gov:
                 # Call AI
                 jurisdictions = ai_client.generate_local_jurisdictions(state_name)
 
-                # Save to DB
+                # Save to DB (Persistence to local_jurisdictions table)
                 # Counties
                 for county in jurisdictions.get("counties", []):
-                    db.add_agency(state_id, county, url=None, category="county")
+                    db.append_local_jurisdiction(state_id, county, "county")
 
                 # Cities
                 for city in jurisdictions.get("cities", []):
-                    db.add_agency(state_id, city, url=None, category="city")
+                    db.append_local_jurisdiction(state_id, city, "city")
 
                 # Towns
                 for town in jurisdictions.get("towns", []):
-                    db.add_agency(state_id, town, url=None, category="town")
+                    db.append_local_jurisdiction(state_id, town, "town")
 
                 progress_bar_lg.progress((i + 1) / total_lg_states)
 
@@ -167,15 +167,20 @@ with tab_local_gov:
     # Display Table
     st.subheader("Identified Local Governments")
 
-    # Get all agencies and filter for local categories
-    df_all_agencies = db.get_all_agencies()
-    local_categories = ['county', 'city', 'town']
+    df_local_govs = db.get_local_jurisdictions()
 
-    # Filter by category
-    if not df_all_agencies.empty and 'category' in df_all_agencies.columns:
-        df_local_govs = df_all_agencies[df_all_agencies['category'].isin(local_categories)]
-    else:
-        df_local_govs = pd.DataFrame()
+    # Join with states to get state name for better display
+    if not df_local_govs.empty and not df_current_states_lg.empty:
+        df_local_govs = df_local_govs.merge(
+            df_current_states_lg[['id', 'name']],
+            left_on='state_id',
+            right_on='id',
+            suffixes=('', '_state')
+        ).rename(columns={'name_state': 'state_name'}).drop(columns=['id_state'])
+
+        # Reorder columns
+        cols = ['state_name', 'name', 'type', 'created_at']
+        df_local_govs = df_local_govs[cols]
 
     # Filter by state if single mode
     if lg_mode == "Single State" and selected_lg_state and not df_local_govs.empty:
@@ -188,9 +193,9 @@ with tab_local_gov:
         today_str_lg = datetime.datetime.now().strftime("%Y%m%d")
         if lg_mode == "Single State" and selected_lg_state:
             state_slug = selected_lg_state.replace(' ', '_')
-            filename_lg = f"{state_slug}_towns_cities_counties_{today_str_lg}.csv"
+            filename_lg = f"{state_slug}_local_jurisdictions_{today_str_lg}.csv"
         else:
-            filename_lg = f"all_towns_cities_counties_{today_str_lg}.csv"
+            filename_lg = f"all_local_jurisdictions_{today_str_lg}.csv"
 
         csv_lg = df_local_govs.to_csv(index=False).encode('utf-8')
         st.download_button(
@@ -245,10 +250,6 @@ with tab_agencies:
             status_container = st.container()
             log_area = st.empty()
 
-            # We don't know how many local govs exist until we query DB, so progress bar will be approximate or just update relative to phases.
-            # Let's count total items first to be accurate
-            total_items = 0
-
             # Prepare task list
             tasks = [] # (state_id, state_name, type, name, category, phase)
 
@@ -257,24 +258,36 @@ with tab_agencies:
                 if state_row.empty: continue
                 state_id = int(state_row.iloc[0]['id'])
 
-                # Phase 1: Standard Agencies
+                # Phase 1: Standard Agencies (State Level)
                 for agency_type in search_scope:
                     tasks.append({
                         "state_id": state_id, "state_name": state_name,
                         "name": agency_type, "category": "state_agency",
-                        "phase": "standard", "pattern": None
+                        "phase": "standard", "pattern": None, "jurisdiction_id": None
                     })
 
-                # Phase 2: Local Govs (url IS NULL)
-                # Get pending agencies without URL
-                pending_agencies = db.get_pending_local_agencies(state_id)
+                # Phase 2: Local Govs (Iterate Jurisdictions)
+                local_jurisdictions = db.get_local_jurisdictions(state_id=state_id)
 
-                for name, category in pending_agencies:
-                    tasks.append({
-                        "state_id": state_id, "state_name": state_name,
-                        "name": name, "category": category,
-                        "phase": "local", "pattern": None # Will fetch later
-                    })
+                for _, juris_row in local_jurisdictions.iterrows():
+                    juris_id = int(juris_row['id'])
+                    juris_name = juris_row['name']
+                    juris_type = juris_row['type']
+
+                    # Get patterns for this jurisdiction type
+                    patterns_map = get_local_patterns(juris_type)
+
+                    for category_key, patterns in patterns_map.items():
+                        # We create a task for each category (Main, Purchasing, etc.)
+                        tasks.append({
+                            "state_id": state_id,
+                            "state_name": state_name,
+                            "name": juris_name, # The jurisdiction name (e.g. "Chicago")
+                            "category": category_key, # e.g. 'main_office', 'public_works'
+                            "phase": "local",
+                            "patterns": patterns,
+                            "jurisdiction_id": juris_id
+                        })
 
             total_items = len(tasks)
             items_completed = 0
@@ -290,7 +303,10 @@ with tab_agencies:
                 name = task["name"]
                 category = task["category"]
 
-                log_area.text(f"Processing {state_name}: {name} ({task['phase']})...")
+                if task["phase"] == "standard":
+                     log_area.text(f"Processing {state_name}: {name} ({task['phase']})...")
+                else:
+                     log_area.text(f"Processing {state_name}: {name} - {category} ({task['phase']})...")
 
                 found_url = None
                 method = ""
@@ -310,34 +326,52 @@ with tab_agencies:
                             pass
 
                 elif task["phase"] == "local":
-                    # Local Gov Discovery (Browser Query)
-                    patterns = get_search_patterns(category)
+                    # Local Gov Discovery (Browser Query with Patterns)
+                    patterns = task["patterns"]
+                    juris_name = task["name"]
 
-                    # Construct Query
-                    query_name = name
-                    if patterns:
-                        # Try to format using the first pattern if it contains placeholder
-                        pat = patterns[0]
-                        if "[County Name]" in pat:
-                            query_name = pat.replace("[County Name]", name)
-                        elif "[City Name]" in pat:
-                            query_name = pat.replace("[City Name]", name)
-                        elif "[Town Name]" in pat:
-                            query_name = pat.replace("[Town Name]", name)
-                        else:
-                            query_name = f"{name} {pat}"
+                    found_url = None
 
-                    query = f"{query_name} official site"
+                    # Iterate patterns to find a URL
+                    for pat in patterns:
+                        # Construct Query
+                        query_name = pat
 
-                    found_url = discovery_engine.find_url_by_query(query)
+                        # Replace placeholders
+                        if "[County Name]" in query_name:
+                             query_name = query_name.replace("[County Name]", juris_name)
+                        if "[City Name]" in query_name:
+                             query_name = query_name.replace("[City Name]", juris_name)
+                        if "[Town Name]" in query_name:
+                             query_name = query_name.replace("[Town Name]", juris_name)
+                        if "[Jurisdiction]" in query_name:
+                             query_name = query_name.replace("[Jurisdiction]", juris_name)
+
+                        query = f"{query_name} official site"
+
+                        # Use discovery engine
+                        found_url = discovery_engine.find_url_by_query(query)
+                        if found_url:
+                            break # Found one, stop checking patterns for this category
 
                     if found_url:
-                        try:
-                            db.update_agency_url(task["state_id"], name, category, found_url)
-                            new_verified_count += 1
-                            status_container.write(f"✅ Found Local: **{name}** -> {found_url}")
-                        except Exception as e:
-                            print(f"Error updating local gov: {e}")
+                         # Construct Display Name
+                         display_name = f"{juris_name} {category.replace('_', ' ').title()}"
+                         if category == 'main_office':
+                             display_name = juris_name # Just "City of Chicago" for main office
+
+                         # Check deduplication
+                         if not db.agency_exists(task["state_id"], url=found_url, name=display_name, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
+                             db.add_agency(
+                                 state_id=task["state_id"],
+                                 name=display_name,
+                                 url=found_url,
+                                 verified=True,
+                                 category=category,
+                                 local_jurisdiction_id=task["jurisdiction_id"]
+                             )
+                             new_verified_count += 1
+                             status_container.write(f"✅ Found Local: **{display_name}** -> {found_url}")
 
             log_area.empty()
             st.success(f"Discovery Process Complete! Verified {new_verified_count} URLs.")
