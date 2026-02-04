@@ -211,7 +211,7 @@ with tab_local_gov:
 # ==========================================
 with tab_agencies:
     st.header("🏛️ Agency & Local Gov URL Discovery")
-    st.markdown("Unified URL discovery for State Agencies and identified Local Governments.")
+    st.markdown("Unified URL discovery for State Agencies and identified Local Governments (AI-Native).")
 
     # Initialize Discovery Engine
     discovery_engine = DiscoveryEngine()
@@ -263,7 +263,7 @@ with tab_agencies:
                     tasks.append({
                         "state_id": state_id, "state_name": state_name,
                         "name": agency_type, "category": "state_agency",
-                        "phase": "standard", "pattern": None, "jurisdiction_id": None
+                        "phase": "standard", "jurisdiction_id": None
                     })
 
                 # Phase 2: Local Govs (Iterate Jurisdictions)
@@ -274,18 +274,17 @@ with tab_agencies:
                     juris_name = juris_row['name']
                     juris_type = juris_row['type']
 
-                    # Get patterns for this jurisdiction type (Top-Level Categories)
-                    patterns_map = get_local_search_scope(juris_type)
+                    # Get categories for this jurisdiction type (List[str])
+                    categories = get_local_search_scope(juris_type)
 
-                    for category_key, patterns in patterns_map.items():
+                    for category in categories:
                         # We create a task for each category (Main Office, Public Works, etc.)
                         tasks.append({
                             "state_id": state_id,
                             "state_name": state_name,
                             "name": juris_name, # The jurisdiction name (e.g. "Chicago")
-                            "category": category_key, # e.g. 'Main Office', 'Public Works'
+                            "category": category, # e.g. 'Main Office', 'Public Works'
                             "phase": "local",
-                            "patterns": patterns,
                             "jurisdiction_id": juris_id,
                             "jurisdiction_type": juris_type
                         })
@@ -327,69 +326,29 @@ with tab_agencies:
                             pass
 
                 elif task["phase"] == "local":
-                    # Local Gov Discovery (Browser Query with Patterns)
-                    patterns = task["patterns"]
+                    # AI-Native Local Gov Discovery
                     juris_name = task["name"]
 
-                    found_url = None
+                    # Construct Query
+                    query = f"Official website for {juris_name} {category}"
+                    if category == "Main Office":
+                        query = f"Official website for {juris_name}"
 
-                    # Iterate patterns to find a URL
-                    for pat in patterns:
-                        # Construct Query
-                        query_name = pat
+                    # 1. Fetch Raw Results (No filtering)
+                    raw_results = discovery_engine.fetch_search_context(query)
 
-                        # Replace placeholders
-                        if "[County Name]" in query_name:
-                             query_name = query_name.replace("[County Name]", juris_name)
-                        if "[City Name]" in query_name:
-                             query_name = query_name.replace("[City Name]", juris_name)
-                        if "[Town Name]" in query_name:
-                             query_name = query_name.replace("[Town Name]", juris_name)
-                        if "[Jurisdiction]" in query_name:
-                             query_name = query_name.replace("[Jurisdiction]", juris_name)
-
-                        query = f"{query_name} official site"
-
-                        # Use discovery engine
-                        found_url = discovery_engine.find_url_by_query(query)
-                        if found_url:
-                            break # Found one, stop checking patterns for this category
-
-                    # Stage 2: Deep Search Fallback
-                    if not found_url:
-                        # Construct generic query
-                        search_query = f"{juris_name} {category} official website"
-                        if category == 'Main Office':
-                             search_query = f"{juris_name} official website"
-
-                        # Call discovery.get_raw_candidates(query, limit=5)
-                        candidates = discovery_engine.get_raw_candidates(search_query, limit=5)
-
-                        if candidates:
-                            domain_rules = get_domain_patterns(task["jurisdiction_type"])
-
-                            found_url = ai_client.find_agency_in_search_results(
-                                agency_name=category if category != 'Main Office' else juris_name,
-                                jurisdiction=juris_name,
-                                candidates=candidates,
-                                domain_rules=domain_rules
-                            )
-
-                            # Verify reachability if AI returned a URL
-                            if found_url:
-                                if not check_url_reachability(found_url):
-                                    found_url = None # Reject if unreachable
-                                else:
-                                    method = "AI Deep Search"
+                    # 2. AI Analysis
+                    if raw_results:
+                         found_url = ai_client.analyze_serp_results(juris_name, category, raw_results)
 
                     if found_url:
-                         # Construct Display Name
-                         display_name = f"{juris_name} {category}"
-                         if category == 'Main Office':
-                             display_name = juris_name # Just "City of Chicago" for main office
+                        # Construct Display Name
+                        display_name = f"{juris_name} {category}"
+                        if category == 'Main Office':
+                             display_name = juris_name
 
-                         # Check deduplication
-                         if not db.agency_exists(task["state_id"], url=found_url, name=display_name, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
+                        # Check deduplication
+                        if not db.agency_exists(task["state_id"], url=found_url, name=display_name, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
                              db.add_agency(
                                  state_id=task["state_id"],
                                  name=display_name,
@@ -399,10 +358,7 @@ with tab_agencies:
                                  local_jurisdiction_id=task["jurisdiction_id"]
                              )
                              new_verified_count += 1
-                             if method == "AI Deep Search":
-                                 status_container.write(f"🤖 Found (AI Fallback): **{display_name}** -> {found_url}")
-                             else:
-                                 status_container.write(f"✅ Found (Standard): **{display_name}** -> {found_url}")
+                             status_container.write(f"🤖 Found (AI Native): **{display_name}** -> {found_url}")
 
             log_area.empty()
             st.success(f"Discovery Process Complete! Verified {new_verified_count} URLs.")
