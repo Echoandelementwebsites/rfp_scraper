@@ -23,9 +23,9 @@ from rfp_scraper.factory import ScraperFactory
 from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
-from rfp_scraper.utils import validate_url
+from rfp_scraper.utils import validate_url, check_url_reachability
 from rfp_scraper.discovery import DiscoveryEngine
-from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope
+from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -286,7 +286,8 @@ with tab_agencies:
                             "category": category_key, # e.g. 'Main Office', 'Public Works'
                             "phase": "local",
                             "patterns": patterns,
-                            "jurisdiction_id": juris_id
+                            "jurisdiction_id": juris_id,
+                            "jurisdiction_type": juris_type
                         })
 
             total_items = len(tasks)
@@ -353,6 +354,26 @@ with tab_agencies:
                         found_url = discovery_engine.find_url_by_query(query)
                         if found_url:
                             break # Found one, stop checking patterns for this category
+
+                    # Stage 2: Deep Search Fallback
+                    if not found_url:
+                        # Construct generic query
+                        search_query = f"{juris_name} {category} official site"
+                        if category == 'Main Office':
+                             search_query = f"{juris_name} official site"
+
+                        candidates = discovery_engine.search_and_rank_candidates(search_query)
+
+                        if candidates:
+                            domain_rules = get_domain_patterns(task["jurisdiction_type"])
+                            found_url = ai_client.identify_best_agency_url(candidates, f"{juris_name} {category}", domain_rules)
+
+                            # Verify reachability if AI returned a URL
+                            if found_url:
+                                if not check_url_reachability(found_url):
+                                    found_url = None # Reject if unreachable
+                                else:
+                                    method = "AI Deep Search"
 
                     if found_url:
                          # Construct Display Name

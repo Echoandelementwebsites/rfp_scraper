@@ -1,5 +1,5 @@
 from duckduckgo_search import DDGS
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, Dict
 import time
 from rfp_scraper.utils import validate_url
 
@@ -78,3 +78,26 @@ class DiscoveryEngine:
             print(f"DDG Search error for query '{query}': {e}")
 
         return None
+
+    def search_and_rank_candidates(self, query: str, num_results: int = 5) -> List[Dict]:
+        """
+        Perform the search (via DuckDuckGo) but return the top results
+        (Title, URL, Snippet) instead of just the first verified URL.
+        This provides the "raw material" for the AI to analyze.
+        """
+        candidates = []
+        try:
+            with DDGS() as ddgs:
+                # Add a small delay to be polite
+                time.sleep(1)
+                results = ddgs.text(query, max_results=num_results)
+                for res in results:
+                    candidates.append({
+                        "title": res.get('title', ''),
+                        "url": res.get('href', ''),
+                        "snippet": res.get('body', '')
+                    })
+        except Exception as e:
+            print(f"DDG Search error for Deep Search query '{query}': {e}")
+
+        return candidates

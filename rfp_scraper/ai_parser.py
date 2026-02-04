@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -269,3 +269,47 @@ class DeepSeekClient:
         except Exception as e:
             print(f"Error generating local jurisdictions for {state_name}: {e}")
             return {"counties": [], "cities": [], "towns": []}
+
+    def identify_best_agency_url(self, candidates: List[Dict], agency_name: str, domain_rules: List[str]) -> Optional[str]:
+        """
+        Identifies the best matching URL from a list of search candidates using AI.
+        """
+        if not self.api_key or not candidates:
+            return None
+
+        # Format candidates for prompt
+        candidates_formatted = json.dumps(candidates, indent=2)
+        domain_rules_str = ", ".join(domain_rules)
+
+        prompt = (
+            f"You are a research analyst. Below are search results for '{agency_name}'. "
+            "Your goal is to find the Official Government Homepage for this specific department.\n\n"
+            f"Validation Rules:\n"
+            f"1. Prioritize domains ending in: {domain_rules_str}.\n"
+            "2. Reject social media (Facebook, LinkedIn), news articles, and PDF documents.\n"
+            "3. The URL must point to the agency's main landing page or the city's department sub-page.\n\n"
+            f"Search Results:\n{candidates_formatted}\n\n"
+            "Return ONLY a JSON object with one key 'url'. "
+            "If none are the official site, return 'url': null."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" },
+            )
+
+            content = response.choices[0].message.content
+            data = self._clean_and_parse_json(content)
+
+            if isinstance(data, dict):
+                return data.get("url")
+
+            return None
+
+        except Exception as e:
+            print(f"Error identifying best agency URL for {agency_name}: {e}")
+            return None

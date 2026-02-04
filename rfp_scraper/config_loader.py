@@ -161,3 +161,22 @@ def extract_search_scope(template: Dict[str, Any]) -> List[str]:
             scope.append("State Veterans Home")
 
     return list(set(scope)) # De-dupe just in case
+
+def get_domain_patterns(jurisdiction_type: str) -> List[str]:
+    """
+    Extracts valid domain patterns from the configuration for a given jurisdiction type.
+    """
+    patterns = []
+    try:
+        template = load_cities_template()
+        domain_patterns = template.get("domain_patterns", [])
+
+        for entry in domain_patterns:
+            institution_types = entry.get("institution_type", [])
+            if jurisdiction_type in institution_types:
+                patterns.append(entry.get("pattern", ""))
+
+    except Exception as e:
+        print(f"Error extracting domain patterns for {jurisdiction_type}: {e}")
+
+    return patterns
