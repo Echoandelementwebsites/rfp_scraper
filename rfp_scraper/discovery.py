@@ -101,3 +101,10 @@ class DiscoveryEngine:
             print(f"DDG Search error for Deep Search query '{query}': {e}")
 
         return candidates
+
+    def get_raw_candidates(self, query: str, limit: int = 5) -> List[Dict]:
+        """
+        Retrieves raw search candidates without strict filtering.
+        Wrapper around search_and_rank_candidates to match the requested API.
+        """
+        return self.search_and_rank_candidates(query, num_results=limit)

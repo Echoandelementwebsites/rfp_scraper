@@ -358,15 +358,22 @@ with tab_agencies:
                     # Stage 2: Deep Search Fallback
                     if not found_url:
                         # Construct generic query
-                        search_query = f"{juris_name} {category} official site"
+                        search_query = f"{juris_name} {category} official website"
                         if category == 'Main Office':
-                             search_query = f"{juris_name} official site"
+                             search_query = f"{juris_name} official website"
 
-                        candidates = discovery_engine.search_and_rank_candidates(search_query)
+                        # Call discovery.get_raw_candidates(query, limit=5)
+                        candidates = discovery_engine.get_raw_candidates(search_query, limit=5)
 
                         if candidates:
                             domain_rules = get_domain_patterns(task["jurisdiction_type"])
-                            found_url = ai_client.identify_best_agency_url(candidates, f"{juris_name} {category}", domain_rules)
+
+                            found_url = ai_client.find_agency_in_search_results(
+                                agency_name=category if category != 'Main Office' else juris_name,
+                                jurisdiction=juris_name,
+                                candidates=candidates,
+                                domain_rules=domain_rules
+                            )
 
                             # Verify reachability if AI returned a URL
                             if found_url:
@@ -392,7 +399,10 @@ with tab_agencies:
                                  local_jurisdiction_id=task["jurisdiction_id"]
                              )
                              new_verified_count += 1
-                             status_container.write(f"✅ Found Local: **{display_name}** -> {found_url}")
+                             if method == "AI Deep Search":
+                                 status_container.write(f"🤖 Found (AI Fallback): **{display_name}** -> {found_url}")
+                             else:
+                                 status_container.write(f"✅ Found (Standard): **{display_name}** -> {found_url}")
 
             log_area.empty()
             st.success(f"Discovery Process Complete! Verified {new_verified_count} URLs.")

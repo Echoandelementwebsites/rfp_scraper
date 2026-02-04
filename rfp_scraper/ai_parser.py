@@ -313,3 +313,50 @@ class DeepSeekClient:
         except Exception as e:
             print(f"Error identifying best agency URL for {agency_name}: {e}")
             return None
+
+    def find_agency_in_search_results(self, agency_name: str, jurisdiction: str, candidates: List[Dict], domain_rules: List[str]) -> Optional[str]:
+        """
+        Analyzes search results and picks the best agency URL.
+        """
+        if not self.api_key or not candidates:
+            return None
+
+        candidates_formatted = json.dumps(candidates, indent=2)
+        domain_rules_str = ", ".join(domain_rules) if domain_rules else ".gov, .org, state.us"
+
+        prompt = (
+            f"I am looking for the official website for {agency_name} in {jurisdiction}. Here are the top search results: {candidates_formatted}\n\n"
+            "Rules:\n\n"
+            f"    Identify the official government link (prioritize {domain_rules_str} like .gov, .org, state.us).\n\n"
+            "    Ignore social media, news articles, and third-party directories.\n\n"
+            "    If the official link is present, return ONLY the URL.\n\n"
+            "    If no official link is found, return 'None'."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+            )
+
+            content = response.choices[0].message.content.strip()
+
+            # Handle potential None string
+            if content.lower() == 'none' or not content:
+                return None
+
+            # Basic cleanup if the model adds quotes or markdown
+            if content.startswith("```"):
+                content = content.strip("`").strip()
+            if content.startswith("'") and content.endswith("'"):
+                content = content[1:-1]
+            if content.startswith('"') and content.endswith('"'):
+                content = content[1:-1]
+
+            return content
+
+        except Exception as e:
+            print(f"Error in find_agency_in_search_results: {e}")
+            return None
