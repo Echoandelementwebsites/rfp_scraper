@@ -50,30 +50,63 @@ def get_local_search_scope(jurisdiction_type: str) -> Dict[str, List[str]]:
         template = load_cities_template()
 
         # 1. Main Office
-        conventions = template.get("general_naming_conventions", {})
-        key_map = {
-            'county': 'county_level',
-            'city': 'city_level',
-            'town': 'town_level'
-        }
+        naming_patterns = template.get("naming_patterns", [])
+        main_office_patterns = []
 
-        section_key = key_map.get(jurisdiction_type)
-        if section_key:
-            main_patterns = conventions.get(section_key, {}).get("patterns", [])
-            if main_patterns:
-                patterns['Main Office'] = main_patterns
+        # Target placeholders based on jurisdiction type
+        target_placeholders = ["[Jurisdiction]"]
+        if jurisdiction_type == 'city':
+            target_placeholders.append("[City Name]")
+        elif jurisdiction_type == 'county':
+            target_placeholders.append("[County Name]")
+        elif jurisdiction_type == 'town':
+            target_placeholders.append("[Town Name]")
+
+        for entry in naming_patterns:
+            pattern = entry.get("pattern", "")
+            # check if pattern contains any of the target placeholders
+            if any(ph in pattern for ph in target_placeholders):
+                main_office_patterns.append(pattern)
+
+        if main_office_patterns:
+            patterns['Main Office'] = list(set(main_office_patterns))
 
         # 2. Common Services (Aggregated by Top-Level Key)
         services = template.get("common_local_services", {})
-        for top_category, subgroups in services.items():
+
+        for service_key, service_info in services.items():
             # Convert snake_case (public_works) to Title Case (Public Works)
-            category_name = top_category.replace('_', ' ').title()
+            category_name = service_key.replace('_', ' ').title()
 
             aggregated_patterns = []
 
-            for service_key, service_info in subgroups.items():
-                if isinstance(service_info, dict) and "naming_patterns" in service_info:
-                    aggregated_patterns.extend(service_info["naming_patterns"])
+            # typical_name: Add this string directly
+            if "typical_name" in service_info:
+                aggregated_patterns.append(service_info["typical_name"])
+
+            # variations: If present, add all strings in this list
+            if "variations" in service_info:
+                aggregated_patterns.extend(service_info["variations"])
+
+            # common_subsidiaries: If present (List of Dicts), extract name_pattern
+            common_subsidiaries = service_info.get("common_subsidiaries", [])
+            for sub in common_subsidiaries:
+                if isinstance(sub, dict) and "name_pattern" in sub:
+                    aggregated_patterns.append(sub["name_pattern"])
+
+            # sub_agencies: If present (List of Strings), prepend [Jurisdiction]
+            sub_agencies = service_info.get("sub_agencies", [])
+            for sub in sub_agencies:
+                aggregated_patterns.append(f"[Jurisdiction] {sub}")
+
+            # related_services: If present (List of Strings), prepend [Jurisdiction]
+            related_services = service_info.get("related_services", [])
+            for related in related_services:
+                aggregated_patterns.append(f"[Jurisdiction] {related}")
+
+            # acronym: If present, prepend [Jurisdiction]
+            if "acronym" in service_info:
+                aggregated_patterns.append(f"[Jurisdiction] {service_info['acronym']}")
 
             if aggregated_patterns:
                 patterns[category_name] = list(set(aggregated_patterns)) # Dedupe
