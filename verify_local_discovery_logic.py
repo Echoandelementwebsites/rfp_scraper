@@ -33,79 +33,74 @@ class TestLocalDiscovery(unittest.TestCase):
 
     def test_local_discovery_flow(self):
         """
-        Simulate the logic in app.py Phase 2
+        Simulate the AI-Native logic in app.py Phase 2
         """
         print("\nTesting Local Discovery Flow...")
 
         # 1. Fetch Scope
-        patterns_map = get_local_search_scope(self.juris_type)
-        self.assertIn("Main Office", patterns_map)
-        self.assertIn("Public Works", patterns_map)
+        categories = get_local_search_scope(self.juris_type)
+        self.assertIsInstance(categories, list)
+        self.assertIn("Main Office", categories)
+        self.assertIn("Public Works", categories)
 
-        # 2. Mock Discovery Engine
+        # 2. Mock Discovery Engine & AI Client
         mock_discovery = MagicMock()
+        mock_ai_client = MagicMock()
 
-        def side_effect(query):
-            if "TestCity" in query and "official site" in query:
-                # Main Office Specifics
-                if "City of TestCity" in query or "City Government" in query or "Municipal Government" in query:
-                    return "http://testcity.gov"
+        # Mock Search Results
+        def fetch_side_effect(query, num_results=10):
+            return [{"title": "Result", "url": "http://example.com", "snippet": "Snippet"}]
+        mock_discovery.fetch_search_context.side_effect = fetch_side_effect
 
-                # Public Works Specifics
-                # We want to ensure that if ANY Public Works pattern is hit, it returns the PW URL
-                # OR returns None so the loop continues to the next pattern.
-                if "Public Works" in query or "Water Department" in query:
-                    return "http://testcity.gov/pw"
-
-                # For other patterns in Public Works (like Sanitation, Waste, etc.)
-                # If we don't define them here, they return None (implicit),
-                # causing the loop to try the next pattern until it hits one of the above.
-                return None
+        # Mock AI Analysis
+        def analyze_side_effect(jurisdiction, category, results):
+            if category == "Main Office":
+                return "http://testcity.gov"
+            if category == "Public Works":
+                return "http://testcity.gov/pw"
             return None
+        mock_ai_client.analyze_serp_results.side_effect = analyze_side_effect
 
-        mock_discovery.find_url_by_query.side_effect = side_effect
-
-        # 3. Simulate Loop
+        # 3. Simulate Loop (from app.py)
         tasks = []
-        for category_key, patterns in patterns_map.items():
+        for category in categories:
             tasks.append({
                 "state_id": self.state_id,
                 "name": self.city_name,
-                "category": category_key,
-                "patterns": patterns,
+                "category": category,
+                "phase": "ai_native_local",
                 "jurisdiction_id": self.juris_id
             })
 
         print(f"Generated {len(tasks)} tasks.")
 
         for task in tasks:
-            category = task["category"]
+            # Only process relevant categories for test speed/clarity
+            if task["category"] not in ["Main Office", "Public Works"]:
+                continue
+
             juris_name = task["name"]
-            patterns = task["patterns"]
+            category = task["category"]
 
-            # Simulate Browser Query Loop
-            found_url = None
-            for pat in patterns:
-                query_name = pat
-                # Replace placeholders
-                query_name = query_name.replace("[City Name]", juris_name)
-                query_name = query_name.replace("[Jurisdiction]", juris_name)
+            # 1. Construct Query
+            query = f"Official website for {juris_name} {category}"
 
-                query = f"{query_name} official site"
-                found_url = mock_discovery.find_url_by_query(query)
-                if found_url:
-                    break
+            # 2. Fetch Raw Results
+            raw_results = mock_discovery.fetch_search_context(query, num_results=8)
+
+            # 3. AI Analysis
+            found_url = mock_ai_client.analyze_serp_results(juris_name, category, raw_results)
 
             if found_url:
-                # Construct Display Name logic
+                # Display Name logic
                 display_name = f"{juris_name} {category}"
-                if category == 'Main Office':
+                if category == "Main Office":
                     display_name = juris_name
 
                 # Save
-                if not self.db.agency_exists(self.state_id, url=found_url, name=display_name, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
+                if not self.db.agency_exists(task["state_id"], url=found_url, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
                     self.db.add_agency(
-                        state_id=self.state_id,
+                        state_id=task["state_id"],
                         name=display_name,
                         url=found_url,
                         verified=True,

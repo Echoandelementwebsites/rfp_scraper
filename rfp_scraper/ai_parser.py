@@ -361,25 +361,28 @@ class DeepSeekClient:
             print(f"Error in find_agency_in_search_results: {e}")
             return None
 
-    def analyze_serp_results(self, jurisdiction: str, service_category: str, search_results: List[Dict]) -> Optional[str]:
+    def analyze_serp_results(self, jurisdiction: str, service_category: str, search_results: List[dict]) -> Optional[str]:
         """
-        Analyzes SERP results to find the official government landing page for a specific department.
+        Analyzes raw search results to find the official government landing page.
         """
         if not self.api_key or not search_results:
             return None
 
-        formatted_results = json.dumps(search_results, indent=2)
+        # Format results for the prompt
+        results_text = ""
+        for i, res in enumerate(search_results):
+            results_text += f"Result {i+1}:\nTitle: {res.get('title', '')}\nURL: {res.get('url', '')}\nSnippet: {res.get('snippet', '')}\n\n"
 
         prompt = (
-            f"I am finding the official website for {service_category} in {jurisdiction}. Below are the top search results.\n\n"
-            "Your Task:\n"
-            "    Analyze the Titles, Snippets, and URLs.\n"
-            "    Identify the Single Official Government Landing Page for this specific department.\n"
-            "    Strict Exclusion: Reject news articles, social media (Facebook/LinkedIn), PDF files, and third-party directories (like YellowPages).\n"
-            "    Preference: Prefer .gov, .org, or state-specific domains (e.g., .tx.us).\n\n"
-            f"Search Results: {formatted_results}\n\n"
-            "If you find a high-confidence official URL, return it. Otherwise, return 'None'. "
-            "Return ONLY the URL string (or 'None') - no JSON, no markdown, no explanation."
+            f"I am finding the official website for **{service_category}** in **{jurisdiction}**.\n"
+            "Below are the top search results.\n\n"
+            "**Your Task:**\n"
+            "1. Identify the **Single Official Government Landing Page** for this specific department.\n"
+            "2. **Strict Exclusion:** Reject news articles, social media (Facebook/LinkedIn), PDF files, and third-party directories.\n"
+            "3. **Preference:** Prefer .gov, .org, or state-specific domains (e.g., .tx.us).\n"
+            "4. **Logic:** If looking for 'Public Works' and you see 'city.gov/public-works', that is the correct link.\n\n"
+            f"**Search Results:**\n{results_text}\n\n"
+            "Return ONLY a JSON object with one key 'url'. If no official URL is found, set 'url': null."
         )
 
         try:
@@ -388,34 +391,17 @@ class DeepSeekClient:
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
+                response_format={ "type": "json_object" },
             )
 
-            content = response.choices[0].message.content.strip()
+            content = response.choices[0].message.content
+            data = self._clean_and_parse_json(content)
 
-            # Handle potential None string
-            if content.lower() == 'none' or not content:
-                return None
+            if isinstance(data, dict):
+                return data.get("url")
 
-            # Basic cleanup if the model adds quotes or markdown
-            if content.startswith("```"):
-                content = content.strip("`").strip()
-            if content.startswith("'") and content.endswith("'"):
-                content = content[1:-1]
-            if content.startswith('"') and content.endswith('"'):
-                content = content[1:-1]
-
-            # Additional check to ensure it looks like a URL
-            if not content.startswith("http"):
-                # Sometimes models chat "The url is https..."
-                if "http" in content:
-                    import re
-                    match = re.search(r'(https?://[^\s]+)', content)
-                    if match:
-                        return match.group(1)
-                return None
-
-            return content
+            return None
 
         except Exception as e:
-            print(f"Error in analyze_serp_results: {e}")
+            print(f"Error analyzing SERP: {e}")
             return None
