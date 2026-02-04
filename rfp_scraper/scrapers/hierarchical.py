@@ -25,28 +25,68 @@ class HierarchicalScraper(BaseScraper):
             try:
                 base_df = self.base_scraper.scrape(page)
                 if not base_df.empty:
-                    # Sanitize: Convert NaN to None to ensure boolean checks work
+                    # Sanitize
                     base_df = base_df.where(pd.notnull(base_df), None)
                     base_records = base_df.to_dict('records')
-                    results.extend(base_records)
 
-                    # Persistence: Save Level 1 results to DB
+                    print(f"Standard Scraper found {len(base_records)} items. Starting Strict Verification...")
+
                     for row in base_records:
-                        # Extract fields safely
                         client = row.get('clientName') or row.get('client') or "Unknown Client"
                         title = row.get('title') or "Untitled"
                         deadline = row.get('deadline')
-
-                        # Determine link
                         link = row.get('portfolioLink') or row.get('link') or ""
 
-                        # Determine slug
+                        # Generate slug early for potential checks
                         if 'slug' in row and row['slug']:
                             slug = row['slug']
                         else:
                             slug = self.db.generate_slug(title, client, link)
 
-                        self.db.insert_bid(slug, client, title, deadline, link, state=self.state_name)
+                        # Filter 1: Link Existence
+                        if not link:
+                            print(f"Skipping {title}: No link provided.")
+                            continue
+
+                        rfp_description = ""
+                        try:
+                            # Filter 2: Link Accessibility & Content Extraction
+                            # We must verify the link is accessible (not 404/403) and get content
+                            print(f"Verifying: {title} -> {link}")
+
+                            # Navigate
+                            try:
+                                response = page.goto(link, wait_until="domcontentloaded", timeout=20000)
+                            except Exception:
+                                response = None
+
+                            if not response or response.status >= 400:
+                                print(f"Broken link ({response.status if response else 'Error'}): {link}")
+                                continue
+
+                            # Extract Text
+                            rfp_description = page.evaluate("document.body.innerText")
+                            if not rfp_description:
+                                rfp_description = ""
+
+                        except Exception as e:
+                            print(f"Link verification failed for {link}: {e}")
+                            continue
+
+                        # Filter 3: Construction Relevance (AI)
+                        if self.ai_parser:
+                            is_relevant = self.ai_parser.validate_construction_relevance(title, rfp_description)
+                            if not is_relevant:
+                                print(f"Skipping {title}: Not relevant to construction.")
+                                continue
+
+                        # If we passed all filters:
+                        print(f"Accepted: {title}")
+                        self.db.insert_bid(slug, client, title, deadline, link, state=self.state_name, rfp_description=rfp_description)
+
+                        # Add to results list
+                        row['rfp_description'] = rfp_description
+                        results.append(row)
 
             except Exception as e:
                 print(f"Standard scraper failed for {self.state_name}: {e}")
@@ -55,7 +95,6 @@ class HierarchicalScraper(BaseScraper):
         print(f"Running Deep Scan for {self.state_name}...")
 
         # Fetch agencies from DB
-        # Look up state_id by name
         df_states = self.db.get_all_states()
         state_row = df_states[df_states['name'] == self.state_name]
 
@@ -86,10 +125,9 @@ class HierarchicalScraper(BaseScraper):
                 page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
                 # Extract Text (Cleaned)
-                # We want visible text mostly
                 content = page.evaluate("document.body.innerText")
 
-                # AI Parsing
+                # AI Parsing (Implicitly checks relevance by asking for 'construction RFP opportunities')
                 extracted_bids = self.ai_parser.parse_rfp_content(content)
 
                 for bid in extracted_bids:
@@ -103,7 +141,8 @@ class HierarchicalScraper(BaseScraper):
                     slug = self.db.generate_slug(title, client, url)
 
                     # Save to DB (Persistence)
-                    self.db.insert_bid(slug, client, title, deadline, url, state=self.state_name)
+                    # Note: For Deep Scan, 'description' extracted by AI serves as rfp_description
+                    self.db.insert_bid(slug, client, title, deadline, url, state=self.state_name, rfp_description=description)
 
                     # Append to results for current run
                     results.append({
@@ -111,8 +150,9 @@ class HierarchicalScraper(BaseScraper):
                         "client": client,
                         "deadline": deadline,
                         "description": description,
-                        "link": url, # Using source URL as link since we don't have deep links from AI yet
-                        "source_type": "Deep Scan"
+                        "link": url,
+                        "source_type": "Deep Scan",
+                        "rfp_description": description
                     })
 
             except Exception as e:

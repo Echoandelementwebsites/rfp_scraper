@@ -1,73 +1,81 @@
-# CT Construction RFP Scraper & Dashboard (v2)
+# National Construction RFP Scraper (DeepSeek AI Powered)
 
-A specialized tool to scrape, filter, and aggregate "Request for Proposal" (RFP) data for construction projects from official Connecticut state sources.
+A specialized tool to scrape, filter, and aggregate "Request for Proposal" (RFP) data for construction projects from state and local government sources across the US.
 
 ## Features
 
-*   **Targeted Scraping**: Retrieves opportunities from:
-    *   [CTsource Bid Board](https://portal.ct.gov/das/ctsource/bidboard) (Official State Portal)
-    *   [UConn Capital Projects](https://cpfp.procurement.uconn.edu/construction-current-opportunities-2020-2/)
-*   **Strict Date Filtering**: Automatically discards RFPs that are due within **4 days** to ensure only actionable opportunities are presented.
-    *   *Logic*: `Deadline >= (Current Date + 4 Days)`
-*   **Data Normalization**: Standardizes diverse source data into a clean CSV format.
-*   **Interactive Dashboard**: A user-friendly Streamlit interface to trigger scrapes, view progress, and download results.
+*   **National Coverage**: Modular architecture supports scraping across all 50 states.
+*   **AI-Driven Discovery**:
+    *   **State Agencies**: Automatically finds official procurement sites for agencies and universities.
+    *   **Local Governments**: Identifies counties, cities, and towns and discovers their specific department pages (e.g., "City of Hartford Public Works").
+*   **Strict Filtering**:
+    *   **Relevance Check**: Uses DeepSeek AI to analyze bid titles and content, ensuring only Construction/Architecture/Engineering bids are saved.
+    *   **Link Verification**: Physically visits every deep link to ensure accessibility (no 404s/403s) before listing.
+    *   **Deadlines**: Automatically filters out opportunities due within **4 days** to ensure actionability.
+*   **Data Persistence**: Uses SQLite to store discovery data and scraped bids.
+*   **Deep Scan**: Recursively scans agency websites to find opportunities not listed on main portals.
+*   **Interactive Dashboard**: A Streamlit interface for managing discovery, viewing data, and running scrapers.
 
 ## Prerequisites
 
 *   Python 3.9+
-*   Google Chrome / Chromium (managed by Playwright)
+*   `DEEPSEEK_API_KEY` (Required for AI features and strict filtering)
 
 ## Installation
 
-1.  Navigate to the project directory:
+1.  Clone the repository:
     ```bash
+    git clone <repo_url>
     cd rfp_scraper
     ```
 
-2.  Install Python dependencies:
+2.  Install dependencies:
     ```bash
     pip install -r requirements.txt
     ```
 
-3.  Install Playwright browsers (Chromium):
+3.  Install Playwright browsers:
     ```bash
     playwright install chromium
     ```
 
+4.  Set up Environment:
+    Create a `.env` file in the root directory:
+    ```
+    DEEPSEEK_API_KEY=your_key_here
+    ```
+
 ## Usage
 
-### Run the Dashboard (Recommended)
-
-Start the Streamlit interface:
+Start the dashboard:
 
 ```bash
-streamlit run app.py
+streamlit run rfp_scraper/app.py
 ```
 
-This will open a local web server (typically `http://localhost:8501`) where you can:
-1.  Select the region (default: Connecticut).
-2.  Click **"Scrape RFPs"**.
-3.  View the "Total Found" vs. "Qualified" metrics.
-4.  Download the filtered CSV.
+### Workflow
 
-### Run the Scraper Standalone
+1.  **States Tab**: Generate the master list of US States.
+2.  **Local Governments Tab**: Use AI to identify counties, cities, and towns for your target state.
+3.  **State Agencies Tab**: Run "URL Discovery" to find official websites for state agencies and local departments (e.g., "Public Works").
+4.  **RFP Scraper Tab**:
+    *   Select a state or "Scrape All".
+    *   Click **Start Scraping**.
+    *   The scraper will visit portals, verify links, and use AI to filter results.
+    *   **Download**:
+        *   **CSV**: Summary view (clean table).
+        *   **JSON**: Full data dump including full text descriptions (`rfp_description`).
 
-You can also run the scraper logic directly from the command line for testing or automation:
+## Export Formats
 
-```bash
-python scraper.py
-```
-This will save a file named `ct_construction_rfps_[YYYY-MM-DD].csv` in the current directory.
+*   **CSV**: Contains `slug`, `client_name`, `title`, `deadline`, `scraped_at`, `source_url`, `state`.
+*   **JSON**: Contains all CSV fields plus `rfp_description` (full page text extracted from the bid link).
 
-## Output Schema
+## Deployment
 
-The generated CSV contains the following columns:
-*   `clientName`: Agency issuing the bid (e.g., UConn, CT DAS).
-*   `title`: Project title.
-*   `slug`: URL-friendly identifier.
-*   `description`: Brief summary.
-*   `deadline`: Submission deadline (ISO 8601).
-*   `budgetMin`: Estimated budget (0 if not specified).
-*   `jobCity`: Inferred city location.
-*   `portfolioLink`: Direct URL to the solicitation.
-*   ...and more.
+### Streamlit Cloud
+
+1.  Push code to GitHub.
+2.  Connect repository to Streamlit Cloud.
+3.  Add `DEEPSEEK_API_KEY` to Streamlit Secrets.
+4.  The `requirements.txt` and `packages.txt` (if applicable) handle dependencies.

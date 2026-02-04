@@ -28,10 +28,12 @@ def load_cities_template(filepath: str = "cities_towns_dictionary.json") -> Dict
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def get_local_patterns(jurisdiction_type: str) -> Dict[str, List[str]]:
+def get_local_search_scope(jurisdiction_type: str) -> Dict[str, List[str]]:
     """
-    Returns a dictionary of categories and their search patterns for a given jurisdiction type.
-    Includes 'main_office' and service-specific categories.
+    Returns a dictionary of Top-Level Categories and their aggregated search patterns
+    for a given jurisdiction type.
+
+    Structure: {'Public Works': ['[Jurisdiction] Water', ...], 'Main Office': [...]}
     """
     patterns = {}
     try:
@@ -49,20 +51,31 @@ def get_local_patterns(jurisdiction_type: str) -> Dict[str, List[str]]:
         if section_key:
             main_patterns = conventions.get(section_key, {}).get("patterns", [])
             if main_patterns:
-                patterns['main_office'] = main_patterns
+                patterns['Main Office'] = main_patterns
 
-        # 2. Common Services
+        # 2. Common Services (Aggregated by Top-Level Key)
         services = template.get("common_local_services", {})
-        for group, subgroups in services.items():
+        for top_category, subgroups in services.items():
+            # Convert snake_case (public_works) to Title Case (Public Works)
+            category_name = top_category.replace('_', ' ').title()
+
+            aggregated_patterns = []
+
             for service_key, service_info in subgroups.items():
                 if isinstance(service_info, dict) and "naming_patterns" in service_info:
-                    # Use service_key (e.g. 'police', 'water_sewer') as category
-                    patterns[service_key] = service_info["naming_patterns"]
+                    aggregated_patterns.extend(service_info["naming_patterns"])
+
+            if aggregated_patterns:
+                patterns[category_name] = list(set(aggregated_patterns)) # Dedupe
 
     except Exception as e:
         print(f"Error loading local patterns for {jurisdiction_type}: {e}")
 
     return patterns
+
+# Deprecated but kept for compatibility if needed (though we will refactor usage)
+def get_local_patterns(jurisdiction_type: str) -> Dict[str, List[str]]:
+    return get_local_search_scope(jurisdiction_type)
 
 def extract_search_scope(template: Dict[str, Any]) -> List[str]:
     """
