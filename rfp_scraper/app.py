@@ -25,7 +25,7 @@ from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url, check_url_reachability
 from rfp_scraper.discovery import DiscoveryEngine
-from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns
+from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
