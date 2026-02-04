@@ -1,6 +1,7 @@
 playwright
 pandas
 streamlit
+altair<5
 beautifulsoup4
 python-dateutil
 duckduckgo-search
