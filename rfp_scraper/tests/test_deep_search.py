@@ -7,7 +7,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 
 from rfp_scraper.discovery import DiscoveryEngine
 from rfp_scraper.ai_parser import DeepSeekClient
-from rfp_scraper.config_loader import get_domain_patterns
 
 class TestDeepSearch(unittest.TestCase):
 
@@ -44,13 +43,23 @@ class TestDeepSearch(unittest.TestCase):
 
         self.assertEqual(url, "http://verified.gov")
 
-    def test_get_domain_patterns(self):
-        # This tests loading the real JSON file, which is fine
-        patterns = get_domain_patterns("county")
-        self.assertIsInstance(patterns, list)
-        # Assuming at least one pattern exists for county
-        self.assertTrue(len(patterns) > 0)
-        self.assertIn("[countyname]county.gov", patterns)
+    @patch('rfp_scraper.ai_parser.OpenAI')
+    def test_analyze_serp_results(self, mock_openai):
+        client = DeepSeekClient(api_key="fake-key")
+
+        # Mock chat completion
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = '{"url": "http://verified.gov"}'
+        client.client.chat.completions.create.return_value = mock_response
+
+        candidates = [{'title': 'T', 'url': 'U', 'snippet': 'S'}]
+        url = client.analyze_serp_results("Jurisdiction", "Service", candidates)
+
+        self.assertEqual(url, "http://verified.gov")
+
+        # Verify JSON mode was used
+        call_args = client.client.chat.completions.create.call_args
+        self.assertEqual(call_args[1]['response_format'], { "type": "json_object" })
 
 if __name__ == '__main__':
     unittest.main()

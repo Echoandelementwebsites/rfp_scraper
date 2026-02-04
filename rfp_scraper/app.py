@@ -266,7 +266,7 @@ with tab_agencies:
                         "phase": "standard", "jurisdiction_id": None
                     })
 
-                # Phase 2: Local Govs (Iterate Jurisdictions)
+                # Phase 2: Local Governments (AI-Native)
                 local_jurisdictions = db.get_local_jurisdictions(state_id=state_id)
 
                 for _, juris_row in local_jurisdictions.iterrows():
@@ -274,19 +274,17 @@ with tab_agencies:
                     juris_name = juris_row['name']
                     juris_type = juris_row['type']
 
-                    # Get categories for this jurisdiction type (List[str])
+                    # Get simple list of categories (e.g. ['Public Works', 'Police'])
                     categories = get_local_search_scope(juris_type)
 
                     for category in categories:
-                        # We create a task for each category (Main Office, Public Works, etc.)
                         tasks.append({
                             "state_id": state_id,
                             "state_name": state_name,
-                            "name": juris_name, # The jurisdiction name (e.g. "Chicago")
-                            "category": category, # e.g. 'Main Office', 'Public Works'
-                            "phase": "local",
-                            "jurisdiction_id": juris_id,
-                            "jurisdiction_type": juris_type
+                            "name": juris_name,
+                            "category": category,
+                            "phase": "ai_native_local",  # New Phase Name
+                            "jurisdiction_id": juris_id
                         })
 
             total_items = len(tasks)
@@ -325,40 +323,40 @@ with tab_agencies:
                             # Already exists
                             pass
 
-                elif task["phase"] == "local":
-                    # AI-Native Local Gov Discovery
+                elif task["phase"] == "ai_native_local":
+                    # NEW AI-NATIVE LOGIC
                     juris_name = task["name"]
+                    category = task["category"]
 
-                    # Construct Query
+                    log_area.text(f"🤖 AI Searching: {juris_name} - {category}...")
+
+                    # 1. Construct Natural Query
                     query = f"Official website for {juris_name} {category}"
-                    if category == "Main Office":
-                        query = f"Official website for {juris_name}"
 
-                    # 1. Fetch Raw Results (No filtering)
-                    raw_results = discovery_engine.fetch_search_context(query)
+                    # 2. Get Raw Context
+                    raw_results = discovery_engine.fetch_search_context(query, num_results=8)
 
-                    # 2. AI Analysis
-                    if raw_results:
-                         found_url = ai_client.analyze_serp_results(juris_name, category, raw_results)
+                    # 3. AI Analysis
+                    found_url = ai_client.analyze_serp_results(juris_name, category, raw_results)
 
                     if found_url:
-                        # Construct Display Name
+                        # Display Name: "Chicago Public Works"
                         display_name = f"{juris_name} {category}"
-                        if category == 'Main Office':
-                             display_name = juris_name
+                        if category == "Main Office":
+                            display_name = juris_name
 
                         # Check deduplication
-                        if not db.agency_exists(task["state_id"], url=found_url, name=display_name, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
-                             db.add_agency(
-                                 state_id=task["state_id"],
-                                 name=display_name,
-                                 url=found_url,
-                                 verified=True,
-                                 category=category,
-                                 local_jurisdiction_id=task["jurisdiction_id"]
-                             )
-                             new_verified_count += 1
-                             status_container.write(f"🤖 Found (AI Native): **{display_name}** -> {found_url}")
+                        if not db.agency_exists(task["state_id"], url=found_url, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
+                            db.add_agency(
+                                state_id=task["state_id"],
+                                name=display_name,
+                                url=found_url,
+                                verified=True,  # AI-Verified
+                                category=category,
+                                local_jurisdiction_id=task["jurisdiction_id"]
+                            )
+                            new_verified_count += 1
+                            status_container.write(f"✅ Found (AI): **{display_name}** -> {found_url}")
 
             log_area.empty()
             st.success(f"Discovery Process Complete! Verified {new_verified_count} URLs.")
