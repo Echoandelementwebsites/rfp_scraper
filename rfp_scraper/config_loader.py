@@ -2,28 +2,38 @@ import json
 import os
 from typing import List, Dict, Any
 
-def load_agency_template(filepath: str = "state_agency_dictionary.json") -> Dict[str, Any]:
+def get_absolute_path(filename: str) -> str:
+    """Helper to resolve file paths relative to the project root."""
+    # Assuming config_loader.py is in rfp_scraper/ directory,
+    # and json files are in the root (one level up).
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(base_dir)
+    return os.path.join(project_root, filename)
+
+def load_agency_template(filename: str = "state_agency_dictionary.json") -> Dict[str, Any]:
     """Load the agency schema from JSON file."""
+    filepath = get_absolute_path(filename)
+
     if not os.path.exists(filepath):
-        # Fallback for different execution contexts
-        alt_path = os.path.join(os.path.dirname(__file__), "..", filepath)
-        if os.path.exists(alt_path):
-            filepath = alt_path
-        else:
-            raise FileNotFoundError(f"Configuration file not found at {filepath}")
+         # Try local existence (legacy support if moved)
+         if os.path.exists(filename):
+             filepath = filename
+         else:
+             raise FileNotFoundError(f"Configuration file not found at {filepath}")
 
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def load_cities_template(filepath: str = "cities_towns_dictionary.json") -> Dict[str, Any]:
+def load_cities_template(filename: str = "cities_towns_dictionary.json") -> Dict[str, Any]:
     """Load the cities/towns/counties schema from JSON file."""
+    filepath = get_absolute_path(filename)
+
     if not os.path.exists(filepath):
-        # Fallback for different execution contexts
-        alt_path = os.path.join(os.path.dirname(__file__), "..", filepath)
-        if os.path.exists(alt_path):
-            filepath = alt_path
-        else:
-            raise FileNotFoundError(f"Configuration file not found at {filepath}")
+         # Try local existence
+         if os.path.exists(filename):
+             filepath = filename
+         else:
+             raise FileNotFoundError(f"Configuration file not found at {filepath}")
 
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
