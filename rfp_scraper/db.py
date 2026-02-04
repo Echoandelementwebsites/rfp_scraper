@@ -27,7 +27,8 @@ class DatabaseHandler:
                 deadline TEXT,
                 scraped_at TEXT,
                 source_url TEXT,
-                state TEXT
+                state TEXT,
+                rfp_description TEXT
             )
         """)
 
@@ -37,6 +38,12 @@ class DatabaseHandler:
         except sqlite3.OperationalError:
             # Column missing, add it
             cursor.execute("ALTER TABLE scraped_bids ADD COLUMN state TEXT DEFAULT 'Unknown'")
+
+        # Migration: Ensure rfp_description column exists
+        try:
+            cursor.execute("SELECT rfp_description FROM scraped_bids LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE scraped_bids ADD COLUMN rfp_description TEXT")
 
         # Table for discovery log (Attempts/Queue)
         cursor.execute("""
@@ -142,20 +149,21 @@ class DatabaseHandler:
         conn.close()
         return exists
 
-    def insert_bid(self, slug: str, client_name: str, title: str, deadline: str, source_url: str, state: str = "Unknown"):
+    def insert_bid(self, slug: str, client_name: str, title: str, deadline: str, source_url: str, state: str = "Unknown", rfp_description: Optional[str] = None):
         """Insert a new bid into the database or update if exists."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         scraped_at = datetime.datetime.now().isoformat()
         try:
             cursor.execute("""
-                INSERT INTO scraped_bids (slug, client_name, title, deadline, scraped_at, source_url, state)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO scraped_bids (slug, client_name, title, deadline, scraped_at, source_url, state, rfp_description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(slug) DO UPDATE SET
                     state=excluded.state,
                     scraped_at=excluded.scraped_at,
-                    deadline=excluded.deadline
-            """, (slug, client_name, title, deadline, scraped_at, source_url, state))
+                    deadline=excluded.deadline,
+                    rfp_description=COALESCE(excluded.rfp_description, scraped_bids.rfp_description)
+            """, (slug, client_name, title, deadline, scraped_at, source_url, state, rfp_description))
             conn.commit()
         except sqlite3.Error as e:
             print(f"Error inserting bid: {e}")
@@ -173,7 +181,7 @@ class DatabaseHandler:
                 query = "SELECT * FROM scraped_bids"
                 df = pd.read_sql_query(query, conn)
         except Exception:
-            df = pd.DataFrame(columns=['slug', 'client_name', 'title', 'deadline', 'scraped_at', 'source_url', 'state'])
+            df = pd.DataFrame(columns=['slug', 'client_name', 'title', 'deadline', 'scraped_at', 'source_url', 'state', 'rfp_description'])
         finally:
             conn.close()
         return df
@@ -398,18 +406,22 @@ class DatabaseHandler:
         return df
 
     def get_all_agencies(self) -> pd.DataFrame:
-        """Return all agencies with their associated state names."""
+        """Return all agencies with their associated state names and jurisdiction labels."""
         conn = sqlite3.connect(self.db_path)
         try:
             query = """
-                SELECT a.*, s.name as state_name
+                SELECT
+                    a.*,
+                    s.name as state_name,
+                    COALESCE(lj.name || ' (' || lj.type || ')', s.name) as jurisdiction_label
                 FROM agencies a
                 JOIN states s ON a.state_id = s.id
+                LEFT JOIN local_jurisdictions lj ON a.local_jurisdiction_id = lj.id
                 ORDER BY s.name, a.organization_name
             """
             df = pd.read_sql_query(query, conn)
         except Exception:
-             df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'local_jurisdiction_id', 'state_name'])
+             df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'local_jurisdiction_id', 'state_name', 'jurisdiction_label'])
         finally:
             conn.close()
         return df

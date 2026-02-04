@@ -25,7 +25,7 @@ from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url
 from rfp_scraper.discovery import DiscoveryEngine
-from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_patterns
+from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -274,16 +274,16 @@ with tab_agencies:
                     juris_name = juris_row['name']
                     juris_type = juris_row['type']
 
-                    # Get patterns for this jurisdiction type
-                    patterns_map = get_local_patterns(juris_type)
+                    # Get patterns for this jurisdiction type (Top-Level Categories)
+                    patterns_map = get_local_search_scope(juris_type)
 
                     for category_key, patterns in patterns_map.items():
-                        # We create a task for each category (Main, Purchasing, etc.)
+                        # We create a task for each category (Main Office, Public Works, etc.)
                         tasks.append({
                             "state_id": state_id,
                             "state_name": state_name,
                             "name": juris_name, # The jurisdiction name (e.g. "Chicago")
-                            "category": category_key, # e.g. 'main_office', 'public_works'
+                            "category": category_key, # e.g. 'Main Office', 'Public Works'
                             "phase": "local",
                             "patterns": patterns,
                             "jurisdiction_id": juris_id
@@ -356,8 +356,8 @@ with tab_agencies:
 
                     if found_url:
                          # Construct Display Name
-                         display_name = f"{juris_name} {category.replace('_', ' ').title()}"
-                         if category == 'main_office':
+                         display_name = f"{juris_name} {category}"
+                         if category == 'Main Office':
                              display_name = juris_name # Just "City of Chicago" for main office
 
                          # Check deduplication
@@ -385,7 +385,15 @@ with tab_agencies:
     if agency_mode == "Single State" and selected_agency_state:
         df_agencies = df_agencies[df_agencies['state_name'] == selected_agency_state]
 
-    st.dataframe(df_agencies, use_container_width=True)
+    # Hide internal IDs and use jurisdiction label
+    if not df_agencies.empty:
+        # Columns to display
+        display_cols = ['state_name', 'jurisdiction_label', 'organization_name', 'url', 'category', 'verified', 'created_at']
+        # Filter only existing columns just in case
+        display_cols = [c for c in display_cols if c in df_agencies.columns]
+        st.dataframe(df_agencies[display_cols], use_container_width=True)
+    else:
+        st.dataframe(df_agencies, use_container_width=True)
 
     # Export
     if not df_agencies.empty:
@@ -503,23 +511,41 @@ with tab_scraper:
         mask = (persistent_df['deadline_dt'] >= today) | (persistent_df['deadline_dt'].isna())
         persistent_df = persistent_df[mask].drop(columns=['deadline_dt'])
 
-    # Display Data
-    st.dataframe(persistent_df, use_container_width=True)
+    # Display Data (Exclude Description)
+    display_df = persistent_df.copy()
+    if 'rfp_description' in display_df.columns:
+        display_df = display_df.drop(columns=['rfp_description'])
+    st.dataframe(display_df, use_container_width=True)
 
-    # Export CSV (Persistent Data)
+    # Export Section
     if not persistent_df.empty:
         today_str = datetime.datetime.now().strftime("%Y%m%d")
         if scraper_mode == "Single State" and selected_scraper_state:
             state_slug = selected_scraper_state.replace(' ', '_')
-            filename = f"{state_slug}_rfps_{today_str}.csv"
+            base_filename = f"{state_slug}_rfps_{today_str}"
         else:
-            filename = f"all_rfps_{today_str}.csv"
+            base_filename = f"all_rfps_{today_str}"
 
-        csv_rfps = persistent_df.to_csv(index=False).encode('utf-8')
+        # 1. CSV Download (Clean - No Description)
+        csv_df = persistent_df.copy()
+        if 'rfp_description' in csv_df.columns:
+            csv_df = csv_df.drop(columns=['rfp_description'])
+
+        csv_rfps = csv_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            "📥 Download RFPs CSV",
+            "📥 Download RFPs CSV (Summary)",
             csv_rfps,
-            filename,
+            f"{base_filename}.csv",
             "text/csv",
             key='download-rfps-csv'
+        )
+
+        # 2. JSON Download (Full Data - With Description)
+        json_rfps = persistent_df.to_json(orient='records', indent=2).encode('utf-8')
+        st.download_button(
+            "📥 Download RFP .json (Full Data)",
+            json_rfps,
+            f"{base_filename}.json",
+            "application/json",
+            key='download-rfps-json'
         )

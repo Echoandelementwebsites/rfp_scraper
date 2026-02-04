@@ -35,6 +35,49 @@ class DeepSeekClient:
 
         return json.loads(content)
 
+    def validate_construction_relevance(self, title: str, text_content: str) -> bool:
+        """
+        Determines if the content is related to construction, architecture, or engineering.
+        """
+        if not self.api_key:
+            # If no API key is provided, we cannot validate strictly.
+            # Depending on policy, we might fail open or closed.
+            # Given "Strict Filtering", failing closed (False) makes sense,
+            # but usually users without keys want to see something.
+            # However, this feature is dependent on AI.
+            return False
+
+        prompt = (
+            "You are a construction bid analyst. Determine if the following RFP is related to "
+            "Construction, Architecture, Engineering, Roadwork, Infrastructure, or Public Works. "
+            "Ignore software, IT, or consulting unless it is explicitly engineering/architectural consulting. "
+            "Return ONLY a JSON object with one key 'is_relevant' (boolean)."
+        )
+
+        user_content = f"Title: {title}\n\nSnippet: {text_content[:2000]}"
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": user_content}
+                ],
+                response_format={ "type": "json_object" },
+            )
+
+            content = response.choices[0].message.content
+            data = self._clean_and_parse_json(content)
+
+            if isinstance(data, dict):
+                return data.get("is_relevant", False)
+
+            return False
+
+        except Exception as e:
+            print(f"Error validating relevance: {e}")
+            return False
+
     def parse_rfp_content(self, text_content: str) -> List[dict]:
         """
         Parses raw text content using DeepSeek API to extract RFP opportunities.
