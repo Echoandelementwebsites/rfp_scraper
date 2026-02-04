@@ -360,3 +360,62 @@ class DeepSeekClient:
         except Exception as e:
             print(f"Error in find_agency_in_search_results: {e}")
             return None
+
+    def analyze_serp_results(self, jurisdiction: str, service_category: str, search_results: List[Dict]) -> Optional[str]:
+        """
+        Analyzes SERP results to find the official government landing page for a specific department.
+        """
+        if not self.api_key or not search_results:
+            return None
+
+        formatted_results = json.dumps(search_results, indent=2)
+
+        prompt = (
+            f"I am finding the official website for {service_category} in {jurisdiction}. Below are the top search results.\n\n"
+            "Your Task:\n"
+            "    Analyze the Titles, Snippets, and URLs.\n"
+            "    Identify the Single Official Government Landing Page for this specific department.\n"
+            "    Strict Exclusion: Reject news articles, social media (Facebook/LinkedIn), PDF files, and third-party directories (like YellowPages).\n"
+            "    Preference: Prefer .gov, .org, or state-specific domains (e.g., .tx.us).\n\n"
+            f"Search Results: {formatted_results}\n\n"
+            "If you find a high-confidence official URL, return it. Otherwise, return 'None'. "
+            "Return ONLY the URL string (or 'None') - no JSON, no markdown, no explanation."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+            )
+
+            content = response.choices[0].message.content.strip()
+
+            # Handle potential None string
+            if content.lower() == 'none' or not content:
+                return None
+
+            # Basic cleanup if the model adds quotes or markdown
+            if content.startswith("```"):
+                content = content.strip("`").strip()
+            if content.startswith("'") and content.endswith("'"):
+                content = content[1:-1]
+            if content.startswith('"') and content.endswith('"'):
+                content = content[1:-1]
+
+            # Additional check to ensure it looks like a URL
+            if not content.startswith("http"):
+                # Sometimes models chat "The url is https..."
+                if "http" in content:
+                    import re
+                    match = re.search(r'(https?://[^\s]+)', content)
+                    if match:
+                        return match.group(1)
+                return None
+
+            return content
+
+        except Exception as e:
+            print(f"Error in analyze_serp_results: {e}")
+            return None

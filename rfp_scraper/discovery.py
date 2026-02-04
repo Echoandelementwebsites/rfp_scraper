@@ -79,11 +79,11 @@ class DiscoveryEngine:
 
         return None
 
-    def search_and_rank_candidates(self, query: str, num_results: int = 5) -> List[Dict]:
+    def fetch_search_context(self, query: str, num_results: int = 10) -> List[Dict]:
         """
-        Perform the search (via DuckDuckGo) but return the top results
-        (Title, URL, Snippet) instead of just the first verified URL.
-        This provides the "raw material" for the AI to analyze.
+        Execute the search (DuckDuckGo) for the given query.
+        Returns a list of the top results containing {'title', 'url', 'snippet'}.
+        Does not perform strict URL validation or filtering.
         """
         candidates = []
         try:
@@ -98,13 +98,19 @@ class DiscoveryEngine:
                         "snippet": res.get('body', '')
                     })
         except Exception as e:
-            print(f"DDG Search error for Deep Search query '{query}': {e}")
+            print(f"DDG Search error for Context query '{query}': {e}")
 
         return candidates
+
+    def search_and_rank_candidates(self, query: str, num_results: int = 5) -> List[Dict]:
+        """
+        Legacy method alias.
+        """
+        return self.fetch_search_context(query, num_results)
 
     def get_raw_candidates(self, query: str, limit: int = 5) -> List[Dict]:
         """
         Retrieves raw search candidates without strict filtering.
-        Wrapper around search_and_rank_candidates to match the requested API.
+        Wrapper around fetch_search_context to match the requested API.
         """
-        return self.search_and_rank_candidates(query, num_results=limit)
+        return self.fetch_search_context(query, num_results=limit)
