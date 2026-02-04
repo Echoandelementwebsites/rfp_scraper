@@ -1,274 +1,213 @@
 {
   "metadata": {
-    "description": "Template for local government (county, city, town) services and their URL patterns in the U.S.",
+    "description": "Template for U.S. local government (county, city, town) naming conventions, domains, and services",
     "last_updated": "2024-10-17",
     "geographic_levels": ["county", "city", "town", "township", "municipality", "borough", "parish"],
     "note": "Local government structures vary significantly by state and region"
   },
-  "general_naming_conventions": {
-    "county_level": {
-      "patterns": [
-        "[County Name] County",
-        "County of [County Name]",
-        "[County Name] County Government"
-      ],
-      "examples": ["Los Angeles County", "County of San Diego", "Cook County Government"]
-    },
-    "city_level": {
-      "patterns": [
-        "City of [City Name]",
-        "[City Name] City Government",
-        "[City Name] Municipal Government"
-      ],
-      "examples": ["City of Chicago", "New York City Government", "Houston Municipal Government"]
-    },
-    "town_level": {
-      "patterns": [
-        "Town of [Town Name]",
-        "[Town Name] Town Government",
-        "[Town Name] Township"
-      ],
-      "examples": ["Town of Arlington", "Smithtown Town Government", "Springfield Township"]
+  "local_government": {
+    "types": ["county", "city", "town", "township", "municipality", "borough", "parish"],
+    "geographic_variations": {
+      "county_equivalent": "parish (Louisiana), borough (Alaska), independent city (Virginia, Maryland)"
     }
   },
-  "domain_patterns": {
-    "county_domains": [
-      {
-        "pattern": "[countyname]county.gov",
-        "example": "lacounty.gov",
-        "description": "Most common pattern for counties"
-      },
-      {
-        "pattern": "co.[countyname].[state_abbrev].us",
-        "example": "co.clark.nv.us",
-        "description": "State-specific county domain pattern"
-      },
-      {
-        "pattern": "[countyname]county.org",
-        "example": "bouldercounty.org",
-        "description": "Alternative for counties without .gov domain"
-      },
-      {
-        "pattern": "[countyabbrev]county.gov",
-        "example": "dconc.gov (Durham County, NC)",
-        "description": "Using county abbreviations"
-      }
-    ],
-    "city_domains": [
-      {
-        "pattern": "[cityname].gov",
-        "example": "chicago.gov",
-        "description": "Standard for major cities"
-      },
-      {
-        "pattern": "ci.[cityname].[state_abbrev].us",
-        "example": "ci.phoenix.az.us",
-        "description": "Common for smaller cities"
-      },
-      {
-        "pattern": "[cityname]city.gov",
-        "example": "seattlecity.gov",
-        "description": "City-name combination"
-      },
-      {
-        "pattern": "cityof[cityname].org",
-        "example": "cityofboston.org",
-        "description": "Alternative pattern"
-      }
-    ],
-    "town_domains": [
-      {
-        "pattern": "townof[townname].org",
-        "example": "townofcary.org",
-        "description": "Common for towns"
-      },
-      {
-        "pattern": "[townname].org",
-        "example": "arlingtonva.us",
-        "description": "Simplified pattern"
-      },
-      {
-        "pattern": "[townname]-[state_abbrev].gov",
-        "example": "brookline-ma.gov",
-        "description": "State-identified pattern"
-      },
-      {
-        "pattern": "[townname]township.org",
-        "example": "springfieldtownship.org",
-        "description": "For townships"
-      }
-    ]
-  },
+  "naming_patterns": [
+    {
+      "pattern": "[County Name] County",
+      "description": "Standard county naming format",
+      "examples": ["Los Angeles County", "Cook County"],
+      "prevalence": "primary"
+    },
+    {
+      "pattern": "County of [County Name]",
+      "description": "Formal county naming format",
+      "examples": ["County of San Diego", "County of Orange"],
+      "prevalence": "formal"
+    },
+    {
+      "pattern": "City of [City Name]",
+      "description": "Standard city naming format",
+      "examples": ["City of Chicago", "City of Phoenix"],
+      "prevalence": "primary"
+    },
+    {
+      "pattern": "Town of [Town Name]",
+      "description": "Standard town naming format",
+      "examples": ["Town of Arlington", "Town of Cary"],
+      "prevalence": "primary"
+    },
+    {
+      "pattern": "[Jurisdiction] Government",
+      "description": "General government reference",
+      "examples": ["New York City Government", "Cook County Government"],
+      "prevalence": "common"
+    },
+    {
+      "pattern": "[Jurisdiction] Municipal Government",
+      "description": "Alternative municipal reference",
+      "examples": ["Houston Municipal Government"],
+      "prevalence": "alternate"
+    }
+  ],
+  "domain_patterns": [
+    {
+      "pattern": "[countyname]county.gov",
+      "example": "lacounty.gov",
+      "description": "Most common pattern for counties",
+      "format": "direct_domain",
+      "institution_type": ["county"]
+    },
+    {
+      "pattern": "co.[countyname].[state_abbrev].us",
+      "example": "co.clark.nv.us",
+      "description": "State-specific county domain pattern",
+      "format": "subdomain",
+      "institution_type": ["county"]
+    },
+    {
+      "pattern": "[cityname].gov",
+      "example": "chicago.gov",
+      "description": "Standard for major cities",
+      "format": "direct_domain",
+      "institution_type": ["city"]
+    },
+    {
+      "pattern": "ci.[cityname].[state_abbrev].us",
+      "example": "ci.phoenix.az.us",
+      "description": "Common for smaller cities",
+      "format": "subdomain",
+      "institution_type": ["city"]
+    },
+    {
+      "pattern": "townof[townname].org",
+      "example": "townofcary.org",
+      "description": "Common for towns",
+      "format": "direct_domain",
+      "institution_type": ["town"]
+    },
+    {
+      "pattern": "[townname]-[state_abbrev].gov",
+      "example": "brookline-ma.gov",
+      "description": "State-identified pattern for towns",
+      "format": "direct_domain",
+      "institution_type": ["town"]
+    },
+    {
+      "pattern": "[parishname]parish.gov",
+      "example": "lafayetteparish.gov",
+      "description": "Louisiana parish pattern",
+      "format": "direct_domain",
+      "institution_type": ["parish"]
+    }
+  ],
   "common_local_services": {
     "public_safety": {
-      "police": {
-        "naming_patterns": [
-          "[Jurisdiction] Police Department",
-          "[Jurisdiction] Department of Police",
-          "[Jurisdiction] Police"
-        ],
-        "domain_patterns": [
-          "police.[jurisdiction].gov",
-          "[jurisdiction]pd.org",
-          "[jurisdiction]police.org"
-        ],
-        "examples": [
-          {
-            "name": "Los Angeles Police Department",
-            "url": "lapdonline.org",
-            "jurisdiction": "city"
-          },
-          {
-            "name": "Cook County Sheriff's Office",
-            "url": "cookcountysheriff.org",
-            "jurisdiction": "county"
-          }
-        ]
-      },
-      "fire": {
-        "naming_patterns": [
-          "[Jurisdiction] Fire Department",
-          "[Jurisdiction] Fire-Rescue",
-          "[Jurisdiction] Bureau of Fire"
-        ],
-        "domain_patterns": [
-          "fire.[jurisdiction].gov",
-          "[jurisdiction]fd.org",
-          "[jurisdiction]firerescue.org"
-        ]
-      },
-      "emergency_management": {
-        "naming_patterns": [
-          "[Jurisdiction] Office of Emergency Management",
-          "[Jurisdiction] Emergency Management Agency"
-        ]
-      }
+      "typical_name": "[Jurisdiction] Police Department",
+      "common_subsidiaries": [
+        {
+          "name_pattern": "[Jurisdiction] Police Department",
+          "domain_example": "police.[jurisdiction].gov",
+          "function": "Law enforcement"
+        },
+        {
+          "name_pattern": "[Jurisdiction] Fire Department",
+          "domain_example": "fire.[jurisdiction].gov",
+          "function": "Fire protection and emergency response"
+        },
+        {
+          "name_pattern": "[Jurisdiction] Sheriff's Office",
+          "domain_example": "[jurisdiction]sheriff.org",
+          "function": "County law enforcement (typically county-level)"
+        }
+      ],
+      "variations": [
+        "Department of Police",
+        "Police Bureau",
+        "Public Safety Department"
+      ]
     },
     "public_works": {
-      "water_sewer": {
-        "naming_patterns": [
-          "[Jurisdiction] Water Department",
-          "[Jurisdiction] Department of Water and Power",
-          "[Jurisdiction] Public Utilities"
-        ],
-        "domain_patterns": [
-          "water.[jurisdiction].gov",
-          "[jurisdiction]water.org",
-          "dpw.[jurisdiction].gov"
-        ]
-      },
-      "roads_transportation": {
-        "naming_patterns": [
-          "[Jurisdiction] Department of Transportation",
-          "[Jurisdiction] Public Works Department",
-          "[Jurisdiction] Highway Department"
-        ]
-      },
-      "sanitation": {
-        "naming_patterns": [
-          "[Jurisdiction] Sanitation Department",
-          "[Jurisdiction] Department of Sanitation",
-          "[Jurisdiction] Waste Management"
-        ]
-      }
+      "typical_name": "[Jurisdiction] Department of Public Works",
+      "acronym": "DPW",
+      "domain_example": "dpw.[jurisdiction].gov",
+      "sub_agencies": [
+        "Water Department",
+        "Sanitation Department",
+        "Highway/Street Department"
+      ]
     },
-    "health_human_services": {
-      "health_department": {
-        "naming_patterns": [
-          "[Jurisdiction] Health Department",
-          "[Jurisdiction] Department of Public Health",
-          "[Jurisdiction] Board of Health"
-        ],
-        "domain_patterns": [
-          "health.[jurisdiction].gov",
-          "[jurisdiction]health.org"
-        ]
-      },
-      "social_services": {
-        "naming_patterns": [
-          "[Jurisdiction] Department of Social Services",
-          "[Jurisdiction] Human Services Department"
-        ]
-      }
+    "health": {
+      "typical_name": "[Jurisdiction] Health Department",
+      "variations": [
+        "Department of Public Health",
+        "Board of Health"
+      ],
+      "domain_example": "health.[jurisdiction].gov",
+      "note": "May be county-level serving multiple municipalities"
     },
     "planning_development": {
-      "planning": {
-        "naming_patterns": [
-          "[Jurisdiction] Planning Department",
-          "[Jurisdiction] Department of Planning and Development"
-        ]
-      },
-      "building": {
-        "naming_patterns": [
-          "[Jurisdiction] Building Department",
-          "[Jurisdiction] Department of Buildings"
-        ]
-      },
-      "zoning": {
-        "naming_patterns": [
-          "[Jurisdiction] Zoning Board",
-          "[Jurisdiction] Planning and Zoning Department"
-        ]
-      }
-    },
-    "education": {
-      "school_district": {
-        "naming_patterns": [
-          "[Jurisdiction] School District",
-          "[Region] School District",
-          "[Jurisdiction] Public Schools"
-        ],
-        "domain_patterns": [
-          "[districtname].k12.[state_abbrev].us",
-          "[districtname]schools.org",
-          "[districtname].net"
-        ],
-        "note": "School districts often have boundaries different from municipal boundaries"
-      },
-      "libraries": {
-        "naming_patterns": [
-          "[Jurisdiction] Public Library",
-          "[Jurisdiction] Library System"
-        ],
-        "domain_patterns": [
-          "[libraryname].org",
-          "[jurisdiction]library.org",
-          "library.[jurisdiction].gov"
-        ]
-      }
+      "typical_name": "[Jurisdiction] Planning Department",
+      "variations": [
+        "Department of Planning and Development",
+        "Community Development Department"
+      ],
+      "domain_example": "planning.[jurisdiction].gov",
+      "sub_agencies": [
+        "Zoning Board",
+        "Building Department",
+        "Code Enforcement"
+      ]
     },
     "recreation": {
-      "parks": {
-        "naming_patterns": [
-          "[Jurisdiction] Parks and Recreation Department",
-          "[Jurisdiction] Department of Parks and Recreation"
-        ],
-        "domain_patterns": [
-          "parks.[jurisdiction].gov",
-          "[jurisdiction]parks.org"
-        ]
-      }
+      "typical_name": "[Jurisdiction] Parks and Recreation Department",
+      "variations": [
+        "Department of Parks and Recreation",
+        "Recreation Department"
+      ],
+      "domain_example": "parks.[jurisdiction].gov"
     },
     "administrative": {
-      "clerks_office": {
-        "naming_patterns": [
-          "[Jurisdiction] Clerk's Office",
-          "[Jurisdiction] County/City Clerk"
-        ]
-      },
-      "assessor": {
-        "naming_patterns": [
-          "[Jurisdiction] Assessor's Office",
-          "[Jurisdiction] Department of Assessment"
-        ]
-      },
-      "treasurer": {
-        "naming_patterns": [
-          "[Jurisdiction] Treasurer's Office",
-          "[Jurisdiction] Department of Finance"
-        ]
-      }
+      "typical_name": "[Jurisdiction] Clerk's Office",
+      "variations": [
+        "City/County Clerk",
+        "Registrar's Office"
+      ],
+      "domain_example": "clerk.[jurisdiction].gov",
+      "related_services": [
+        "Assessor's Office",
+        "Treasurer's Office",
+        "Elections Office"
+      ]
     }
+  },
+  "special_districts": {
+    "definition": "Independent governmental units with specific functions, often crossing municipal boundaries",
+    "types": [
+      {
+        "type": "School Districts",
+        "naming_pattern": "[Area] School District",
+        "domain_pattern": "[district].k12.[state].us",
+        "function": "Public education"
+      },
+      {
+        "type": "Water Districts",
+        "naming_pattern": "[Area] Water District",
+        "domain_pattern": "[district]water.org",
+        "function": "Water supply and distribution"
+      },
+      {
+        "type": "Transit Authorities",
+        "naming_pattern": "[Region] Transit Authority",
+        "domain_pattern": "[authority].org",
+        "function": "Public transportation"
+      },
+      {
+        "type": "Library Districts",
+        "naming_pattern": "[Area] Library District",
+        "domain_pattern": "[library].org",
+        "function": "Public library services"
+      }
+    ]
   },
   "regional_variations": {
     "new_england": {
@@ -277,6 +216,10 @@
         "townof[townname].us",
         "[townname]-ma.gov",
         "[townname].us"
+      ],
+      "naming_conventions": [
+        "Town of [Name]",
+        "[Name] Town Government"
       ]
     },
     "mid_atlantic": {
@@ -308,238 +251,190 @@
       ]
     }
   },
-  "state_specific_patterns": {
+  "state_examples": {
     "california": {
-      "county_patterns": [
-        "[countyname]county.gov",
-        "countyof[countyname].org"
-      ],
-      "city_patterns": [
-        "cityof[cityname].org",
-        "[cityname].org"
-      ],
-      "special_districts": [
+      "naming_style": "[City/County] of [Name]",
+      "county_pattern": "[countyname]county.gov",
+      "city_pattern": "cityof[cityname].org",
+      "example_governments": [
         {
-          "type": "Special Districts",
-          "naming": "[Area] Community Services District",
-          "domain": "[districtname].org"
+          "name": "Los Angeles County",
+          "domain": "lacounty.gov",
+          "type": "county"
+        },
+        {
+          "name": "City of Los Angeles",
+          "domain": "lacity.gov",
+          "type": "city"
+        },
+        {
+          "name": "City of San Francisco",
+          "domain": "sf.gov",
+          "type": "city"
         }
       ]
     },
     "texas": {
-      "county_patterns": [
-        "co.[countyname].tx.us",
-        "[countyname]county.org"
-      ],
-      "city_patterns": [
-        "ci.[cityname].tx.us",
-        "[cityname]-texas.org"
+      "naming_style": "[City/County] of [Name]",
+      "county_pattern": "co.[countyname].tx.us",
+      "city_pattern": "ci.[cityname].tx.us",
+      "example_governments": [
+        {
+          "name": "Harris County",
+          "domain": "harriscountytx.gov",
+          "type": "county"
+        },
+        {
+          "name": "City of Houston",
+          "domain": "houstontx.gov",
+          "type": "city"
+        }
       ]
     },
     "new_york": {
-      "county_patterns": [
-        "[countyname]countyny.gov",
-        "[countyname]county.com"
-      ],
-      "city_patterns": [
-        "[cityname].gov",
-        "cityof[cityname].com"
-      ],
-      "note": "Extensive use of .com domains for local governments"
+      "naming_style": "[Name] County/City",
+      "county_pattern": "[countyname]countyny.gov",
+      "city_pattern": "[cityname].gov",
+      "note": "Extensive use of .com domains for local governments",
+      "example_governments": [
+        {
+          "name": "New York City",
+          "domain": "nyc.gov",
+          "type": "city"
+        },
+        {
+          "name": "Westchester County",
+          "domain": "westchestergov.com",
+          "type": "county"
+        }
+      ]
     },
     "florida": {
-      "county_patterns": [
-        "[countyname]fl.gov",
-        "[countyname]countyfl.gov"
-      ],
-      "city_patterns": [
-        "[cityname]fl.gov",
-        "cityof[cityname].org"
+      "naming_style": "[Name] County/City",
+      "county_pattern": "[countyname]fl.gov",
+      "city_pattern": "[cityname]fl.gov",
+      "example_governments": [
+        {
+          "name": "Miami-Dade County",
+          "domain": "miamidade.gov",
+          "type": "county"
+        },
+        {
+          "name": "City of Miami",
+          "domain": "miami.gov",
+          "type": "city"
+        }
       ]
     },
     "louisiana": {
       "special_note": "Uses parishes instead of counties",
-      "parish_patterns": [
-        "[parishname]parish.gov",
-        "[parishname]pgov.net"
-      ]
-    }
-  },
-  "service_url_structure": {
-    "common_subdomains": [
-      "www.[jurisdiction].gov",
-      "services.[jurisdiction].gov",
-      "portal.[jurisdiction].gov"
-    ],
-    "common_paths": [
-      "/departments/[departmentname]",
-      "/dept/[departmentacronym]",
-      "/government/departments",
-      "/services/[servicename]"
-    ],
-    "online_services_portals": [
-      {
-        "name_pattern": "[Jurisdiction] Online Services",
-        "url_pattern": "online.[jurisdiction].gov",
-        "services": ["Permit applications", "Bill payments", "Service requests"]
-      }
-    ]
-  },
-  "special_districts": {
-    "definition": "Independent governmental units with specific functions, often crossing municipal boundaries",
-    "types": [
-      {
-        "type": "School Districts",
-        "naming": "[Area] School District",
-        "domain": "[district].k12.[state].us"
-      },
-      {
-        "type": "Water Districts",
-        "naming": "[Area] Water District",
-        "domain": "[district]water.org"
-      },
-      {
-        "type": "Transit Authorities",
-        "naming": "[Region] Transit Authority",
-        "domain": "[authority].org"
-      },
-      {
-        "type": "Library Districts",
-        "naming": "[Area] Library District",
-        "domain": "[library].org"
-      }
-    ]
-  },
-  "finding_strategies": {
-    "search_patterns": [
-      "\"[County Name] County Government\" site:.gov",
-      "\"City of [City Name]\" site:.org",
-      "\"[Town Name] Town Hall\"",
-      "\"[Jurisdiction] Department of [Service]\""
-    ],
-    "state_portals": {
-      "approach": "Start with state government websites which often link to local governments",
-      "example": "california.gov/local-government"
-    },
-    "county_seats": {
-      "approach": "County government websites typically serve all municipalities within the county",
-      "tip": "Look for \"Municipalities\" or \"Cities & Towns\" section on county websites"
-    },
-    "national_directories": {
-      "resources": [
-        "USA.gov local government directory",
-        "National Association of Counties website",
-        "National League of Cities website"
-      ]
-    }
-  },
-  "verification_methods": {
-    "official_indicators": [
-      ".gov domain (though .org is common for local governments)",
-      "Official seals and logos",
-      "Contact information matching public records",
-      "Links to other verified government sites"
-    ],
-    "cross_referencing": [
-      "Check against county auditor/assessor records",
-      "Verify through state government directories",
-      "Compare with US Census Bureau local government data"
-    ],
-    "warning_signs": [
-      "Commercial advertisements on the site",
-      "Requests for payment via non-official methods",
-      "No physical address or verifiable contact information"
-    ]
-  },
-  "template_record": {
-    "county_example": {
-      "jurisdiction_name": "Cook County",
-      "jurisdiction_type": "county",
-      "state": "Illinois",
-      "state_abbreviation": "IL",
-      "primary_domain": "cookcountyil.gov",
-      "alternative_domains": ["cookcounty.gov"],
-      "services": [
+      "parish_pattern": "[parishname]parish.gov",
+      "example_governments": [
         {
-          "department": "Cook County Sheriff's Office",
-          "url": "cookcountysheriff.org",
-          "service_type": "public_safety"
+          "name": "Orleans Parish",
+          "domain": "nola.gov",
+          "type": "parish"
         },
         {
-          "department": "Cook County Health",
-          "url": "cookcountyhealth.org",
-          "service_type": "health"
-        },
-        {
-          "department": "Cook County Assessor's Office",
-          "url": "cookcountyassessor.com",
-          "service_type": "administrative"
+          "name": "East Baton Rouge Parish",
+          "domain": "ebrparish.gov",
+          "type": "parish"
         }
+      ]
+    }
+  },
+  "local_government_structure": {
+    "leadership": {
+      "title_patterns": [
+        "Mayor",
+        "City/County Manager",
+        "Supervisor",
+        "Commissioner",
+        "Council Member"
       ],
-      "municipalities_served": ["Chicago", "Evanston", "Oak Park", "etc."]
+      "election_method": "Elected by voters or appointed by governing body",
+      "county_variations": "County Executive, Board of Supervisors Chair"
     },
-    "city_example": {
-      "jurisdiction_name": "City of Phoenix",
-      "jurisdiction_type": "city",
-      "state": "Arizona",
-      "state_abbreviation": "AZ",
-      "primary_domain": "phoenix.gov",
-      "services": [
-        {
-          "department": "Phoenix Police Department",
-          "url": "phoenix.gov/police",
-          "service_type": "public_safety"
-        },
-        {
-          "department": "Phoenix Fire Department",
-          "url": "phoenix.gov/fire",
-          "service_type": "public_safety"
-        },
-        {
-          "department": "Phoenix Public Works",
-          "url": "phoenix.gov/publicworks",
-          "service_type": "public_works"
-        }
-      ]
-    },
-    "town_example": {
-      "jurisdiction_name": "Town of Cary",
-      "jurisdiction_type": "town",
-      "state": "North Carolina",
-      "state_abbreviation": "NC",
-      "primary_domain": "townofcary.org",
-      "services": [
-        {
-          "department": "Cary Police Department",
-          "url": "townofcary.org/government/police",
-          "service_type": "public_safety"
-        },
-        {
-          "department": "Cary Parks and Recreation",
-          "url": "townofcary.org/parks",
-          "service_type": "recreation"
-        }
-      ]
-    }
-  },
-  "automation_tips": {
-    "data_sources": [
-      "US Census Bureau TIGER/Line shapefiles",
-      "GeoNames database",
-      "OpenStreetMap data",
-      "State government directories"
+    "organizational_levels": [
+      "Governing Body (City Council, County Board)",
+      "Executive Office (Mayor, County Executive)",
+      "Departments",
+      "Divisions/Bureaus",
+      "Field Offices"
     ],
-    "url_discovery_patterns": [
-      "Try common patterns (townof[name].org, ci.[name].[state].us)",
-      "Check for redirects from common misspellings",
-      "Look for sitemap.xml or robots.txt on main domain",
-      "Use the main domain plus /departments/ paths"
-    ],
-    "validation_steps": [
-      "Verify domain registration (whois)",
-      "Check for SSL certificates",
-      "Validate against official government directories",
-      "Confirm contact information matches public records"
+    "common_divisions": [
+      "Administration",
+      "Finance",
+      "Human Resources",
+      "Legal",
+      "Public Affairs/Communications",
+      "Information Technology",
+      "Operations",
+      "Customer Service"
     ]
+  },
+  "domain_validation": {
+    "government": {
+      "primary_tld": ".gov",
+      "alternative_tlds": [".org", ".us", ".com"],
+      "verification_note": ".gov is preferred but many local governments use .org due to historical reasons or cost"
+    },
+    "education": {
+      "primary_tld": ".org",
+      "alternative_tlds": [".edu", ".net", ".k12.[state].us"],
+      "note": "School districts often use .org or .k12.[state].us domains"
+    },
+    "special_districts": {
+      "common_tlds": [".org", ".gov", ".net"],
+      "note": "Special districts typically use .org domains"
+    },
+    "official_indicators": [
+      "Official government seals/logos",
+      "Matching contact information with public records",
+      "Links to other verified government sites",
+      "Presence on official state government directories"
+    ]
+  },
+  "classification_guidelines": {
+    "county_criteria": [
+      "Administrative subdivision of a state",
+      "Provides regional services",
+      "Typically includes multiple municipalities",
+      "Led by Board of Supervisors/Commissioners"
+    ],
+    "city_criteria": [
+      "Incorporated municipality",
+      "Self-governing under municipal charter",
+      "Provides local services (police, fire, zoning)",
+      "May be independent or within a county"
+    ],
+    "town_criteria": [
+      "Smaller incorporated municipality",
+      "Often part of a county government structure",
+      "May have limited self-governing authority",
+      "Common in New England and some other regions"
+    ],
+    "special_district_criteria": [
+      "Independent governmental unit",
+      "Single function or limited functions",
+      "May cross municipal/county boundaries",
+      "Governed by appointed or elected board"
+    ]
+  },
+  "template_usage": {
+    "instruction": "Replace placeholders with actual local government data:",
+    "placeholders": {
+      "[County Name]": "Name of the county",
+      "[City Name]": "Name of the city",
+      "[Town Name]": "Name of the town",
+      "[Jurisdiction]": "Name of the local government entity",
+      "[countyname]": "County name in lowercase, no spaces",
+      "[cityname]": "City name in lowercase, no spaces",
+      "[townname]": "Town name in lowercase, no spaces",
+      "[state_abbrev]": "Two-letter state postal code",
+      "[parishname]": "Parish name in lowercase, no spaces",
+      "[district]": "Special district name abbreviation",
+      "[agency]": "Department or agency name abbreviation"
+    }
   }
 }
