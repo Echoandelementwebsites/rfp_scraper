@@ -35,26 +35,28 @@ class DeepSeekClient:
 
         return json.loads(content)
 
-    def validate_construction_relevance(self, title: str, text_content: str) -> bool:
+    def classify_csi_divisions(self, title: str, description: str) -> List[str]:
         """
-        Determines if the content is related to construction, architecture, or engineering.
+        Analyzes the project and identifies which CSI MasterFormat Divisions (02-16) apply.
+        Returns a list of strings (e.g., ['Division 03 - Concrete']).
+        Returns empty list if not relevant.
         """
         if not self.api_key:
-            # If no API key is provided, we cannot validate strictly.
-            # Depending on policy, we might fail open or closed.
-            # Given "Strict Filtering", failing closed (False) makes sense,
-            # but usually users without keys want to see something.
-            # However, this feature is dependent on AI.
-            return False
+            return []
 
         prompt = (
-            "You are a construction bid analyst. Determine if the following RFP is related to "
-            "Construction, Architecture, Engineering, Roadwork, Infrastructure, or Public Works. "
-            "Ignore software, IT, or consulting unless it is explicitly engineering/architectural consulting. "
-            "Return ONLY a JSON object with one key 'is_relevant' (boolean)."
+            "You are a Construction Estimator. Analyze the project and identify which CSI MasterFormat Divisions (02-16) apply.\n\n"
+            "Divisions: 02 Site Work, 03 Concrete, 04 Masonry, 05 Metals, 06 Wood/Plastics, 07 Thermal/Moisture, "
+            "08 Doors/Windows, 09 Finishes, 10 Specialties, 11 Equipment, 12 Furnishings, 13 Special Construction, "
+            "14 Conveying Systems, 15 Mechanical (Plumbing/HVAC), 16 Electrical.\n\n"
+            "Rules:\n"
+            "    Strict Match: Only return a Division if the text explicitly mentions work in that trade.\n"
+            "    Exclusions: Ignore 'General Requirements' (Div 01). Ignore Janitorial, Software, or Admin work (return []).\n"
+            "    No Hallucinations: If the text is vague or unrelated, return [].\n\n"
+            "Output: Return a JSON list of strings (e.g., ['Division 03 - Concrete'])."
         )
 
-        user_content = f"Title: {title}\n\nSnippet: {text_content[:2000]}"
+        user_content = f"Title: {title}\n\nDescription: {description[:3000]}"
 
         try:
             response = self.client.chat.completions.create(
@@ -70,13 +72,27 @@ class DeepSeekClient:
             data = self._clean_and_parse_json(content)
 
             if isinstance(data, dict):
-                return data.get("is_relevant", False)
+                # Sometimes models return {"divisions": [...]}
+                if "divisions" in data:
+                    return data["divisions"]
+                # Sometimes they obey strictly and return list (but parsed as dict if root is object?)
+                # If the prompt asked for a JSON list, response_format json_object might force an object wrapper.
+                # DeepSeek might return {"key": [...]}. We should handle both.
+                # However, the prompt says "Return a JSON list".
+                # If we use json_object, we should ask for an object.
+                # Let's check keys.
+                for key, val in data.items():
+                    if isinstance(val, list):
+                        return val
+                return []
+            elif isinstance(data, list):
+                return data
 
-            return False
+            return []
 
         except Exception as e:
-            print(f"Error validating relevance: {e}")
-            return False
+            print(f"Error classifying CSI divisions: {e}")
+            return []
 
     def parse_rfp_content(self, text_content: str) -> List[dict]:
         """
@@ -88,7 +104,8 @@ class DeepSeekClient:
         prompt = (
             "Analyze this text. Extract construction RFP opportunities. "
             "Return ONLY a JSON list with keys: title, deadline (YYYY-MM-DD), "
-            "description, clientName. If no specific deadline, return null."
+            "description, clientName. If no specific deadline, return null.\n"
+            "Do NOT extract projects if they are purely 'Citizen Services' (Taxes, Permits) or 'Events'. Return []."
         )
 
         try:

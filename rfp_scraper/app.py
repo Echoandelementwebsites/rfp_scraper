@@ -552,6 +552,11 @@ with tab_scraper:
     display_df = persistent_df.copy()
     if 'rfp_description' in display_df.columns:
         display_df = display_df.drop(columns=['rfp_description'])
+
+    # Optional: Rename for UI
+    if 'matching_trades' in display_df.columns:
+        display_df = display_df.rename(columns={'matching_trades': 'Trades'})
+
     st.dataframe(display_df, use_container_width=True)
 
     # Export Section

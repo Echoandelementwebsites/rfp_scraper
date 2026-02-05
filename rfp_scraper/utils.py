@@ -1,5 +1,115 @@
 import requests
+import re
 from urllib.parse import urlparse
+from typing import Optional
+from dateutil import parser
+import datetime
+
+# --- Constants for Filtering ---
+
+# Prevent visiting these links
+BLOCKED_URL_PATTERNS = [
+    "calendar", "event", "newsletter", "storytime", "meeting", "minutes",
+    "pay-bill", "tax", "portal", "login", "job", "career", "employment",
+    "faq", "policy", "contact"
+]
+
+# Reject these titles/descriptions immediately
+INVALID_CONTENT_TERMS = [
+    "tax return", "reading challenge", "vaccination", "support group",
+    "substitute teacher", "internship", "janitorial", "cleaning",
+    "software licensing", "catering", "security guard",
+    "highway bridge rehabilitation" # Specific hallucination blocker
+]
+
+GENERIC_TITLES = ["untitled", "home", "page not found", "bids", "rfp", "procurement"]
+
+
+# --- Validation Helpers ---
+
+def clean_text(text: str) -> str:
+    """
+    Cleans text by stripping whitespace and converting to Title Case.
+    """
+    if not text:
+        return ""
+    # Remove extra whitespace
+    cleaned = " ".join(text.split())
+    # Convert to Title Case
+    return cleaned.title()
+
+def normalize_date(date_str: str) -> Optional[str]:
+    """
+    Standardize date string to YYYY-MM-DD.
+    Returns None if parsing fails.
+    """
+    if not date_str:
+        return None
+
+    try:
+        dt = parser.parse(date_str)
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return None
+
+def is_valid_rfp(title: str, description: str, client_name: str) -> bool:
+    """
+    Validates if the RFP candidate is worth processing based on text content.
+
+    Logic:
+    1. Return False if Title is in GENERIC_TITLES or length < 5.
+    2. Return False if content contains INVALID_CONTENT_TERMS.
+    3. Return False if client_name contains "Library" AND Title contains "Bridge"/"Highway".
+    4. Return False if Title looks like a date/time (heuristic).
+    """
+    if not title:
+        return False
+
+    title_lower = title.lower().strip()
+    desc_lower = (description or "").lower()
+    client_lower = (client_name or "").lower()
+
+    # 1. Title Check
+    if title_lower in GENERIC_TITLES:
+        return False
+    if len(title_lower) < 5:
+        return False
+
+    # 2. Invalid Content Terms
+    # Check both title and description for invalid terms
+    combined_text = f"{title_lower} {desc_lower}"
+    for term in INVALID_CONTENT_TERMS:
+        if term in combined_text:
+            return False
+
+    # 3. Specific Logic: Library + Bridge/Highway (Hallucination check)
+    if "library" in client_lower:
+        if "bridge" in title_lower or "highway" in title_lower:
+            return False
+
+    # 4. Date/Time Title Check
+    # If title is just a date like "October 12, 2023" or "10/12/2023", it's likely a meeting agenda or noise.
+    # We attempt to parse the title as a date. If it succeeds and covers most of the string, reject it.
+    try:
+        # strict=False allows fuzzy, but if the whole string parses easily, it might be a date.
+        # However, parser.parse("Project 123") might fail or pass depending on context.
+        # A safer check is if the title is very short and contains digits/slashes
+        # or if we explicitly try to parse it.
+        # Let's try a strict parse logic: if the title can be parsed as a date and has no other words
+        # (ignoring common day names/months), reject.
+
+        # Simple heuristic: if it parses as a date and length is short (< 20 chars)
+        if len(title_lower) < 20:
+            dt = parser.parse(title_lower)
+            # If we got here, it's a date-like string.
+            return False
+    except:
+        pass
+
+    return True
+
+
+# --- Existing Helpers ---
 
 def validate_url(url: str) -> bool:
     """
