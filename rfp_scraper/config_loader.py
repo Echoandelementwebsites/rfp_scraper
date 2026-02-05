@@ -103,7 +103,14 @@ def get_domain_patterns(jurisdiction_type: str) -> Tuple[List[str], List[str]]:
             "[cityname].gov",
             "cityof[cityname].gov",
             "cityof[cityname].org",
-            "cityof[cityname].com"
+            "cityof[cityname].com",
+            "[cityname][state_abbrev].com",
+            "[cityname]-[state_abbrev].com",
+            "cityof[cityname][state_abbrev].com",
+            "[cityname][state_abbrev].org",
+            "[cityname]-[state_abbrev].org",
+            "cityof[cityname][state_abbrev].org"
+
         ]
     elif jurisdiction_type == 'town':
         specific_patterns = [
@@ -114,7 +121,13 @@ def get_domain_patterns(jurisdiction_type: str) -> Tuple[List[str], List[str]]:
         generic_patterns = [
             "[townname].gov",
             "townof[townname].gov",
-            "townof[townname].org"
+            "townof[townname].org",
+            "[townname][state_abbrev].org",
+            "townof[townname][state_abbrev].org",
+            "[townname]-[state_abbrev].org",
+            "[townname][state_abbrev].com",
+            "townof[townname][state_abbrev].com",
+            "[townname]-[state_abbrev].com"
         ]
     elif jurisdiction_type == 'county':
         specific_patterns = [
