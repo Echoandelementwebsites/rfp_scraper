@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Optional
+from typing import Optional, List
 from playwright.sync_api import Page
 from bs4 import BeautifulSoup
 
@@ -7,6 +7,9 @@ from rfp_scraper.scrapers.base import BaseScraper
 from rfp_scraper.compliance import ComplianceManager
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.db import DatabaseHandler
+from rfp_scraper.utils import (
+    clean_text, normalize_date, is_valid_rfp, BLOCKED_URL_PATTERNS
+)
 
 class HierarchicalScraper(BaseScraper):
     def __init__(self, state_name: str, base_scraper: Optional[BaseScraper] = None, api_key: Optional[str] = None):
@@ -15,6 +18,22 @@ class HierarchicalScraper(BaseScraper):
         self.compliance = ComplianceManager()
         self.ai_parser = DeepSeekClient(api_key=api_key)
         self.db = DatabaseHandler()
+
+    def should_visit_url(self, url: str, text: str) -> bool:
+        """
+        Check if a URL should be visited based on blocked patterns.
+        Checks both the URL string and the associated text (e.g. link text or title).
+        """
+        if not url:
+            return False
+
+        url_lower = url.lower()
+        text_lower = (text or "").lower()
+
+        for pattern in BLOCKED_URL_PATTERNS:
+            if pattern in url_lower or pattern in text_lower:
+                return False
+        return True
 
     def scrape(self, page: Page) -> pd.DataFrame:
         results = []
@@ -29,39 +48,50 @@ class HierarchicalScraper(BaseScraper):
                     base_df = base_df.where(pd.notnull(base_df), None)
                     base_records = base_df.to_dict('records')
 
-                    print(f"Standard Scraper found {len(base_records)} items. Starting Strict Verification...")
+                    print(f"Standard Scraper found {len(base_records)} items. Starting 3-Stage QA Pipeline...")
 
                     for row in base_records:
-                        client = row.get('clientName') or row.get('client') or "Unknown Client"
-                        title = row.get('title') or "Untitled"
-                        deadline = row.get('deadline')
-                        link = row.get('portfolioLink') or row.get('link') or ""
+                        # Raw Data
+                        raw_title = row.get('title') or "Untitled"
+                        raw_link = row.get('portfolioLink') or row.get('link') or ""
+                        raw_client = row.get('clientName') or row.get('client') or "Unknown Client"
+                        raw_deadline = row.get('deadline')
 
-                        # Generate slug early for potential checks
-                        if 'slug' in row and row['slug']:
-                            slug = row['slug']
-                        else:
-                            slug = self.db.generate_slug(title, client, link)
+                        # --- Pre-Fetch Block ---
+                        if not self.should_visit_url(raw_link, raw_title):
+                            print(f"Blocked (Pattern): {raw_title} -> {raw_link}")
+                            continue
 
-                        # Filter 1: Link Existence
-                        if not link:
+                        # --- Stage 2: Cleaning (Part A) ---
+                        title = clean_text(raw_title)
+                        # We don't have description yet, so we pass empty string for now or wait until extraction?
+                        # The plan says "Stage 2 (Cleaning): ... if not is_valid_rfp(title, desc, client): continue"
+                        # But description comes from visiting the page (Stage 1 extraction/visit).
+                        # Let's clean what we have.
+                        client = clean_text(raw_client)
+                        deadline = normalize_date(raw_deadline)
+
+                        # Check Validity on Title/Client before visiting (save time)
+                        if not is_valid_rfp(title, "", client):
+                            print(f"Invalid RFP (Title/Client): {title}")
+                            continue
+
+                        # --- Stage 1: Extraction / Content Verification ---
+                        rfp_description = ""
+                        if not raw_link:
                             print(f"Skipping {title}: No link provided.")
                             continue
 
-                        rfp_description = ""
                         try:
-                            # Filter 2: Link Accessibility & Content Extraction
-                            # We must verify the link is accessible (not 404/403) and get content
-                            print(f"Verifying: {title} -> {link}")
-
+                            print(f"Verifying: {title} -> {raw_link}")
                             # Navigate
                             try:
-                                response = page.goto(link, wait_until="domcontentloaded", timeout=20000)
+                                response = page.goto(raw_link, wait_until="domcontentloaded", timeout=20000)
                             except Exception:
                                 response = None
 
                             if not response or response.status >= 400:
-                                print(f"Broken link ({response.status if response else 'Error'}): {link}")
+                                print(f"Broken link ({response.status if response else 'Error'}): {raw_link}")
                                 continue
 
                             # Extract Text
@@ -70,22 +100,42 @@ class HierarchicalScraper(BaseScraper):
                                 rfp_description = ""
 
                         except Exception as e:
-                            print(f"Link verification failed for {link}: {e}")
+                            print(f"Link verification failed for {raw_link}: {e}")
                             continue
 
-                        # Filter 3: Construction Relevance (AI)
-                        if self.ai_parser:
-                            is_relevant = self.ai_parser.validate_construction_relevance(title, rfp_description)
-                            if not is_relevant:
-                                print(f"Skipping {title}: Not relevant to construction.")
-                                continue
+                        # --- Stage 2: Cleaning (Part B - Full Context) ---
+                        # Now check with description
+                        if not is_valid_rfp(title, rfp_description, client):
+                            print(f"Invalid RFP (Content): {title}")
+                            continue
 
-                        # If we passed all filters:
-                        print(f"Accepted: {title}")
-                        self.db.insert_bid(slug, client, title, deadline, link, state=self.state_name, rfp_description=rfp_description)
+                        # --- Stage 3: Classification ---
+                        trades = []
+                        if self.ai_parser:
+                            trades = self.ai_parser.classify_csi_divisions(title, rfp_description)
+
+                        if not trades:
+                            print(f"Discarded (Non-Construction): {title}")
+                            continue
+
+                        matching_trades_str = ", ".join(trades)
+                        print(f"Accepted: {title} [{matching_trades_str}]")
+
+                        # Save to DB
+                        slug = self.db.generate_slug(title, client, raw_link)
+                        self.db.insert_bid(
+                            slug, client, title, deadline, raw_link,
+                            state=self.state_name,
+                            rfp_description=rfp_description,
+                            matching_trades=matching_trades_str
+                        )
 
                         # Add to results list
+                        row['title'] = title
+                        row['client'] = client
+                        row['deadline'] = deadline
                         row['rfp_description'] = rfp_description
+                        row['matching_trades'] = matching_trades_str
                         results.append(row)
 
             except Exception as e:
@@ -127,22 +177,43 @@ class HierarchicalScraper(BaseScraper):
                 # Extract Text (Cleaned)
                 content = page.evaluate("document.body.innerText")
 
-                # AI Parsing (Implicitly checks relevance by asking for 'construction RFP opportunities')
+                # AI Parsing (Stage 1 Extraction)
                 extracted_bids = self.ai_parser.parse_rfp_content(content)
 
                 for bid in extracted_bids:
-                    # Normalize keys
-                    title = bid.get('title', 'Untitled')
-                    client = bid.get('clientName') or agency_name
-                    deadline = bid.get('deadline')
+                    # --- Stage 2: Cleaning ---
+                    raw_title = bid.get('title', 'Untitled')
+                    raw_client = bid.get('clientName') or agency_name
+                    raw_deadline = bid.get('deadline')
                     description = bid.get('description', '')
+
+                    title = clean_text(raw_title)
+                    client = clean_text(raw_client)
+                    deadline = normalize_date(raw_deadline)
+
+                    if not is_valid_rfp(title, description, client):
+                        # print(f"Invalid RFP (Deep Scan): {title}") # Optional verbosity
+                        continue
+
+                    # --- Stage 3: Classification ---
+                    trades = self.ai_parser.classify_csi_divisions(title, description)
+                    if not trades:
+                        continue
+
+                    matching_trades_str = ", ".join(trades)
 
                     # Deduplication Slug
                     slug = self.db.generate_slug(title, client, url)
 
                     # Save to DB (Persistence)
-                    # Note: For Deep Scan, 'description' extracted by AI serves as rfp_description
-                    self.db.insert_bid(slug, client, title, deadline, url, state=self.state_name, rfp_description=description)
+                    self.db.insert_bid(
+                        slug, client, title, deadline, url,
+                        state=self.state_name,
+                        rfp_description=description,
+                        matching_trades=matching_trades_str
+                    )
+
+                    print(f"Accepted (Deep Scan): {title} [{matching_trades_str}]")
 
                     # Append to results for current run
                     results.append({
@@ -152,7 +223,8 @@ class HierarchicalScraper(BaseScraper):
                         "description": description,
                         "link": url,
                         "source_type": "Deep Scan",
-                        "rfp_description": description
+                        "rfp_description": description,
+                        "matching_trades": matching_trades_str
                     })
 
             except Exception as e:
