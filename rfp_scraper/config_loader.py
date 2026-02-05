@@ -2,6 +2,9 @@ import json
 import os
 from typing import List, Dict, Any
 
+# Define Special Categories globally
+SPECIAL_CATEGORIES = ["School District", "Housing Authority", "Public Library", "Transit Authority"]
+
 def get_absolute_path(filename: str) -> str:
     """Helper to resolve file paths relative to the project root."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -27,7 +30,7 @@ def load_agency_template(filename: str = "state_agency_dictionary.json") -> Dict
 def get_local_search_scope(jurisdiction_type: str) -> List[str]:
     """
     Returns a simple list of Service Categories to search for via AI.
-    Example: ['Main Office', 'Public Works', 'Police', 'School Districts']
+    Example: ['Main Office', 'Public Works', 'Police', 'School District', 'Housing Authority']
     """
     categories = ["Main Office"] # Always include Main Office
 
@@ -40,12 +43,26 @@ def get_local_search_scope(jurisdiction_type: str) -> List[str]:
         for key in services.keys():
             categories.append(key.replace('_', ' ').title())
 
-        # 2. Special Districts (Extract Types)
+        # 2. Special Districts (Extract Types) & Standardize Names
         special = template.get("special_districts", {})
         types = special.get("types", [])
+
+        # Mapping for standardization
+        mapping = {
+            "School Districts": "School District",
+            "Library Districts": "Public Library",
+            "Transit Authorities": "Transit Authority"
+        }
+
         for item in types:
             if isinstance(item, dict) and "type" in item:
-                categories.append(item["type"])
+                raw_type = item["type"]
+                # Apply mapping if exists, otherwise use raw
+                std_type = mapping.get(raw_type, raw_type)
+                categories.append(std_type)
+
+        # 3. Explicitly Add Housing Authority (missing from JSON)
+        categories.append("Housing Authority")
 
     except Exception as e:
         print(f"Error loading local scope: {e}")
@@ -113,3 +130,46 @@ def get_domain_patterns(jurisdiction_type: str) -> List[str]:
     other_patterns = [p for p in patterns if p and not p.endswith('.gov')]
 
     return gov_patterns + other_patterns
+
+def get_special_district_patterns(district_type: str) -> List[str]:
+    """
+    Returns a prioritized list of patterns (Tier 1 .gov, Tier 2 .org/.com)
+    for the specific special district type.
+    """
+    patterns = []
+
+    if district_type == "Housing Authority":
+        # Tier 1
+        patterns.append("[name]housing.gov")
+        patterns.append("[name]ha.gov")
+        # Tier 2
+        patterns.append("[name]housing.org")
+        patterns.append("[name]ha.org")
+        patterns.append("[name]housingauthority.com")
+
+    elif district_type == "Public Library":
+        # Tier 1
+        patterns.append("[name]library.gov")
+        patterns.append("[name]pl.gov")
+        # Tier 2
+        patterns.append("[name]library.org")
+        patterns.append("[name]publiclibrary.org")
+        patterns.append("[name]pl.org")
+
+    elif district_type == "Transit Authority":
+        # Tier 1
+        patterns.append("[name]transit.gov")
+        # Tier 2
+        patterns.append("[name]transit.org")
+        patterns.append("[name]metro.org")
+
+    elif district_type == "School District":
+        # Keep existing logic/patterns implied for schools
+        # Tier 1
+        patterns.append("[name]schools.gov")
+        # Tier 2
+        patterns.append("[name]sd.org")
+        patterns.append("[name]isd.org") # Common for Independent School Districts
+        patterns.append("[name]schools.org")
+
+    return patterns
