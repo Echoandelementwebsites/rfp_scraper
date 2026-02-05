@@ -186,6 +186,59 @@ class DatabaseHandler:
             conn.close()
         return df
 
+    def get_agency_by_jurisdiction(self, state_id: int, category: str, local_jurisdiction_id: Optional[int]) -> Optional[dict]:
+        """
+        Retrieves a single agency record matching the jurisdiction and category.
+        Returns a dictionary representation of the row.
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        try:
+            if local_jurisdiction_id is None:
+                return None
+            else:
+                cursor.execute("""
+                    SELECT * FROM agencies
+                    WHERE state_id = ? AND category = ? AND local_jurisdiction_id = ?
+                """, (state_id, category, local_jurisdiction_id))
+
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+        finally:
+            conn.close()
+
+    def update_agency_url(self, agency_id: int, new_url: str):
+        """Updates the URL for a specific agency and sets verified=True."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                UPDATE agencies
+                SET url = ?, verified = 1
+                WHERE id = ?
+            """, (new_url, agency_id))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error updating agency URL: {e}")
+        finally:
+            conn.close()
+
+    def delete_agency(self, agency_id: int):
+        """Deletes an agency record."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM agencies WHERE id = ?", (agency_id,))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error deleting agency: {e}")
+        finally:
+            conn.close()
+
     def get_local_jurisdictions(self, state_id: Optional[int] = None) -> pd.DataFrame:
         """Retrieve local jurisdictions, optionally filtered by state."""
         conn = sqlite3.connect(self.db_path)

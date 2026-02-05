@@ -86,13 +86,13 @@ def get_domain_patterns(jurisdiction_type: str) -> List[str]:
     # Fallback if no patterns found (or file missing)
     if not patterns:
         if jurisdiction_type == 'city':
-            # Fallback: [name].gov, cityof[name].gov, cityof[name].org, [name][state].gov
+            # Fallback: [name].gov, cityof[name].gov, [name][state].gov, cityof[name].org
             # Using specific placeholders for consistency with discovery logic
             patterns = [
                 "[cityname].gov",
                 "cityof[cityname].gov",
-                "cityof[cityname].org",
-                "[cityname][state_abbrev].gov"
+                "[cityname][state_abbrev].gov",
+                "cityof[cityname].org"
             ]
         elif jurisdiction_type == 'county':
             # Fallback: [name]county.gov, co.[name].[state].us
@@ -104,8 +104,12 @@ def get_domain_patterns(jurisdiction_type: str) -> List[str]:
              patterns = [
                 "[townname].gov",
                 "townof[townname].gov",
-                "townof[townname].org",
-                "[townname][state_abbrev].gov"
+                "[townname][state_abbrev].gov",
+                "townof[townname].org"
              ]
 
-    return [p for p in patterns if p]
+    # Sort patterns: .gov first, then others
+    gov_patterns = [p for p in patterns if p and p.endswith('.gov')]
+    other_patterns = [p for p in patterns if p and not p.endswith('.gov')]
+
+    return gov_patterns + other_patterns
