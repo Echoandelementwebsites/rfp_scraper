@@ -24,7 +24,7 @@ from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url, check_url_reachability, get_state_abbreviation
-from rfp_scraper.discovery import DiscoveryEngine, generate_and_validate_domains, find_department_on_domain
+from rfp_scraper.discovery import DiscoveryEngine, generate_and_validate_domains, find_department_on_domain, is_better_url
 from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
@@ -339,28 +339,51 @@ with tab_agencies:
                     # 2. Find Main Domain (Permutation)
                     main_url = generate_and_validate_domains(juris_name, state_abbr, patterns)
 
+                    final_url = None
                     if main_url:
                         # 3. Department Resolution
                         final_url = find_department_on_domain(main_url, category)
 
-                        display_name = f"{juris_name} {category}"
-                        if category == "Main Office":
-                            display_name = juris_name
+                    display_name = f"{juris_name} {category}"
+                    if category == "Main Office":
+                        display_name = juris_name
 
-                        # Check deduplication
-                        if not db.agency_exists(task["state_id"], url=final_url, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
-                            db.add_agency(
-                                state_id=task["state_id"],
-                                name=display_name,
-                                url=final_url,
-                                verified=True,  # Verified via connection
-                                category=category,
-                                local_jurisdiction_id=task["jurisdiction_id"]
-                            )
-                            new_verified_count += 1
-                            status_container.write(f"✅ Found (Direct): **{display_name}** -> {final_url}")
+                    # 4. Check Database for Existing Record
+                    # We check by jurisdiction slot (state + category + local_id) to see if we already have an entry
+                    existing_agency = db.get_agency_by_jurisdiction(task["state_id"], category, task["jurisdiction_id"])
+
+                    if existing_agency is None:
+                        # Case A: New Record
+                        if final_url:
+                            # Standard deduplication check (in case URL is used by another agency, though less likely here)
+                            if not db.agency_exists(task["state_id"], url=final_url, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
+                                db.add_agency(
+                                    state_id=task["state_id"],
+                                    name=display_name,
+                                    url=final_url,
+                                    verified=True,
+                                    category=category,
+                                    local_jurisdiction_id=task["jurisdiction_id"]
+                                )
+                                new_verified_count += 1
+                                status_container.write(f"✅ Found (Direct): **{display_name}** -> {final_url}")
                     else:
-                        pass
+                        # Existing Record Logic (Remediation)
+                        existing_url = existing_agency['url']
+                        existing_id = existing_agency['id']
+
+                        if final_url:
+                            # Case B: Upgrade
+                            if is_better_url(final_url, existing_url):
+                                db.update_agency_url(existing_id, final_url)
+                                new_verified_count += 1
+                                status_container.write(f"🔄 Upgraded: **{display_name}** ({existing_url} -> {final_url})")
+                        elif existing_url:
+                            # Case C: Remove Invalid (Discovery failed, check if existing is dead)
+                            # Discovery failed (main_url is None), so we verify if the old one is truly dead
+                            if not check_url_reachability(existing_url):
+                                db.delete_agency(existing_id)
+                                status_container.write(f"🗑️ Removed: **{display_name}** (Dead link: {existing_url})")
 
             log_area.empty()
             st.success(f"Discovery Process Complete! Verified {new_verified_count} URLs.")
