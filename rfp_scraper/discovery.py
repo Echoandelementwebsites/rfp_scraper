@@ -3,6 +3,7 @@ from typing import List, Tuple, Optional, Any, Dict
 import time
 import requests
 from rfp_scraper.utils import validate_url, check_url_reachability
+import rfp_scraper.config_loader as config_loader
 
 def _generate_candidates(name: str, state_abbr: str, patterns: List[str]) -> List[str]:
     name_clean = name.lower().replace(" ", "")
@@ -87,6 +88,16 @@ def generate_and_validate_domains(name: str, state_abbr: str, patterns: List[str
             return min(valid_tier2, key=len)
 
     return None
+
+def find_special_district_domain(city_name: str, state_abbr: str, district_type: str) -> Optional[str]:
+    """
+    Generates and probes patterns specifically for special districts.
+    """
+    patterns = config_loader.get_special_district_patterns(district_type)
+    if not patterns:
+        return None
+
+    return generate_and_validate_domains(city_name, state_abbr, patterns)
 
 def is_better_url(new_url: str, old_url: str) -> bool:
     """

@@ -24,8 +24,8 @@ from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url, check_url_reachability, get_state_abbreviation
-from rfp_scraper.discovery import DiscoveryEngine, generate_and_validate_domains, find_department_on_domain, is_better_url
-from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns
+from rfp_scraper.discovery import DiscoveryEngine, generate_and_validate_domains, find_department_on_domain, is_better_url, find_special_district_domain
+from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns, SPECIAL_CATEGORIES
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -274,7 +274,7 @@ with tab_agencies:
                     juris_name = juris_row['name']
                     juris_type = juris_row['type']
 
-                    # Get simple list of categories (e.g. ['Public Works', 'Police'])
+                    # Get simple list of categories (e.g. ['Public Works', 'Police', 'Housing Authority'])
                     categories = get_local_search_scope(juris_type)
 
                     for category in categories:
@@ -325,24 +325,45 @@ with tab_agencies:
                             pass
 
                 elif task["phase"] == "ai_native_local":
-                    # DIRECT DOMAIN DISCOVERY LOGIC
+                    # DIRECT DOMAIN DISCOVERY LOGIC with TIERED SUPPORT
                     juris_name = task["name"]
                     category = task["category"]
                     juris_type = task["juris_type"]
                     state_abbr = get_state_abbreviation(task["state_name"])
 
-                    # 1. Get Domain Patterns
-                    patterns = get_domain_patterns(juris_type)
-
                     log_area.text(f"🔎 Probing: {juris_name} ({juris_type})...")
 
-                    # 2. Find Main Domain (Permutation)
+                    # Step 1: Find Main Domain (Common to all)
+                    patterns = get_domain_patterns(juris_type)
                     main_url = generate_and_validate_domains(juris_name, state_abbr, patterns)
 
                     final_url = None
+                    main_domain_result_url = None
+
+                    # Step 1a: Standard Department Lookup on Main Domain
                     if main_url:
-                        # 3. Department Resolution
-                        final_url = find_department_on_domain(main_url, category)
+                        main_domain_result_url = find_department_on_domain(main_url, category)
+
+                    # Step 2: Special District Logic
+                    if category in SPECIAL_CATEGORIES:
+                        # Should we run independent probe?
+                        # Rule: If Main Domain Failed OR it is a School District (Always probe)
+                        should_probe_independent = (not main_domain_result_url) or (main_domain_result_url == main_url) or (category == "School District")
+
+                        if should_probe_independent:
+                            log_area.text(f"🔎 Independent Probe: {juris_name} - {category}...")
+                            independent_url = find_special_district_domain(juris_name, state_abbr, category)
+
+                            if independent_url:
+                                final_url = independent_url
+                                # Independent URL takes precedence
+                            else:
+                                final_url = main_domain_result_url
+                        else:
+                             final_url = main_domain_result_url
+                    else:
+                        # Standard Department (Police, Public Works, etc.)
+                        final_url = main_domain_result_url
 
                     display_name = f"{juris_name} {category}"
                     if category == "Main Office":
