@@ -23,9 +23,9 @@ from rfp_scraper.factory import ScraperFactory
 from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
-from rfp_scraper.utils import validate_url, check_url_reachability
-from rfp_scraper.discovery import DiscoveryEngine
-from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope
+from rfp_scraper.utils import validate_url, check_url_reachability, get_state_abbreviation
+from rfp_scraper.discovery import DiscoveryEngine, generate_and_validate_domains, find_department_on_domain
+from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -284,7 +284,8 @@ with tab_agencies:
                             "name": juris_name,
                             "category": category,
                             "phase": "ai_native_local",  # New Phase Name
-                            "jurisdiction_id": juris_id
+                            "jurisdiction_id": juris_id,
+                            "juris_type": juris_type
                         })
 
             total_items = len(tasks)
@@ -324,39 +325,42 @@ with tab_agencies:
                             pass
 
                 elif task["phase"] == "ai_native_local":
-                    # NEW AI-NATIVE LOGIC
+                    # DIRECT DOMAIN DISCOVERY LOGIC
                     juris_name = task["name"]
                     category = task["category"]
+                    juris_type = task["juris_type"]
+                    state_abbr = get_state_abbreviation(task["state_name"])
 
-                    log_area.text(f"🤖 AI Searching: {juris_name} - {category}...")
+                    # 1. Get Domain Patterns
+                    patterns = get_domain_patterns(juris_type)
 
-                    # 1. Construct Natural Query
-                    query = f"Official website for {juris_name} {category}"
+                    log_area.text(f"🔎 Probing: {juris_name} ({juris_type})...")
 
-                    # 2. Get Raw Context
-                    raw_results = discovery_engine.fetch_search_context(query, num_results=8)
+                    # 2. Find Main Domain (Permutation)
+                    main_url = generate_and_validate_domains(juris_name, state_abbr, patterns)
 
-                    # 3. AI Analysis
-                    found_url = ai_client.analyze_serp_results(juris_name, category, raw_results)
+                    if main_url:
+                        # 3. Department Resolution
+                        final_url = find_department_on_domain(main_url, category)
 
-                    if found_url:
-                        # Display Name: "Chicago Public Works"
                         display_name = f"{juris_name} {category}"
                         if category == "Main Office":
                             display_name = juris_name
 
                         # Check deduplication
-                        if not db.agency_exists(task["state_id"], url=found_url, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
+                        if not db.agency_exists(task["state_id"], url=final_url, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
                             db.add_agency(
                                 state_id=task["state_id"],
                                 name=display_name,
-                                url=found_url,
-                                verified=True,  # AI-Verified
+                                url=final_url,
+                                verified=True,  # Verified via connection
                                 category=category,
                                 local_jurisdiction_id=task["jurisdiction_id"]
                             )
                             new_verified_count += 1
-                            status_container.write(f"✅ Found (AI): **{display_name}** -> {found_url}")
+                            status_container.write(f"✅ Found (Direct): **{display_name}** -> {final_url}")
+                    else:
+                        pass
 
             log_area.empty()
             st.success(f"Discovery Process Complete! Verified {new_verified_count} URLs.")

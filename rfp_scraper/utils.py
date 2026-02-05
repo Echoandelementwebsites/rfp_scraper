@@ -69,3 +69,32 @@ def check_url_reachability(url: str) -> bool:
 
     except Exception:
         return False
+
+def get_state_abbreviation(state_name: str) -> str:
+    """
+    Returns the 2-letter abbreviation for a given state name.
+    """
+    if not state_name:
+        return ""
+
+    clean_name = state_name.strip()
+
+    # If already an abbreviation, return it upper-cased
+    if len(clean_name) == 2:
+        return clean_name.upper()
+
+    states = {
+        "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA",
+        "colorado": "CO", "connecticut": "CT", "delaware": "DE", "florida": "FL", "georgia": "GA",
+        "hawaii": "HI", "idaho": "ID", "illinois": "IL", "indiana": "IN", "iowa": "IA",
+        "kansas": "KS", "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD",
+        "massachusetts": "MA", "michigan": "MI", "minnesota": "MN", "mississippi": "MS", "missouri": "MO",
+        "montana": "MT", "nebraska": "NE", "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ",
+        "new mexico": "NM", "new york": "NY", "north carolina": "NC", "north dakota": "ND", "ohio": "OH",
+        "oklahoma": "OK", "oregon": "OR", "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC",
+        "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT",
+        "virginia": "VA", "washington": "WA", "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY",
+        "district of columbia": "DC"
+    }
+
+    return states.get(clean_name.lower(), "")

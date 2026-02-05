@@ -63,3 +63,49 @@ def extract_search_scope(template: Dict[str, Any]) -> List[str]:
             scope.append(info["typical_name"])
 
     return list(set(scope))
+
+def get_domain_patterns(jurisdiction_type: str) -> List[str]:
+    """
+    Returns a list of domain patterns for the given jurisdiction type (e.g., 'city', 'county').
+    """
+    patterns = []
+    jurisdiction_type = jurisdiction_type.lower()
+
+    try:
+        template = load_cities_template()
+        domain_patterns = template.get("domain_patterns", [])
+
+        for entry in domain_patterns:
+            inst_types = entry.get("institution_type", [])
+            if jurisdiction_type in inst_types:
+                patterns.append(entry.get("pattern", ""))
+
+    except Exception as e:
+        print(f"Error loading domain patterns: {e}")
+
+    # Fallback if no patterns found (or file missing)
+    if not patterns:
+        if jurisdiction_type == 'city':
+            # Fallback: [name].gov, cityof[name].gov, cityof[name].org, [name][state].gov
+            # Using specific placeholders for consistency with discovery logic
+            patterns = [
+                "[cityname].gov",
+                "cityof[cityname].gov",
+                "cityof[cityname].org",
+                "[cityname][state_abbrev].gov"
+            ]
+        elif jurisdiction_type == 'county':
+            # Fallback: [name]county.gov, co.[name].[state].us
+            patterns = [
+                "[countyname]county.gov",
+                "co.[countyname].[state_abbrev].us"
+            ]
+        elif jurisdiction_type == 'town':
+             patterns = [
+                "[townname].gov",
+                "townof[townname].gov",
+                "townof[townname].org",
+                "[townname][state_abbrev].gov"
+             ]
+
+    return [p for p in patterns if p]

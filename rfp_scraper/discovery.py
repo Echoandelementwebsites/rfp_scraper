@@ -1,7 +1,91 @@
 from duckduckgo_search import DDGS
 from typing import List, Tuple, Optional, Any, Dict
 import time
+import requests
 from rfp_scraper.utils import validate_url
+
+def generate_and_validate_domains(name: str, state_abbr: str, patterns: List[str]) -> Optional[str]:
+    """
+    Generates candidate URLs from patterns and validates them via direct connection.
+    Returns the first working URL or None.
+    """
+    if not name or not state_abbr or not patterns:
+        return None
+
+    name_clean = name.lower().replace(" ", "")
+    state_clean = state_abbr.lower().strip()
+
+    candidates = []
+
+    for pattern in patterns:
+        domain = pattern
+        # Replace specific placeholders
+        domain = domain.replace("[cityname]", name_clean)
+        domain = domain.replace("[townname]", name_clean)
+        domain = domain.replace("[countyname]", name_clean)
+        domain = domain.replace("[parishname]", name_clean)
+        domain = domain.replace("[state_abbrev]", state_clean)
+
+        # Generic fallback if patterns use [name] or [state]
+        domain = domain.replace("[name]", name_clean)
+        domain = domain.replace("[state]", state_clean)
+
+        # Construct full URL (try https)
+        if not domain.startswith("http"):
+             candidates.append(f"https://{domain}")
+             # Also try www. prefix if the pattern doesn't have it
+             if not domain.startswith("www."):
+                 candidates.append(f"https://www.{domain}")
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_candidates = []
+    for c in candidates:
+        if c not in seen:
+            unique_candidates.append(c)
+            seen.add(c)
+
+    # Probe
+    for url in unique_candidates:
+        try:
+            # 3-second timeout, follow redirects
+            response = requests.get(url, timeout=3, allow_redirects=True)
+            if response.status_code == 200:
+                # Basic check to ensure we didn't land on a parked page or generic 404 handler
+                # (This is hard to do perfectly without content analysis, but 200 is the requirement)
+                return response.url
+        except Exception:
+            continue
+
+    return None
+
+def find_department_on_domain(main_domain: str, department: str) -> str:
+    """
+    Attempts to find a specific department page on the main domain.
+    If not found, returns the main domain.
+    """
+    if not main_domain:
+        return ""
+
+    if department == "Main Office":
+        return main_domain
+
+    # Construct sub-path: e.g. /public-works
+    slug = department.replace(" ", "-").lower()
+
+    # Handle main_domain trailing slash
+    base = main_domain.rstrip("/")
+    candidate = f"{base}/{slug}"
+
+    try:
+        response = requests.get(candidate, timeout=5, allow_redirects=True)
+        if response.status_code == 200:
+            return response.url
+    except Exception:
+        pass
+
+    # Fallback to main domain
+    return main_domain
 
 class DiscoveryEngine:
     def __init__(self):
