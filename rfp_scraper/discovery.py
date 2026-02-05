@@ -55,37 +55,32 @@ def _probe_candidates(candidates: List[str]) -> List[str]:
             continue
     return valid_urls
 
-def generate_and_validate_domains(name: str, state_abbr: str, patterns: List[str]) -> Optional[str]:
+def generate_and_validate_domains(name: str, state_abbr: str, specific_patterns: List[str], generic_patterns: List[str]) -> Optional[str]:
     """
     Generates candidate URLs from patterns and validates them via direct connection.
-    Implements Tiered Discovery:
-      Tier 1: .gov patterns (Prioritize shortest valid URL).
-      Tier 2: Other patterns (Fallback if Tier 1 fails).
+    Implements 2-Phase Strategy:
+      Phase 1: Specific Patterns (Prioritize shortest valid URL).
+      Phase 2: Generic Patterns (Fallback if Phase 1 fails).
     """
-    if not name or not state_abbr or not patterns:
+    if not name or not state_abbr:
         return None
 
-    # Split patterns
-    gov_patterns = [p for p in patterns if p.endswith('.gov')]
-    other_patterns = [p for p in patterns if not p.endswith('.gov')]
+    # Phase 1: Probe Specific (State-Suffixed) Patterns
+    if specific_patterns:
+        phase1_candidates = _generate_candidates(name, state_abbr, specific_patterns)
+        valid_phase1 = _probe_candidates(phase1_candidates)
 
-    # Tier 1: Probe .gov candidates
-    if gov_patterns:
-        tier1_candidates = _generate_candidates(name, state_abbr, gov_patterns)
-        valid_tier1 = _probe_candidates(tier1_candidates)
+        if valid_phase1:
+             # Found match in specific patterns. Return immediately.
+             return min(valid_phase1, key=len)
 
-        if valid_tier1:
-            # Select best (shortest)
-            return min(valid_tier1, key=len)
+    # Phase 2: Probe Generic Patterns (Only if Phase 1 failed)
+    if generic_patterns:
+        phase2_candidates = _generate_candidates(name, state_abbr, generic_patterns)
+        valid_phase2 = _probe_candidates(phase2_candidates)
 
-    # Tier 2: Probe others (only if Tier 1 failed)
-    if other_patterns:
-        tier2_candidates = _generate_candidates(name, state_abbr, other_patterns)
-        valid_tier2 = _probe_candidates(tier2_candidates)
-
-        if valid_tier2:
-            # Select best (shortest)
-            return min(valid_tier2, key=len)
+        if valid_phase2:
+            return min(valid_phase2, key=len)
 
     return None
 
@@ -93,11 +88,8 @@ def find_special_district_domain(city_name: str, state_abbr: str, district_type:
     """
     Generates and probes patterns specifically for special districts.
     """
-    patterns = config_loader.get_special_district_patterns(district_type)
-    if not patterns:
-        return None
-
-    return generate_and_validate_domains(city_name, state_abbr, patterns)
+    specific, generic = config_loader.get_special_district_patterns(district_type)
+    return generate_and_validate_domains(city_name, state_abbr, specific, generic)
 
 def is_better_url(new_url: str, old_url: str) -> bool:
     """

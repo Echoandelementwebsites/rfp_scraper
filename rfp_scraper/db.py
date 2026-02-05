@@ -227,6 +227,22 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    def update_agency_name(self, agency_id: int, new_name: str):
+        """Updates the name for a specific agency."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                UPDATE agencies
+                SET organization_name = ?
+                WHERE id = ?
+            """, (new_name, agency_id))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error updating agency name: {e}")
+        finally:
+            conn.close()
+
     def delete_agency(self, agency_id: int):
         """Deletes an agency record."""
         conn = sqlite3.connect(self.db_path)

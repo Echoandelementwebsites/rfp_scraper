@@ -334,8 +334,8 @@ with tab_agencies:
                     log_area.text(f"🔎 Probing: {juris_name} ({juris_type})...")
 
                     # Step 1: Find Main Domain (Common to all)
-                    patterns = get_domain_patterns(juris_type)
-                    main_url = generate_and_validate_domains(juris_name, state_abbr, patterns)
+                    specific_patterns, generic_patterns = get_domain_patterns(juris_type)
+                    main_url = generate_and_validate_domains(juris_name, state_abbr, specific_patterns, generic_patterns)
 
                     final_url = None
                     main_domain_result_url = None
@@ -365,9 +365,8 @@ with tab_agencies:
                         # Standard Department (Police, Public Works, etc.)
                         final_url = main_domain_result_url
 
-                    display_name = f"{juris_name} {category}"
-                    if category == "Main Office":
-                        display_name = juris_name
+                    # Naming Convention: Jurisdiction (State) Category
+                    display_name = f"{juris_name} ({state_abbr}) {category}"
 
                     # 4. Check Database for Existing Record
                     # We check by jurisdiction slot (state + category + local_id) to see if we already have an entry
@@ -392,6 +391,11 @@ with tab_agencies:
                         # Existing Record Logic (Remediation)
                         existing_url = existing_agency['url']
                         existing_id = existing_agency['id']
+                        current_name = existing_agency.get('organization_name', '')
+
+                        # Check for Name Update (Identity Collision Fix)
+                        if current_name != display_name:
+                            db.update_agency_name(existing_id, display_name)
 
                         if final_url:
                             # Case B: Upgrade

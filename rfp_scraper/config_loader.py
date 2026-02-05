@@ -1,6 +1,6 @@
 import json
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 # Define Special Categories globally
 SPECIAL_CATEGORIES = ["School District", "Housing Authority", "Public Library", "Transit Authority"]
@@ -81,95 +81,129 @@ def extract_search_scope(template: Dict[str, Any]) -> List[str]:
 
     return list(set(scope))
 
-def get_domain_patterns(jurisdiction_type: str) -> List[str]:
+def get_domain_patterns(jurisdiction_type: str) -> Tuple[List[str], List[str]]:
     """
-    Returns a list of domain patterns for the given jurisdiction type (e.g., 'city', 'county').
+    Returns two lists of domain patterns for the given jurisdiction type:
+    1. Specific Patterns (contain state abbreviation) - High Priority
+    2. Generic Patterns (fallback)
     """
-    patterns = []
+    specific_patterns = []
+    generic_patterns = []
     jurisdiction_type = jurisdiction_type.lower()
 
+    # Default Hardcoded Fallbacks (if JSON fails or empty)
+    # Note: We prioritize these based on the requirement
+    if jurisdiction_type == 'city':
+        specific_patterns = [
+            "[cityname][state_abbrev].gov",
+            "[cityname]-[state_abbrev].gov",
+            "cityof[cityname][state_abbrev].gov"
+        ]
+        generic_patterns = [
+            "[cityname].gov",
+            "cityof[cityname].gov",
+            "cityof[cityname].org",
+            "cityof[cityname].com"
+        ]
+    elif jurisdiction_type == 'town':
+        specific_patterns = [
+            "[townname][state_abbrev].gov",
+            "townof[townname][state_abbrev].gov",
+            "[townname]-[state_abbrev].gov"
+        ]
+        generic_patterns = [
+            "[townname].gov",
+            "townof[townname].gov",
+            "townof[townname].org"
+        ]
+    elif jurisdiction_type == 'county':
+        specific_patterns = [
+            "co.[countyname].[state_abbrev].us",
+            "[countyname]county[state_abbrev].gov"
+        ]
+        generic_patterns = [
+            "[countyname]county.gov",
+            "[countyname].gov"
+        ]
+
+    # Try to load from JSON to override/augment
     try:
         template = load_cities_template()
         domain_patterns = template.get("domain_patterns", [])
 
+        # Collect patterns from JSON
+        json_patterns = []
         for entry in domain_patterns:
             inst_types = entry.get("institution_type", [])
             if jurisdiction_type in inst_types:
-                patterns.append(entry.get("pattern", ""))
+                json_patterns.append(entry.get("pattern", ""))
+
+        if json_patterns:
+            # If we found patterns in JSON, we rely on them, but we must split them
+            specific_patterns = []
+            generic_patterns = []
+            for p in json_patterns:
+                if not p: continue
+                # Heuristic: if it has state placeholder, it is specific
+                if "[state_abbrev]" in p or "[state]" in p or ".[state_abbrev]." in p:
+                    specific_patterns.append(p)
+                else:
+                    generic_patterns.append(p)
 
     except Exception as e:
         print(f"Error loading domain patterns: {e}")
+        # Keep the hardcoded defaults set above
 
-    # Fallback if no patterns found (or file missing)
-    if not patterns:
-        if jurisdiction_type == 'city':
-            # Fallback: [name].gov, cityof[name].gov, [name][state].gov, cityof[name].org
-            # Using specific placeholders for consistency with discovery logic
-            patterns = [
-                "[cityname].gov",
-                "cityof[cityname].gov",
-                "[cityname][state_abbrev].gov",
-                "cityof[cityname].org"
-            ]
-        elif jurisdiction_type == 'county':
-            # Fallback: [name]county.gov, co.[name].[state].us
-            patterns = [
-                "[countyname]county.gov",
-                "co.[countyname].[state_abbrev].us"
-            ]
-        elif jurisdiction_type == 'town':
-             patterns = [
-                "[townname].gov",
-                "townof[townname].gov",
-                "[townname][state_abbrev].gov",
-                "townof[townname].org"
-             ]
+    return specific_patterns, generic_patterns
 
-    # Sort patterns: .gov first, then others
-    gov_patterns = [p for p in patterns if p and p.endswith('.gov')]
-    other_patterns = [p for p in patterns if p and not p.endswith('.gov')]
-
-    return gov_patterns + other_patterns
-
-def get_special_district_patterns(district_type: str) -> List[str]:
+def get_special_district_patterns(district_type: str) -> Tuple[List[str], List[str]]:
     """
-    Returns a prioritized list of patterns (Tier 1 .gov, Tier 2 .org/.com)
+    Returns a prioritized tuple of patterns (Specific, Generic)
     for the specific special district type.
     """
-    patterns = []
+    specific = []
+    generic = []
 
     if district_type == "Housing Authority":
-        # Tier 1
-        patterns.append("[name]housing.gov")
-        patterns.append("[name]ha.gov")
-        # Tier 2
-        patterns.append("[name]housing.org")
-        patterns.append("[name]ha.org")
-        patterns.append("[name]housingauthority.com")
+        # Specific
+        specific.append("[name][state_abbrev]housing.gov")
+        specific.append("[name][state_abbrev]ha.gov")
+        # Generic
+        generic.append("[name]housing.gov")
+        generic.append("[name]ha.gov")
+        generic.append("[name]housing.org")
+        generic.append("[name]ha.org")
+        generic.append("[name]housingauthority.com")
 
     elif district_type == "Public Library":
-        # Tier 1
-        patterns.append("[name]library.gov")
-        patterns.append("[name]pl.gov")
-        # Tier 2
-        patterns.append("[name]library.org")
-        patterns.append("[name]publiclibrary.org")
-        patterns.append("[name]pl.org")
+        # Specific
+        specific.append("[name][state_abbrev]library.gov")
+        specific.append("[name][state_abbrev]pl.gov")
+        # Generic
+        generic.append("[name]library.gov")
+        generic.append("[name]pl.gov")
+        generic.append("[name]library.org")
+        generic.append("[name]publiclibrary.org")
+        generic.append("[name]pl.org")
 
     elif district_type == "Transit Authority":
-        # Tier 1
-        patterns.append("[name]transit.gov")
-        # Tier 2
-        patterns.append("[name]transit.org")
-        patterns.append("[name]metro.org")
+        # Specific
+        specific.append("[name][state_abbrev]transit.gov")
+        # Generic
+        generic.append("[name]transit.gov")
+        generic.append("[name]transit.org")
+        generic.append("[name]metro.org")
 
     elif district_type == "School District":
-        # Keep existing logic/patterns implied for schools
-        # Tier 1
-        patterns.append("[name]schools.gov")
-        # Tier 2
-        patterns.append("[name]sd.org")
-        patterns.append("[name]isd.org") # Common for Independent School Districts
-        patterns.append("[name]schools.org")
+        # Specific
+        specific.append("[name][state_abbrev]schools.gov")
+        specific.append("[name][state_abbrev]sd.gov")
+        specific.append("[name][state_abbrev]ps.gov")
+        specific.append("[name]schools[state_abbrev].org")
+        # Generic
+        generic.append("[name]schools.gov")
+        generic.append("[name]sd.org")
+        generic.append("[name]isd.org")
+        generic.append("[name]schools.org")
 
-    return patterns
+    return specific, generic
