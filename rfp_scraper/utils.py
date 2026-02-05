@@ -77,6 +77,12 @@ def get_state_abbreviation(state_name: str) -> str:
     if not state_name:
         return ""
 
+    clean_name = state_name.strip()
+
+    # If already an abbreviation, return it upper-cased
+    if len(clean_name) == 2:
+        return clean_name.upper()
+
     states = {
         "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA",
         "colorado": "CO", "connecticut": "CT", "delaware": "DE", "florida": "FL", "georgia": "GA",
@@ -91,5 +97,4 @@ def get_state_abbreviation(state_name: str) -> str:
         "district of columbia": "DC"
     }
 
-    clean_name = state_name.lower().strip()
-    return states.get(clean_name, "")
+    return states.get(clean_name.lower(), "")
