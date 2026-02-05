@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="Updated specific_pattern arrays for City, Town">
+    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="Created an rfp data sanitizing script">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/run_db_cleanup.py" beforeDir="false" afterPath="$PROJECT_DIR$/run_db_cleanup.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -72,13 +73,22 @@
       <option name="project" value="LOCAL" />
       <updated>1770288549115</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Created an rfp data sanitizing script">
+      <option name="closed" value="true" />
+      <created>1770319822799</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1770319822799</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Edited RFP page Table title" />
     <MESSAGE value="Updated cities .json file" />
     <MESSAGE value="Updated specific_pattern arrays for City, Town" />
-    <option name="LAST_COMMIT_MESSAGE" value="Updated specific_pattern arrays for City, Town" />
+    <MESSAGE value="Created an rfp data sanitizing script" />
+    <option name="LAST_COMMIT_MESSAGE" value="Created an rfp data sanitizing script" />
   </component>
 </project>

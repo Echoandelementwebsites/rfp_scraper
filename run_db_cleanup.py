@@ -1,32 +1,41 @@
 import sys
 import os
-from sqlalchemy import text
-from sqlalchemy.orm import sessionmaker
+import sqlite3
 
-# 1. Setup Path: Allow importing from the 'rfp_scraper' package
+# 1. Setup Path to find your app modules
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-# 2. Imports from your app
-# NOTE: Ensure rfp_scraper/db.py has a get_db_engine() or equivalent.
-# If not, import your specific engine/session creator here.
-from rfp_scraper.db import get_db_engine
+# 2. Import your existing DatabaseHandler and utilities
+from rfp_scraper.db import DatabaseHandler
 from rfp_scraper import utils, ai_parser
 
 
 def clean_database():
-    print("🚀 Starting Database Cleanup & Remediation...")
+    print("🚀 Starting Database Cleanup & Remediation (SQLite Mode)...")
 
-    # Connect to DB
-    engine = get_db_engine()
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    # Initialize your existing handler
+    db_handler = DatabaseHandler()
+    db_path = db_handler.db_path
+
+    print(f"📂 Connecting to database at: {db_path}")
+
+    # Connect directly using sqlite3
+    try:
+        conn = sqlite3.connect(db_path)
+        # Use Row factory to access columns by name
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+    except Exception as e:
+        print(f"❌ Could not connect to database: {e}")
+        return
 
     try:
-        # Fetch all bids
-        print("📊 Fetching existing records...")
-        result = session.execute(text("SELECT id, title, rfp_description, client_name, deadline FROM bids"))
-        rows = result.fetchall()
+        # Fetch existing bids
+        # Note: We use the table name 'scraped_bids' found in your db.py (not 'bids')
+        print("📊 Fetching existing records from 'scraped_bids'...")
+        cursor.execute("SELECT slug, title, rfp_description, client_name, matching_trades FROM scraped_bids")
+        rows = cursor.fetchall()
 
         print(f"🔎 Analyzing {len(rows)} records for noise and hallucinations...")
 
@@ -34,10 +43,10 @@ def clean_database():
         updated_count = 0
 
         for row in rows:
-            rfp_id = row.id
-            title = row.title or ""
-            desc = row.rfp_description or ""
-            client = row.client_name or ""
+            slug = row['slug']
+            title = row['title'] or ""
+            desc = row['rfp_description'] or ""
+            client = row['client_name'] or ""
 
             # --- STAGE 2: Hard Filtering (Fast) ---
             clean_title = utils.clean_text(title)
@@ -45,7 +54,7 @@ def clean_database():
             # Check validity using your new utils logic
             if not utils.is_valid_rfp(clean_title, desc, client):
                 print(f"❌ Deleting [Noise]: {clean_title}")
-                session.execute(text("DELETE FROM bids WHERE id = :id"), {"id": rfp_id})
+                cursor.execute("DELETE FROM scraped_bids WHERE slug = ?", (slug,))
                 deleted_count += 1
                 continue
 
@@ -55,7 +64,7 @@ def clean_database():
 
             if not trades:
                 print(f"❌ Deleting [Non-Construction]: {clean_title}")
-                session.execute(text("DELETE FROM bids WHERE id = :id"), {"id": rfp_id})
+                cursor.execute("DELETE FROM scraped_bids WHERE slug = ?", (slug,))
                 deleted_count += 1
                 continue
 
@@ -63,26 +72,26 @@ def clean_database():
             trade_str = ", ".join(trades)
             print(f"✅ Keeping & Tagging: {clean_title} -> [{trade_str}]")
 
-            session.execute(
-                text("UPDATE bids SET matching_trades = :trades WHERE id = :id"),
-                {"trades": trade_str, "id": rfp_id}
+            cursor.execute(
+                "UPDATE scraped_bids SET matching_trades = ? WHERE slug = ?",
+                (trade_str, slug)
             )
             updated_count += 1
 
             # Commit periodically
             if (deleted_count + updated_count) % 10 == 0:
-                session.commit()
+                conn.commit()
 
-        session.commit()
+        conn.commit()
         print(f"\n✨ Cleanup Complete!")
         print(f"🗑️  Deleted: {deleted_count} junk records")
         print(f"🏷️  Tagged: {updated_count} valid records")
 
     except Exception as e:
         print(f"Error during cleanup: {e}")
-        session.rollback()
+        conn.rollback()
     finally:
-        session.close()
+        conn.close()
 
 
 if __name__ == "__main__":
