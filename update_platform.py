@@ -1,6 +1,16 @@
 import json
 import os
 import re
+import sys
+
+# Ensure project root is in sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
+from rfp_scraper.db import DatabaseHandler
+from rfp_scraper.discovery import discover_agency_url, is_better_url
+from rfp_scraper.utils import get_state_abbreviation
 
 STATE_SOURCES = {
     "Alabama": "https://purchasing.alabama.gov/",
@@ -84,7 +94,8 @@ def update_config():
             config[state] = url
             updated = True
         else:
-            print(f"Skipping {state} (already exists).")
+            # print(f"Skipping {state} (already exists).")
+            pass
 
     if updated:
         try:
@@ -131,8 +142,72 @@ class {class_name}(GenericScraper):
         except Exception as e:
             print(f"Error writing {filepath}: {e}")
 
+def sync_and_repair_agencies():
+    """
+    Iterates through all agencies in the database.
+    1. Verifies existing URL (Dead link check).
+    2. Discovers potential new URL (Smart Discovery).
+    3. Updates database if a better URL is found.
+    """
+    print("Starting Agency Sync & Repair...")
+    try:
+        db = DatabaseHandler()
+        agencies = db.get_all_agencies()
+    except Exception as e:
+        print(f"Error accessing database: {e}")
+        return
+
+    if agencies.empty:
+        print("No agencies found in database.")
+        return
+
+    total = len(agencies)
+    print(f"Processing {total} agencies...")
+
+    updated_count = 0
+    checked_count = 0
+
+    for index, row in agencies.iterrows():
+        checked_count += 1
+        agency_id = row['id']
+        name = row['organization_name']
+        state_name = row['state_name']
+        current_url = row['url']
+        category = row['category']
+
+        # Log progress every 10
+        if checked_count % 10 == 0:
+            print(f"Checked {checked_count}/{total}...")
+
+        # Parse Clean Name from "Name (ST) Category" format if possible
+        # Example: "Milford (CT) Public Works"
+        state_abbr = get_state_abbreviation(state_name)
+
+        clean_name = name
+        match = re.match(r"^(.*?)\s\([A-Z]{2}\)\s(.*)$", name)
+        if match:
+            clean_name = match.group(1)
+            # Extracted category might differ from row['category'], but we trust DB category more for logic
+
+        # Discover
+        try:
+            new_url = discover_agency_url(clean_name, state_abbr, state_name=state_name, jurisdiction_type=category)
+
+            if new_url:
+                if is_better_url(new_url, current_url):
+                    print(f"🔄 Updating {name}: {current_url} -> {new_url}")
+                    db.update_agency_url(agency_id, new_url)
+                    updated_count += 1
+        except Exception as e:
+            print(f"Error processing {name}: {e}")
+
+    print(f"Sync Complete. Updated {updated_count} agencies.")
+
 if __name__ == "__main__":
     print("Starting Platform Update...")
     update_config()
     generate_scrapers()
+
+    print("\n--- Starting Agency Sync & Repair ---")
+    sync_and_repair_agencies()
     print("Platform Update Complete.")
