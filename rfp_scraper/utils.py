@@ -38,6 +38,16 @@ def clean_text(text: str) -> str:
     # Convert to Title Case
     return cleaned.title()
 
+def normalize_for_domain(text: str) -> str:
+    """
+    Normalizes text for domain construction by:
+    1. Converting to lowercase.
+    2. Removing spaces, dashes, and periods.
+    """
+    if not text:
+        return ""
+    return text.lower().replace(" ", "").replace("-", "").replace(".", "")
+
 def normalize_date(date_str: str) -> Optional[str]:
     """
     Standardize date string to YYYY-MM-DD.

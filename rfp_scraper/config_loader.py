@@ -167,6 +167,20 @@ def get_domain_patterns(jurisdiction_type: str) -> Tuple[List[str], List[str]]:
         print(f"Error loading domain patterns: {e}")
         # Keep the hardcoded defaults set above
 
+    # Enforce Golden Patterns at the top (User Requirement)
+    # Ensure [name][state_abbr].gov and [name]-[state_abbr].gov are prioritized
+    golden_patterns = []
+    if jurisdiction_type == 'city':
+        golden_patterns = ["[cityname][state_abbrev].gov", "[cityname]-[state_abbrev].gov"]
+    elif jurisdiction_type == 'town':
+        golden_patterns = ["[townname][state_abbrev].gov", "[townname]-[state_abbrev].gov"]
+
+    # Prepend golden patterns, removing duplicates if they exist elsewhere
+    for p in reversed(golden_patterns):
+        if p in specific_patterns:
+            specific_patterns.remove(p)
+        specific_patterns.insert(0, p)
+
     return specific_patterns, generic_patterns
 
 def get_special_district_patterns(district_type: str) -> Tuple[List[str], List[str]]:
