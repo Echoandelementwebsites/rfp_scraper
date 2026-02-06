@@ -40,6 +40,7 @@ def clean_database():
         # Use iterator instead of fetchall for memory efficiency
         deleted_count = 0
         updated_count = 0
+        skipped_count = 0
         row_count = 0
 
         slugs_to_delete = []
@@ -77,6 +78,16 @@ def clean_database():
                 print(f"❌ Marking for Deletion [Noise]: {clean_title}")
                 slugs_to_delete.append(slug)
                 continue
+
+            # --- ECONOMY CHECK: Skip if already tagged ---
+            # If the row has valid trades, don't pay for AI again.
+            current_trades = row['matching_trades']
+            if current_trades:
+                trades_str = str(current_trades).strip()
+                if len(trades_str) > 3 and trades_str.lower() not in ['none', 'null']:
+                    print(f"⏩ Skipping AI [Already Tagged]: {clean_title}")
+                    skipped_count += 1
+                    continue
 
             # --- STAGE 3: AI Classification (Deep) ---
             # Classify using the new CSI logic
@@ -118,6 +129,7 @@ def clean_database():
         print(f"\n✨ Cleanup Complete!")
         print(f"🗑️  Deleted: {deleted_count} junk records")
         print(f"🏷️  Tagged: {updated_count} valid records")
+        print(f"⏩ Skipped: {skipped_count} already tagged records")
 
     except Exception as e:
         print(f"Error during cleanup: {e}")
