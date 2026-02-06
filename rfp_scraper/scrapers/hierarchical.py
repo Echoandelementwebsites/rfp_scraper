@@ -8,7 +8,7 @@ from rfp_scraper.compliance import ComplianceManager
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.utils import (
-    clean_text, normalize_date, is_valid_rfp, BLOCKED_URL_PATTERNS
+    clean_text, normalize_date, is_valid_rfp, BLOCKED_URL_PATTERNS, is_future_deadline
 )
 
 class HierarchicalScraper(BaseScraper):
@@ -70,6 +70,16 @@ class HierarchicalScraper(BaseScraper):
                         # Let's clean what we have.
                         client = clean_text(raw_client)
                         deadline = normalize_date(raw_deadline)
+
+                        # 1. State Check
+                        if not self.state_name or self.state_name == "Unknown":
+                            print(f"Skipping {title}: Invalid state ({self.state_name})")
+                            continue
+
+                        # 2. Deadline Check
+                        if not is_future_deadline(deadline, buffer_days=2):
+                            # print(f"Skipping {title}: Deadline too soon or invalid ({deadline})")
+                            continue
 
                         # Check Validity on Title/Client before visiting (save time)
                         if not is_valid_rfp(title, "", client):
@@ -190,6 +200,14 @@ class HierarchicalScraper(BaseScraper):
                     title = clean_text(raw_title)
                     client = clean_text(raw_client)
                     deadline = normalize_date(raw_deadline)
+
+                    # 1. State Check
+                    if not self.state_name or self.state_name == "Unknown":
+                        continue
+
+                    # 2. Deadline Check
+                    if not is_future_deadline(deadline, buffer_days=2):
+                        continue
 
                     if not is_valid_rfp(title, description, client):
                         # print(f"Invalid RFP (Deep Scan): {title}") # Optional verbosity

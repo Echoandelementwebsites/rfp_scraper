@@ -34,7 +34,7 @@ def clean_database():
         # Fetch existing bids
         # Note: We use the table name 'scraped_bids' found in your db.py (not 'bids')
         print("📊 Fetching existing records from 'scraped_bids'...")
-        cursor.execute("SELECT slug, title, rfp_description, client_name, matching_trades FROM scraped_bids")
+        cursor.execute("SELECT slug, title, rfp_description, client_name, matching_trades, deadline, state FROM scraped_bids")
         rows = cursor.fetchall()
 
         print(f"🔎 Analyzing {len(rows)} records for noise and hallucinations...")
@@ -47,6 +47,23 @@ def clean_database():
             title = row['title'] or ""
             desc = row['rfp_description'] or ""
             client = row['client_name'] or ""
+            deadline = row['deadline']
+            state = row['state']
+
+            # --- STAGE 1: Protocol Checks (Fastest) ---
+            # 1. State Check
+            if not state or state == "Unknown":
+                print(f"❌ Deleting [Invalid State]: {title} (State: {state})")
+                cursor.execute("DELETE FROM scraped_bids WHERE slug = ?", (slug,))
+                deleted_count += 1
+                continue
+
+            # 2. Deadline Check
+            if not utils.is_future_deadline(deadline, buffer_days=2):
+                print(f"❌ Deleting [Expired]: {title} (Deadline: {deadline})")
+                cursor.execute("DELETE FROM scraped_bids WHERE slug = ?", (slug,))
+                deleted_count += 1
+                continue
 
             # --- STAGE 2: Hard Filtering (Fast) ---
             clean_title = utils.clean_text(title)
