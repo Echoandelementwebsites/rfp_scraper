@@ -52,6 +52,21 @@ def normalize_date(date_str: str) -> Optional[str]:
     except Exception:
         return None
 
+def is_future_deadline(date_str: str, buffer_days: int = 2) -> bool:
+    """
+    Checks if the deadline is at least buffer_days into the future.
+    Returns False if date_str is None or invalid.
+    """
+    if not date_str:
+        return False
+
+    try:
+        dt = parser.parse(date_str).date()
+        cutoff_date = datetime.datetime.now().date() + datetime.timedelta(days=buffer_days)
+        return dt >= cutoff_date
+    except Exception:
+        return False
+
 def is_valid_rfp(title: str, description: str, client_name: str) -> bool:
     """
     Validates if the RFP candidate is worth processing based on text content.
