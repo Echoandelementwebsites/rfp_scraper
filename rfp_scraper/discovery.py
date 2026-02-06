@@ -2,7 +2,7 @@ from duckduckgo_search import DDGS
 from typing import List, Tuple, Optional, Any, Dict
 import time
 import requests
-from rfp_scraper.utils import validate_url, check_url_reachability
+from rfp_scraper.utils import validate_url, check_url_reachability, normalize_for_domain
 import rfp_scraper.config_loader as config_loader
 
 def _generate_candidates(name: str, state_abbr: str, patterns: List[str]) -> List[str]:
@@ -58,12 +58,29 @@ def _probe_candidates(candidates: List[str]) -> List[str]:
 def generate_and_validate_domains(name: str, state_abbr: str, specific_patterns: List[str], generic_patterns: List[str]) -> Optional[str]:
     """
     Generates candidate URLs from patterns and validates them via direct connection.
-    Implements 2-Phase Strategy:
+    Implements 3-Phase Strategy:
+      Phase 0: Golden Check (Strict [name][state].gov check).
       Phase 1: Specific Patterns (Prioritize shortest valid URL).
       Phase 2: Generic Patterns (Fallback if Phase 1 fails).
     """
     if not name or not state_abbr:
         return None
+
+    # Phase 0: Golden Check (Strict name+state.gov)
+    # This logic bypasses standard generation to strictly check for townnameSTATE.gov
+    # Normalization: Lowercase, No Spaces, No Dashes, No Periods.
+    clean_name = normalize_for_domain(name)
+    clean_state = state_abbr.lower().strip()
+
+    golden_candidates = [
+        f"https://www.{clean_name}{clean_state}.gov",
+        f"https://{clean_name}{clean_state}.gov"
+    ]
+
+    valid_golden = _probe_candidates(golden_candidates)
+    if valid_golden:
+        # Return the first valid one immediately (usually www version if valid)
+        return valid_golden[0]
 
     # Phase 1: Probe Specific (State-Suffixed) Patterns
     if specific_patterns:
