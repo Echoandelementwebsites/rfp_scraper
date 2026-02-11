@@ -219,6 +219,33 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    def get_agency_by_name(self, state_id: int, name: str, category: Optional[str] = None) -> Optional[dict]:
+        """
+        Retrieves a single agency record matching the name.
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        try:
+            if category:
+                cursor.execute("""
+                    SELECT * FROM agencies
+                    WHERE state_id = ? AND organization_name = ? AND category = ?
+                """, (state_id, name, category))
+            else:
+                 cursor.execute("""
+                    SELECT * FROM agencies
+                    WHERE state_id = ? AND organization_name = ?
+                """, (state_id, name))
+
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+        finally:
+            conn.close()
+
     def update_agency_url(self, agency_id: int, new_url: str):
         """Updates the URL for a specific agency and sets verified=True."""
         conn = sqlite3.connect(self.db_path)
