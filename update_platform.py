@@ -11,6 +11,7 @@ if current_dir not in sys.path:
 from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.discovery import discover_agency_url, is_better_url
 from rfp_scraper.utils import get_state_abbreviation
+from rfp_scraper.cisa_manager import CisaManager
 
 STATE_SOURCES = {
     "Alabama": "https://purchasing.alabama.gov/",
@@ -142,6 +143,41 @@ class {class_name}(GenericScraper):
         except Exception as e:
             print(f"Error writing {filepath}: {e}")
 
+def run_cisa_sync():
+    """
+    Downloads CISA registry and syncs all states in the database.
+    """
+    print("\n--- Starting CISA Registry Sync ---")
+    try:
+        db = DatabaseHandler()
+        states = db.get_all_states()
+        if states.empty:
+            print("No states found in database. Skipping CISA sync.")
+            return
+
+        cisa_manager = CisaManager()
+
+        total_added = 0
+        total_updated = 0
+
+        for _, row in states.iterrows():
+            state_id = row['id']
+            state_name = row['name']
+            state_abbr = get_state_abbreviation(state_name)
+
+            if not state_abbr:
+                continue
+
+            print(f"Syncing {state_name} ({state_abbr})...")
+            stats = cisa_manager.sync_state_database(db, state_id, state_abbr)
+            total_added += stats['added']
+            total_updated += stats['updated']
+
+        print(f"CISA Sync Complete. Added {total_added}, Updated {total_updated} agencies.")
+
+    except Exception as e:
+        print(f"Error during CISA Sync: {e}")
+
 def sync_and_repair_agencies():
     """
     Iterates through all agencies in the database.
@@ -207,6 +243,9 @@ if __name__ == "__main__":
     print("Starting Platform Update...")
     update_config()
     generate_scrapers()
+
+    # Run CISA Sync first to seed/repair DB
+    run_cisa_sync()
 
     print("\n--- Starting Agency Sync & Repair ---")
     sync_and_repair_agencies()

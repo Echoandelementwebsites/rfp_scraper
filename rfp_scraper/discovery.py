@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 import re
 from rfp_scraper.utils import validate_url, check_url_reachability, normalize_for_domain
 import rfp_scraper.config_loader as config_loader
+from rfp_scraper.cisa_manager import CisaManager
 
 def is_root_domain(url: str) -> bool:
     """Returns True if URL is just a domain with no path (or common index pages)."""
@@ -268,9 +269,19 @@ def is_better_url(new_url: str, old_url: str) -> bool:
 def discover_agency_url(name: str, state_abbr: str, state_name: str = None, jurisdiction_type: str = "city") -> Optional[str]:
     """
     Orchestrator for Smart Discovery.
-    1. Generates and verifies a candidate URL.
-    2. Navigates to find a specific procurement page.
+    1. Checks CISA Registry.
+    2. Generates and verifies a candidate URL.
+    3. Navigates to find a specific procurement page.
     """
+    # 0. Check CISA Registry
+    try:
+        cisa = CisaManager()
+        cisa_url = cisa.get_agency_url(name, state_abbr)
+        if cisa_url:
+            return cisa_url
+    except Exception as e:
+        print(f"CISA Check Failed: {e}")
+
     # Define unwanted terms for Cities/Towns to avoid sub-agencies
     unwanted_terms = []
     if jurisdiction_type in ["city", "town", "county"]:
