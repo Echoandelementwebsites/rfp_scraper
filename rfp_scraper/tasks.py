@@ -5,15 +5,23 @@ from rfp_scraper.factory import ScraperFactory
 from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 import logging
 
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0 Safari/537.36"
+BROWSER_PROFILES = [
+    {
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "platform": "Win32",
+        "vendor": "Google Inc.",
+        "screen": {"width": 1920, "height": 1080},
+        "sec_ch_ua_platform": '"Windows"',
+        "sec_ch_ua": '"Google Chrome";v="120", "Chromium";v="120", "Not?A_Brand";v="24"'
+    },
+    {
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "platform": "MacIntel",
+        "vendor": "Google Inc.",
+        "screen": {"width": 1440, "height": 900},
+        "sec_ch_ua_platform": '"macOS"',
+        "sec_ch_ua": '"Google Chrome";v="120", "Chromium";v="120", "Not?A_Brand";v="24"'
+    }
 ]
 
 def run_scraping_task(job_id, manager, states_to_scrape, api_key):
@@ -50,25 +58,30 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
                 progress = (i) / total_states
                 manager.update_progress(job_id, progress, f"Scraping {state}...")
 
-                # Pick a random User-Agent for this state run
-                current_ua = random.choice(USER_AGENTS)
+                # Pick a random profile for this state run
+                profile = random.choice(BROWSER_PROFILES)
 
-                # Context with Stealth Headers & Rotated User-Agent
+                # Context with Stealth Headers & Consistent Profile
                 context = browser.new_context(
-                    user_agent=current_ua,
+                    user_agent=profile["ua"],
                     locale="en-US",
                     timezone_id="America/New_York",
-                    viewport={"width": 1920, "height": 1080},
+                    viewport=profile["screen"],
                     extra_http_headers={
                         "Accept-Language": "en-US,en;q=0.9",
-                        "Sec-Ch-Ua": '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+                        "Sec-Ch-Ua": profile["sec_ch_ua"],
                         "Sec-Ch-Ua-Mobile": "?0",
-                        "Sec-Ch-Ua-Platform": '"Windows"',
+                        "Sec-Ch-Ua-Platform": profile["sec_ch_ua_platform"],
                         "Upgrade-Insecure-Requests": "1",
                     }
                 )
-                # Mask WebDriver property
-                context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
+                # Override JS properties to match the profile
+                context.add_init_script(f"""
+                    Object.defineProperty(navigator, 'platform', {{get: () => '{profile["platform"]}'}});
+                    Object.defineProperty(navigator, 'vendor', {{get: () => '{profile["vendor"]}'}});
+                    Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
+                """)
 
                 try:
                     base_scraper = factory.get_scraper(state)
