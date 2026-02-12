@@ -131,7 +131,7 @@ class GenericScraper(BaseScraper):
                     "clientName": state_name, # Default to state name as client
                     "title": title,
                     "slug": re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-'),
-                    "description": row_text.replace("\n", " ").strip()[:500],
+                    "description": row_text.replace("\n", " ").strip(),
                     "walkthroughDate": "",
                     "rfiDate": "",
                     "deadline": deadline.isoformat(),

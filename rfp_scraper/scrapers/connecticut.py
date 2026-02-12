@@ -102,7 +102,7 @@ class ConnecticutScraper(BaseScraper):
                 "clientName": "UConn",
                 "title": title_text,
                 "slug": slug,
-                "description": card_text.replace("\n", " ").strip()[:500],
+                "description": card_text.replace("\n", " ").strip(),
                 "walkthroughDate": "",
                 "rfiDate": "",
                 "deadline": deadline.isoformat(),
