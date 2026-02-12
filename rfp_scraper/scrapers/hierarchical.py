@@ -10,6 +10,7 @@ from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.utils import (
     clean_text, normalize_date, is_valid_rfp, BLOCKED_URL_PATTERNS, is_future_deadline, is_file_url
 )
+from rfp_scraper.behavior import smooth_scroll, human_delay, mimic_human_arrival
 
 # JavaScript to extract clean HTML and remove noise (scripts, navs)
 EXTRACT_MAIN_CONTENT_JS = """
@@ -228,7 +229,13 @@ class HierarchicalScraper(BaseScraper):
             try:
                 # Navigate (Fail Fast)
                 try:
-                    page.goto(url, wait_until="domcontentloaded", timeout=10000)
+                    # 1. Human Navigation
+                    # Pretend we came from Google if it's the first hit
+                    referer = "https://www.google.com/"
+                    mimic_human_arrival(page, url, referrer_url=referer, timeout=15000)
+
+                    # 2. Human Interaction (Crucial for WAFs)
+                    smooth_scroll(page)
                 except Exception as e:
                     print(f"Blocked/Timeout/Error: {url} -> {e}")
                     continue
@@ -241,7 +248,9 @@ class HierarchicalScraper(BaseScraper):
                     else:
                         print(f"Navigating to better URL: {better_url}")
                         try:
-                            page.goto(better_url, wait_until="domcontentloaded", timeout=10000)
+                            # Pass the CURRENT url as the referrer for the NEXT click
+                            mimic_human_arrival(page, better_url, referrer_url=page.url, timeout=15000)
+                            smooth_scroll(page) # Scroll again on the bids page
                         except Exception:
                             pass # Fallback to original page if better URL fails
 
