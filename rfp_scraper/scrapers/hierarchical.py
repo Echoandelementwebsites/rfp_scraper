@@ -11,6 +11,19 @@ from rfp_scraper.utils import (
     clean_text, normalize_date, is_valid_rfp, BLOCKED_URL_PATTERNS, is_future_deadline
 )
 
+# JavaScript to extract clean HTML and remove noise (scripts, navs)
+EXTRACT_MAIN_CONTENT_JS = """
+() => {
+    const clone = document.body.cloneNode(true);
+    const selectors = ['script', 'style', 'noscript', 'iframe', 'svg', 'nav', 'header', 'footer', '.ad', '#cookie-banner'];
+    clone.querySelectorAll(selectors.join(',')).forEach(el => el.remove());
+
+    const main = clone.querySelector('main, article, #content, .content, #main, .main-body');
+    if (main) return main.innerHTML.trim();
+    return clone.innerHTML.trim();
+}
+"""
+
 class HierarchicalScraper(BaseScraper):
     def __init__(self, state_name: str, base_scraper: Optional[BaseScraper] = None, api_key: Optional[str] = None):
         self.state_name = state_name
@@ -18,6 +31,32 @@ class HierarchicalScraper(BaseScraper):
         self.compliance = ComplianceManager()
         self.ai_parser = DeepSeekClient(api_key=api_key)
         self.db = DatabaseHandler()
+
+    def _find_better_url(self, page: Page) -> Optional[str]:
+        """
+        Scans the page for links matching specific procurement keywords.
+        Returns the best match URL or None.
+        """
+        keywords = ["bids", "rfp", "solicitations", "procurement"]
+        try:
+            links = page.locator("a").all()
+            for link in links:
+                try:
+                    text = (link.inner_text() or "").lower()
+                    href = link.get_attribute("href")
+                    if not href:
+                        continue
+
+                    if any(k in text for k in keywords):
+                        # Resolve absolute URL
+                        if not href.startswith("http"):
+                             href = page.evaluate(f"new URL('{href}', document.baseURI).href")
+                        return href
+                except:
+                    continue
+        except:
+            pass
+        return None
 
     def should_visit_url(self, url: str, text: str) -> bool:
         """
@@ -105,7 +144,7 @@ class HierarchicalScraper(BaseScraper):
                                 continue
 
                             # Extract Text
-                            rfp_description = page.evaluate("document.body.innerText")
+                            rfp_description = clean_text(page.evaluate("document.body.innerText"), title_case=False)
                             if not rfp_description:
                                 rfp_description = ""
 
@@ -184,8 +223,14 @@ class HierarchicalScraper(BaseScraper):
                 # Navigate
                 page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
-                # Extract Text (Cleaned)
-                content = page.evaluate("document.body.innerText")
+                # Smart Navigation
+                better_url = self._find_better_url(page)
+                if better_url:
+                    print(f"Navigating to better URL: {better_url}")
+                    page.goto(better_url, wait_until="domcontentloaded", timeout=30000)
+
+                # Extract Text (Cleaned) using JS
+                content = page.evaluate(EXTRACT_MAIN_CONTENT_JS)
 
                 # AI Parsing (Stage 1 Extraction)
                 extracted_bids = self.ai_parser.parse_rfp_content(content)
@@ -195,7 +240,9 @@ class HierarchicalScraper(BaseScraper):
                     raw_title = bid.get('title', 'Untitled')
                     raw_client = bid.get('clientName') or agency_name
                     raw_deadline = bid.get('deadline')
-                    description = bid.get('description', '')
+
+                    # Clean description without title casing
+                    description = clean_text(bid.get('description', ''), title_case=False)
 
                     title = clean_text(raw_title)
                     client = clean_text(raw_client)

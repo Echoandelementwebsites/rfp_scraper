@@ -27,16 +27,18 @@ GENERIC_TITLES = ["untitled", "home", "page not found", "bids", "rfp", "procurem
 
 # --- Validation Helpers ---
 
-def clean_text(text: str) -> str:
+def clean_text(text: str, title_case: bool = True) -> str:
     """
-    Cleans text by stripping whitespace and converting to Title Case.
+    Cleans text. If title_case=False, preserves original casing (for descriptions).
     """
     if not text:
         return ""
     # Remove extra whitespace
     cleaned = " ".join(text.split())
     # Convert to Title Case
-    return cleaned.title()
+    if title_case:
+        return cleaned.title()
+    return cleaned
 
 def normalize_for_domain(text: str) -> str:
     """

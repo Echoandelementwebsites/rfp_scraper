@@ -7,12 +7,17 @@ from rfp_scraper.db import DatabaseHandler
 
 class CisaManager:
     CISA_CSV_URL = "https://raw.githubusercontent.com/cisagov/dotgov-data/main/current-full.csv"
+    _shared_df = None
 
     def __init__(self):
         self._df: Optional[pd.DataFrame] = None
 
     def _load_data(self):
         """Downloads and caches the CISA registry CSV."""
+        if CisaManager._shared_df is not None:
+            self._df = CisaManager._shared_df
+            return
+
         if self._df is not None:
             return
 
@@ -33,6 +38,7 @@ class CisaManager:
             df = df.fillna("")
 
             self._df = df
+            CisaManager._shared_df = df
             print(f"Loaded {len(df)} records from CISA Registry.")
 
         except Exception as e:

@@ -68,7 +68,7 @@ class TexasScraper(BaseScraper):
                     "clientName": "TX SmartBuy",
                     "title": title,
                     "slug": slug,
-                    "description": text.replace("\n", " ")[:500],
+                    "description": text.replace("\n", " "),
                     "walkthroughDate": "",
                     "rfiDate": "",
                     "deadline": deadline.isoformat(),
