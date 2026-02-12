@@ -1,8 +1,20 @@
 import pandas as pd
+import random
 from playwright.sync_api import sync_playwright
 from rfp_scraper.factory import ScraperFactory
 from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 import logging
+
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0 Safari/537.36"
+]
 
 def run_scraping_task(job_id, manager, states_to_scrape, api_key):
     """
@@ -33,28 +45,30 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
                 args=launch_args
             )
 
-            # Context with Stealth Headers
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-                locale="en-US",
-                timezone_id="America/New_York",
-                viewport={"width": 1920, "height": 1080},
-                extra_http_headers={
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Sec-Ch-Ua": '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
-                    "Sec-Ch-Ua-Mobile": "?0",
-                    "Sec-Ch-Ua-Platform": '"Windows"',
-                    "Upgrade-Insecure-Requests": "1",
-                }
-            )
-
-            # Mask WebDriver property
-            context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-
             for i, state in enumerate(states_to_scrape):
                 # Update progress
                 progress = (i) / total_states
                 manager.update_progress(job_id, progress, f"Scraping {state}...")
+
+                # Pick a random User-Agent for this state run
+                current_ua = random.choice(USER_AGENTS)
+
+                # Context with Stealth Headers & Rotated User-Agent
+                context = browser.new_context(
+                    user_agent=current_ua,
+                    locale="en-US",
+                    timezone_id="America/New_York",
+                    viewport={"width": 1920, "height": 1080},
+                    extra_http_headers={
+                        "Accept-Language": "en-US,en;q=0.9",
+                        "Sec-Ch-Ua": '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+                        "Sec-Ch-Ua-Mobile": "?0",
+                        "Sec-Ch-Ua-Platform": '"Windows"',
+                        "Upgrade-Insecure-Requests": "1",
+                    }
+                )
+                # Mask WebDriver property
+                context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
                 try:
                     base_scraper = factory.get_scraper(state)
@@ -79,6 +93,10 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
 
                 except Exception as e:
                     manager.add_log(job_id, f"❌ Error scraping {state}: {str(e)}")
+
+                finally:
+                    # Close context after each state
+                    context.close()
 
             browser.close()
 
