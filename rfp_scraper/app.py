@@ -27,6 +27,8 @@ from rfp_scraper.utils import validate_url, check_url_reachability, get_state_ab
 from rfp_scraper.discovery import DiscoveryEngine, discover_agency_url, is_better_url, find_special_district_domain
 from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns, SPECIAL_CATEGORIES
 from rfp_scraper.cisa_manager import CisaManager
+from rfp_scraper.job_manager import JobManager
+from rfp_scraper.tasks import run_scraping_task
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -35,6 +37,13 @@ st.title("🏗️ National Construction RFP Scraper")
 # Initialize Helpers
 factory = ScraperFactory()
 db = DatabaseHandler()
+
+# Initialize Job Manager (Singleton)
+@st.cache_resource
+def get_job_manager():
+    return JobManager()
+
+job_manager = get_job_manager()
 available_states = factory.get_available_states()
 
 # --- Global Configuration (Sidebar) ---
@@ -507,55 +516,38 @@ with tab_scraper:
     with col_conf2:
         st.info("ℹ️ Deep Scan is now active by default for comprehensive coverage.")
 
-    # --- Scraping Logic ---
-    def run_scraping(states_to_scrape, api_key_val):
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        all_results = pd.DataFrame()
+    # --- Job Monitor (Sidebar) ---
+    st.sidebar.divider()
+    st.sidebar.subheader("🏗️ Background Tasks")
 
-        total_states = len(states_to_scrape)
+    active_jobs = job_manager.get_active_jobs()
+    if not active_jobs:
+        st.sidebar.info("No active scraping tasks.")
+    else:
+        for job in active_jobs:
+            job_id = job["id"]
+            progress = job["progress"]
+            # Show last log if available
+            last_log = job["logs"][-1] if job["logs"] else "Starting..."
 
-        with sync_playwright() as p:
-            status_text.text("Launching Browser...")
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            )
+            st.sidebar.text(f"Task: {job_id[:8]}...")
+            st.sidebar.progress(progress)
+            st.sidebar.caption(last_log)
 
-            for i, state in enumerate(states_to_scrape):
-                status_text.text(f"Scraping {state} ({i+1}/{total_states})...")
-
-                try:
-                    base_scraper = factory.get_scraper(state)
-                    # Always use HierarchicalScraper (Deep Scan)
-                    scraper = HierarchicalScraper(state, base_scraper=base_scraper, api_key=api_key_val)
-
-                    page = context.new_page()
-                    df = scraper.scrape(page)
-                    page.close()
-
-                    if not df.empty:
-                        df["SourceState"] = state
-                        all_results = pd.concat([all_results, df], ignore_index=True)
-
-                except Exception as e:
-                    st.error(f"Error scraping {state}: {e}")
-
-                progress_bar.progress((i + 1) / total_states)
-
-            browser.close()
-
-        status_text.success("Scraping Complete!")
-        return all_results
+        if st.sidebar.button("Refresh Status"):
+            st.rerun()
 
     # --- Button Section (Moved Up) ---
-    if st.button("🚀 Start Scraping", key="start_scraping_btn"):
+    if st.button("🚀 Start Scraping (Background)", key="start_scraping_btn"):
         if not api_key:
             st.error("Deep Scan requires a DeepSeek API Key. Please provide it in the sidebar.")
         else:
-            run_scraping(target_states, api_key)
-            # After scraping finishes, script continues...
-            # and next lines will fetch updated DB data.
+            # Start Background Job
+            job_id = job_manager.start_job(run_scraping_task, target_states, api_key)
+            st.success(f"Scraping started! Job ID: {job_id}")
+            st.info("You can monitor progress in the sidebar. The results will appear in the table below automatically as they are saved to the database.")
+            time.sleep(1)
+            st.rerun()
 
     # --- Persistent Data Display ---
     st.subheader("Active Opportunities")

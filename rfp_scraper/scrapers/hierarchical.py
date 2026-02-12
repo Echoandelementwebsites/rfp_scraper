@@ -8,12 +8,13 @@ from rfp_scraper.compliance import ComplianceManager
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.db import DatabaseHandler
 from rfp_scraper.utils import (
-    clean_text, normalize_date, is_valid_rfp, BLOCKED_URL_PATTERNS, is_future_deadline
+    clean_text, normalize_date, is_valid_rfp, BLOCKED_URL_PATTERNS, is_future_deadline, is_file_url
 )
 
 # JavaScript to extract clean HTML and remove noise (scripts, navs)
 EXTRACT_MAIN_CONTENT_JS = """
 () => {
+    if (!document.body) return "";
     const clone = document.body.cloneNode(true);
     const selectors = ['script', 'style', 'noscript', 'iframe', 'svg', 'nav', 'header', 'footer', '.ad', '#cookie-banner'];
     clone.querySelectorAll(selectors.join(',')).forEach(el => el.remove());
@@ -214,20 +215,35 @@ class HierarchicalScraper(BaseScraper):
 
             print(f"Deep Scan: Scanning {agency_name} at {url}")
 
+            # Pre-Flight: Check for File URL
+            if is_file_url(url):
+                print(f"Skipping {url}: Detected File Download.")
+                continue
+
             # Compliance Check
             if not self.compliance.can_fetch(url):
                 print(f"Skipping {url} due to robots.txt or rate limit.")
                 continue
 
             try:
-                # Navigate
-                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                # Navigate (Fail Fast)
+                try:
+                    page.goto(url, wait_until="domcontentloaded", timeout=10000)
+                except Exception as e:
+                    print(f"Blocked/Timeout/Error: {url} -> {e}")
+                    continue
 
                 # Smart Navigation
                 better_url = self._find_better_url(page)
                 if better_url:
-                    print(f"Navigating to better URL: {better_url}")
-                    page.goto(better_url, wait_until="domcontentloaded", timeout=30000)
+                    if is_file_url(better_url):
+                        print(f"Skipping better URL (File): {better_url}")
+                    else:
+                        print(f"Navigating to better URL: {better_url}")
+                        try:
+                            page.goto(better_url, wait_until="domcontentloaded", timeout=10000)
+                        except Exception:
+                            pass # Fallback to original page if better URL fails
 
                 # Extract Text (Cleaned) using JS
                 content = page.evaluate(EXTRACT_MAIN_CONTENT_JS)

@@ -235,3 +235,50 @@ def get_state_abbreviation(state_name: str) -> str:
     }
 
     return states.get(clean_name.lower(), "")
+
+def get_content_type(url: str) -> str:
+    """
+    Fetches the Content-Type header of a URL.
+    Returns empty string if failed.
+    """
+    if not url:
+        return ""
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        # Try HEAD first
+        try:
+            response = requests.head(url, headers=headers, timeout=5, allow_redirects=True)
+            if response.status_code == 200:
+                return response.headers.get("Content-Type", "").lower()
+        except:
+            pass
+
+        # Fallback to GET with stream=True
+        response = requests.get(url, headers=headers, timeout=5, stream=True)
+        response.close()
+        return response.headers.get("Content-Type", "").lower()
+    except:
+        return ""
+
+def is_file_url(url: str) -> bool:
+    """
+    Checks if a URL points to a file (PDF, DOC, ZIP, etc.).
+    """
+    if not url:
+        return False
+
+    url_lower = url.lower()
+
+    # 1. Extension Check
+    extensions = [
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".zip", ".rar",
+        ".7z", ".tar", ".gz", ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".xml"
+    ]
+
+    path = urlparse(url_lower).path
+    if any(path.endswith(ext) for ext in extensions):
+        return True
+
+    return False
