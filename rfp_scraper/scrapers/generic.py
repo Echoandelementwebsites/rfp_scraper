@@ -28,8 +28,7 @@ class GenericScraper(BaseScraper):
         print(f"Scraping {state_name} at {url}")
 
         try:
-            page.goto(url, timeout=60000)
-            page.wait_for_load_state("networkidle", timeout=30000)
+            page.goto(url, timeout=15000, wait_until="domcontentloaded")
         except Exception as e:
             print(f"Error navigating to {url}: {e}")
             return pd.DataFrame()
