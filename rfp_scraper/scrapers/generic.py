@@ -2,6 +2,7 @@ import re
 import pandas as pd
 from dateutil import parser
 from rfp_scraper.scrapers.base import BaseScraper
+from rfp_scraper.behavior import human_type
 import datetime
 
 class GenericScraper(BaseScraper):
@@ -41,7 +42,7 @@ class GenericScraper(BaseScraper):
             for inp in inputs[:3]:
                 if inp.is_visible():
                     try:
-                        inp.fill("Construction")
+                        human_type(page, inp, "Construction")
                         inp.press("Enter")
                         page.wait_for_timeout(3000)
                         break
