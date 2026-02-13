@@ -28,7 +28,7 @@ from rfp_scraper.discovery import DiscoveryEngine, discover_agency_url, is_bette
 from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns, SPECIAL_CATEGORIES
 from rfp_scraper.cisa_manager import CisaManager
 from rfp_scraper.job_manager import JobManager
-from rfp_scraper.tasks import run_scraping_task
+from rfp_scraper.tasks import run_scraping_task, run_discovery_task
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -38,12 +38,11 @@ st.title("🏗️ National Construction RFP Scraper")
 factory = ScraperFactory()
 db = DatabaseHandler()
 
-# Initialize Job Manager (Singleton)
-@st.cache_resource
-def get_job_manager():
-    return JobManager()
+# Initialize Job Manager (Session State)
+if 'job_manager' not in st.session_state:
+    st.session_state.job_manager = JobManager()
 
-job_manager = get_job_manager()
+job_manager = st.session_state.job_manager
 available_states = factory.get_available_states()
 
 # --- Global Configuration (Sidebar) ---
@@ -58,6 +57,28 @@ else:
 
 # Initialize AI Client
 ai_client = DeepSeekClient(api_key=api_key)
+
+# --- Sidebar Job Monitor ---
+st.sidebar.divider()
+st.sidebar.subheader("🏗️ Background Tasks")
+
+active_jobs = job_manager.get_active_jobs()
+if not active_jobs:
+    st.sidebar.info("No active background tasks.")
+else:
+    for job in active_jobs:
+        job_id = job["id"]
+        # In case job is just a dict from list
+        progress = job.get("progress", 0.0)
+        logs = job.get("logs", [])
+        last_log = logs[-1] if logs else "Starting..."
+
+        st.sidebar.text(f"Task: {job_id[:8]}...")
+        st.sidebar.progress(progress)
+        st.sidebar.caption(last_log)
+
+    if st.sidebar.button("Refresh Status"):
+        st.rerun()
 
 
 # --- Tabs ---
@@ -250,169 +271,18 @@ with tab_agencies:
         with col_ag2:
              st.info(f"Will process {len(target_agency_states)} states from DB.")
 
-    if st.button("Start URL Discovery", key="start_url_discovery_btn"):
+    if st.button("Start URL Discovery (Background)", key="start_url_discovery_btn"):
         if not api_key:
             st.error("DeepSeek API Key is required.")
         elif not target_agency_states:
              st.error("No states found in database. Please go to 'States' tab and generate states first.")
         else:
-            progress_bar = st.progress(0)
-            status_container = st.container()
-            log_area = st.empty()
-
-            # Prepare task list
-            tasks = [] # (state_id, state_name, type, name, category, phase)
-
-            for state_name in target_agency_states:
-                state_row = df_current_states[df_current_states['name'] == state_name]
-                if state_row.empty: continue
-                state_id = int(state_row.iloc[0]['id'])
-
-                # Phase 1: Standard Agencies (State Level)
-                for agency_type in search_scope:
-                    tasks.append({
-                        "state_id": state_id, "state_name": state_name,
-                        "name": agency_type, "category": "state_agency",
-                        "phase": "standard", "jurisdiction_id": None
-                    })
-
-                # Phase 2: Local Governments (AI-Native)
-                local_jurisdictions = db.get_local_jurisdictions(state_id=state_id)
-
-                for _, juris_row in local_jurisdictions.iterrows():
-                    juris_id = int(juris_row['id'])
-                    juris_name = juris_row['name']
-                    juris_type = juris_row['type']
-
-                    # Get simple list of categories (e.g. ['Public Works', 'Police', 'Housing Authority'])
-                    categories = get_local_search_scope(juris_type)
-
-                    for category in categories:
-                        tasks.append({
-                            "state_id": state_id,
-                            "state_name": state_name,
-                            "name": juris_name,
-                            "category": category,
-                            "phase": "ai_native_local",  # New Phase Name
-                            "jurisdiction_id": juris_id,
-                            "juris_type": juris_type
-                        })
-
-            total_items = len(tasks)
-            items_completed = 0
-            new_verified_count = 0
-
-            status_container.write(f"Found {total_items} discovery tasks.")
-
-            for task in tasks:
-                items_completed += 1
-                progress_bar.progress(items_completed / total_items)
-
-                state_name = task["state_name"]
-                name = task["name"]
-                category = task["category"]
-
-                if task["phase"] == "standard":
-                     log_area.text(f"Processing {state_name}: {name} ({task['phase']})...")
-                else:
-                     log_area.text(f"Processing {state_name}: {name} - {category} ({task['phase']})...")
-
-                found_url = None
-                method = ""
-
-                if task["phase"] == "standard":
-                    # Standard Discovery (AI + Browser)
-                    found_url, method = discovery_engine.find_agency_url(state_name, name, ai_client)
-
-                    if found_url:
-                        # Deduplicate using standard logic (checks URL)
-                        if not db.agency_exists(task["state_id"], found_url):
-                            db.add_agency(task["state_id"], name, found_url, verified=True, category=category)
-                            new_verified_count += 1
-                            status_container.write(f"✅ Found Standard: **{name}** -> {found_url}")
-                        else:
-                            # Already exists
-                            pass
-
-                elif task["phase"] == "ai_native_local":
-                    # DIRECT DOMAIN DISCOVERY LOGIC with TIERED SUPPORT
-                    juris_name = task["name"]
-                    category = task["category"]
-                    juris_type = task["juris_type"]
-                    state_abbr = get_state_abbreviation(task["state_name"])
-
-                    log_area.text(f"🔎 Probing: {juris_name} ({juris_type})...")
-
-                    # Step 1: Use Smart Discovery to find verified City/Town URL (ideally Bids page)
-                    # This replaces the old generate_and_validate + find_department logic.
-                    # It orchestrates Generation -> Verification -> Navigation
-                    main_domain_result_url = discover_agency_url(juris_name, state_abbr, state_name=task["state_name"], jurisdiction_type=juris_type)
-
-                    final_url = None
-
-                    # Step 2: Special District Logic
-                    if category in SPECIAL_CATEGORIES:
-                        # Always probe independent for Special Categories (Housing Authority, Schools, etc.)
-                        # This ensures we favor specific domains over the generic City Bids page if available.
-                        log_area.text(f"🔎 Independent Probe: {juris_name} - {category}...")
-                        independent_url = find_special_district_domain(juris_name, state_abbr, category)
-
-                        if independent_url:
-                             final_url = independent_url
-                             # Independent URL takes precedence
-                        else:
-                             final_url = main_domain_result_url
-                    else:
-                        # Standard Department -> Use the discovered City/Town Bids Page
-                        final_url = main_domain_result_url
-
-                    # Naming Convention: Jurisdiction (State) Category
-                    display_name = f"{juris_name} ({state_abbr}) {category}"
-
-                    # 4. Check Database for Existing Record
-                    # We check by jurisdiction slot (state + category + local_id) to see if we already have an entry
-                    existing_agency = db.get_agency_by_jurisdiction(task["state_id"], category, task["jurisdiction_id"])
-
-                    if existing_agency is None:
-                        # Case A: New Record
-                        if final_url:
-                            # Standard deduplication check (in case URL is used by another agency, though less likely here)
-                            if not db.agency_exists(task["state_id"], url=final_url, category=category, local_jurisdiction_id=task["jurisdiction_id"]):
-                                db.add_agency(
-                                    state_id=task["state_id"],
-                                    name=display_name,
-                                    url=final_url,
-                                    verified=True,
-                                    category=category,
-                                    local_jurisdiction_id=task["jurisdiction_id"]
-                                )
-                                new_verified_count += 1
-                                status_container.write(f"✅ Found (Direct): **{display_name}** -> {final_url}")
-                    else:
-                        # Existing Record Logic (Remediation)
-                        existing_url = existing_agency['url']
-                        existing_id = existing_agency['id']
-                        current_name = existing_agency.get('organization_name', '')
-
-                        # Check for Name Update (Identity Collision Fix)
-                        if current_name != display_name:
-                            db.update_agency_name(existing_id, display_name)
-
-                        if final_url:
-                            # Case B: Upgrade
-                            if is_better_url(final_url, existing_url):
-                                db.update_agency_url(existing_id, final_url)
-                                new_verified_count += 1
-                                status_container.write(f"🔄 Upgraded: **{display_name}** ({existing_url} -> {final_url})")
-                        elif existing_url:
-                            # Case C: Remove Invalid (Discovery failed, check if existing is dead)
-                            # Discovery failed (main_url is None), so we verify if the old one is truly dead
-                            if not check_url_reachability(existing_url):
-                                db.delete_agency(existing_id)
-                                status_container.write(f"🗑️ Removed: **{display_name}** (Dead link: {existing_url})")
-
-            log_area.empty()
-            st.success(f"Discovery Process Complete! Verified {new_verified_count} URLs.")
+            # Start Background Job
+            job_id = job_manager.start_job(run_discovery_task, target_agency_states, api_key)
+            st.success(f"Discovery started! Job ID: {job_id}")
+            st.info("Monitor progress in the sidebar.")
+            time.sleep(1)
+            st.rerun()
 
     # CISA Repair Button
     st.divider()
@@ -516,26 +386,6 @@ with tab_scraper:
     with col_conf2:
         st.info("ℹ️ Deep Scan is now active by default for comprehensive coverage.")
 
-    # --- Job Monitor (Sidebar) ---
-    st.sidebar.divider()
-    st.sidebar.subheader("🏗️ Background Tasks")
-
-    active_jobs = job_manager.get_active_jobs()
-    if not active_jobs:
-        st.sidebar.info("No active scraping tasks.")
-    else:
-        for job in active_jobs:
-            job_id = job["id"]
-            progress = job["progress"]
-            # Show last log if available
-            last_log = job["logs"][-1] if job["logs"] else "Starting..."
-
-            st.sidebar.text(f"Task: {job_id[:8]}...")
-            st.sidebar.progress(progress)
-            st.sidebar.caption(last_log)
-
-        if st.sidebar.button("Refresh Status"):
-            st.rerun()
 
     # --- Button Section (Moved Up) ---
     if st.button("🚀 Start Scraping (Background)", key="start_scraping_btn"):

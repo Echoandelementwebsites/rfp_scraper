@@ -1,4 +1,6 @@
 import pandas as pd
+import re
+import os
 from typing import Optional, List
 from playwright.sync_api import Page
 from bs4 import BeautifulSoup
@@ -195,6 +197,9 @@ class HierarchicalScraper(BaseScraper):
         # 2. Run Deep Scan (Level 2)
         print(f"Running Deep Scan for {self.state_name}...")
 
+        # Ensure logs directory exists
+        os.makedirs("logs/errors", exist_ok=True)
+
         # Fetch agencies from DB
         df_states = self.db.get_all_states()
         state_row = df_states[df_states['name'] == self.state_name]
@@ -237,6 +242,11 @@ class HierarchicalScraper(BaseScraper):
                     # 2. Human Interaction (Crucial for WAFs)
                     smooth_scroll(page)
                 except Exception as e:
+                    safe_agency_name = re.sub(r'[^a-zA-Z0-9]', '_', agency_name)
+                    try:
+                        page.screenshot(path=f"logs/errors/fail_{safe_agency_name}.png")
+                    except Exception:
+                        pass
                     print(f"Blocked/Timeout/Error: {url} -> {e}")
                     continue
 

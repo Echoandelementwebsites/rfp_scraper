@@ -15,7 +15,10 @@ class DatabaseHandler:
 
     def _init_db(self):
         """Initialize the database and tables."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.commit()
+
         cursor = conn.cursor()
 
         # Table for scraped bids (Successes)
