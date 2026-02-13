@@ -12,37 +12,40 @@ def human_delay(min_s=1.0, max_s=3.0):
     """
     time.sleep(random.uniform(min_s, max_s))
 
-def smooth_scroll(page):
+def smooth_scroll(page, max_seconds=15):
     """
-    Scrolls the page down to mimic reading, triggering lazy loads.
+    Scrolls page with a hard time limit to prevent infinite loops on broken sites.
     """
+    start_time = time.time()
     try:
+        # Get total height
         total_height = page.evaluate("document.body.scrollHeight")
         viewport_height = page.viewport_size['height']
         current_scroll = 0
 
         while current_scroll < total_height:
-            # Random scroll amount
-            scroll_step = random.randint(300, 700)
-            current_scroll += scroll_step
+            # 1. SAFETY BRAKE: Stop after max_seconds
+            if (time.time() - start_time) > max_seconds:
+                # print("Stopped scrolling: Time limit reached.")
+                break
 
-            # Perform scroll
+            scroll_step = random.randint(400, 800)
+            current_scroll += scroll_step
             page.mouse.wheel(0, scroll_step)
 
-            # Brief pause to "read"
-            if random.random() < 0.3: # 30% chance to pause longer
-                time.sleep(random.uniform(0.5, 1.2))
-            else:
-                time.sleep(random.uniform(0.1, 0.4))
+            # 2. STUCK CHECK: Did we actually move?
+            real_scroll = page.evaluate("window.scrollY")
+            if (real_scroll + viewport_height) >= (total_height - 50):
+                break # Reached bottom
 
-            # Break if we hit bottom or close enough
-            if current_scroll >= total_height:
-                break
+            # Brief pause
+            time.sleep(random.uniform(0.1, 0.4))
+
+            # Update height (for lazy loading)
+            total_height = page.evaluate("document.body.scrollHeight")
+
     except Exception as e:
-        # Log or ignore scroll errors (e.g. if page closed or element not found)
-        # In a helper like this, it's safer to just return if something goes wrong
-        # so we don't crash the main scraper.
-        print(f"Error during smooth scroll: {e}")
+        print(f"Scroll warning: {e}")
 
 def natural_mouse_move(page, target_x, target_y):
     """
