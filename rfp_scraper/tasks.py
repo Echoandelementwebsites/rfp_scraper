@@ -43,12 +43,13 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
 
     try:
         with sync_playwright() as p:
-            # --- STRICT VISIBLE LAUNCH ---
-            # No try/except fallback. If this fails, we WANT it to fail
-            # (so we know Xvfb isn't working), rather than falling back to blocked headless mode.
+            # --- FIX: Use Bundled Chromium (Compatible with Bazzite) ---
+            # We removed channel="chrome" to prevent "distribution not found" errors.
+            # We keep all stealth args to maintain low ban rates.
+
             browser = p.chromium.launch(
-                channel="chrome",  # Uses local Google Chrome
-                headless=False,    # STRICTLY FALSE
+                # channel="chrome", # <--- REMOVED: Caused crash on Bazzite
+                headless=False,     # STRICTLY FALSE (Visible Mode)
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
@@ -56,12 +57,13 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
                     "--disable-infobars",
                     "--start-maximized",
                     "--disable-extensions",
+                    "--disable-popup-blocking",
                     "--ignore-certificate-errors"
                 ],
                 ignore_default_args=["--enable-automation"]
             )
 
-            manager.add_log(job_id, "🌍 Browser launched in Visible Stealth Mode.")
+            manager.add_log(job_id, "🌍 Browser launched (Bundled Chromium).")
 
             for i, state in enumerate(states_to_scrape):
                 # Update progress
