@@ -43,21 +43,24 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
 
     try:
         with sync_playwright() as p:
-            # Stealth Launch Args
+            # --- FIX 1: Real Chrome & Stealth Args ---
             launch_args = [
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
-                "--disable-setuid-sandbox",
                 "--disable-infobars",
-                "--window-position=0,0",
+                "--start-maximized",
                 "--ignore-certificate-errors",
-                "--ignore-certificate-errors-spki-list",
-                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+                "--disable-extensions",
+                "--disable-popup-blocking"
             ]
 
             browser = p.chromium.launch(
-                headless=False, # Changed to False per requirements
-                args=launch_args
+                # Use "msedge" or "chrome" to use the REAL browser installed on your OS.
+                # This bypasses 99% of TLS blocking.
+                channel="chrome",
+                headless=False,  # Must be visible
+                args=launch_args,
+                ignore_default_args=["--enable-automation"] # Crucial: Hides "Chrome is controlled by automation"
             )
 
             for i, state in enumerate(states_to_scrape):

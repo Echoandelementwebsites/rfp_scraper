@@ -234,20 +234,22 @@ class HierarchicalScraper(BaseScraper):
             try:
                 # Navigate (Fail Fast)
                 try:
-                    # 1. Human Navigation
-                    # Pretend we came from Google if it's the first hit
+                    # 1. Human Navigation (Updated)
                     referer = "https://www.google.com/"
-                    mimic_human_arrival(page, url, referrer_url=referer, timeout=15000)
+                    # Use 20000 timeout as requested
+                    mimic_human_arrival(page, url, referrer_url=referer, timeout=20000)
 
-                    # 2. Human Interaction (Crucial for WAFs)
-                    smooth_scroll(page)
+                    # 2. Human Interaction (Bounded)
+                    # Use the new max_seconds arg to prevent infinite loops
+                    smooth_scroll(page, max_seconds=10)
                 except Exception as e:
-                    safe_agency_name = re.sub(r'[^a-zA-Z0-9]', '_', agency_name)
+                    print(f"Blocked/Timeout: {url} -> {e}")
+                    # Capture screenshot of the block/failure
                     try:
-                        page.screenshot(path=f"logs/errors/fail_{safe_agency_name}.png")
-                    except Exception:
+                        safe_name = "".join(x for x in agency_name if x.isalnum())
+                        page.screenshot(path=f"logs/errors/blocked_{safe_name}.png")
+                    except:
                         pass
-                    print(f"Blocked/Timeout/Error: {url} -> {e}")
                     continue
 
                 # Smart Navigation
