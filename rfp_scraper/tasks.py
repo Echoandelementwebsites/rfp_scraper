@@ -43,25 +43,25 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
 
     try:
         with sync_playwright() as p:
-            # --- FIX 1: Real Chrome & Stealth Args ---
-            launch_args = [
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-infobars",
-                "--start-maximized",
-                "--ignore-certificate-errors",
-                "--disable-extensions",
-                "--disable-popup-blocking"
-            ]
-
+            # --- STRICT VISIBLE LAUNCH ---
+            # No try/except fallback. If this fails, we WANT it to fail
+            # (so we know Xvfb isn't working), rather than falling back to blocked headless mode.
             browser = p.chromium.launch(
-                # Use "msedge" or "chrome" to use the REAL browser installed on your OS.
-                # This bypasses 99% of TLS blocking.
-                channel="chrome",
-                headless=False,  # Must be visible
-                args=launch_args,
-                ignore_default_args=["--enable-automation"] # Crucial: Hides "Chrome is controlled by automation"
+                channel="chrome",  # Uses local Google Chrome
+                headless=False,    # STRICTLY FALSE
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-infobars",
+                    "--start-maximized",
+                    "--disable-extensions",
+                    "--ignore-certificate-errors"
+                ],
+                ignore_default_args=["--enable-automation"]
             )
+
+            manager.add_log(job_id, "🌍 Browser launched in Visible Stealth Mode.")
 
             for i, state in enumerate(states_to_scrape):
                 # Update progress

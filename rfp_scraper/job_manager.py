@@ -1,6 +1,7 @@
 import threading
 import uuid
 import time
+from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 class JobManager:
@@ -10,44 +11,53 @@ class JobManager:
         self.jobs: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
 
-    def start_job(self, task_func, *args, **kwargs) -> str:
+    def start_job(self, target_func, args=(), name="Task") -> str:
         """
         Starts a background job.
-        :param task_func: The function to run. It must accept 'job_id' and 'manager' as its first two arguments.
-        :param args: Arguments for the task function.
-        :param kwargs: Keyword arguments for the task function.
+        :param target_func: The function to run. It must accept 'job_id' and 'manager' as its first two arguments.
+        :param args: Tuple of arguments for the task function.
+        :param name: Name of the task.
         :return: The job ID.
         """
         job_id = str(uuid.uuid4())
 
         with self._lock:
             self.jobs[job_id] = {
+                "id": job_id,
+                "name": name,
                 "status": "running",
                 "progress": 0.0,
                 "logs": [],
                 "result": None,
                 "error": None,
-                "start_time": time.time()
+                "start_time": datetime.now()
             }
 
-        # Wrapper to handle job lifecycle
-        def wrapper():
+        def job_wrapper():
             try:
-                result = task_func(job_id, self, *args, **kwargs)
+                # --- FIX: Pass (job_id, self, *args) ---
+                # This matches: run_scraping_task(job_id, manager, states, api_key)
+                result = target_func(job_id, self, *args)
+
                 with self._lock:
-                    self.jobs[job_id]["status"] = "completed"
-                    self.jobs[job_id]["progress"] = 1.0
-                    self.jobs[job_id]["result"] = result
+                    if job_id in self.jobs:
+                        self.jobs[job_id]["result"] = result
+                        self.jobs[job_id]["status"] = "completed"
+                        self.jobs[job_id]["progress"] = 1.0
+                self.add_log(job_id, "✅ Task completed successfully.")
             except Exception as e:
                 with self._lock:
-                    self.jobs[job_id]["status"] = "failed"
-                    self.jobs[job_id]["error"] = str(e)
-                    self.jobs[job_id]["logs"].append(f"Error: {str(e)}")
+                    if job_id in self.jobs:
+                        self.jobs[job_id]["status"] = "failed"
+                        self.jobs[job_id]["error"] = str(e)
+                        self.jobs[job_id]["logs"].append(f"❌ Critical Error: {str(e)}")
+                print(f"Job {job_id} failed: {e}")
 
-        thread = threading.Thread(target=wrapper, daemon=True)
-        self.jobs[job_id]["thread"] = thread
+        thread = threading.Thread(target=job_wrapper, daemon=True)
+        with self._lock:
+            if job_id in self.jobs:
+                self.jobs[job_id]["thread"] = thread
         thread.start()
-
         return job_id
 
     def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
@@ -63,16 +73,18 @@ class JobManager:
                 if info["status"] == "running"
             ]
 
-    def update_progress(self, job_id: str, progress: float, log_message: str = None):
+    def update_progress(self, job_id: str, progress: float, message: str = None):
         """Updates the progress and optionally adds a log message."""
         with self._lock:
             if job_id in self.jobs:
                 self.jobs[job_id]["progress"] = max(0.0, min(1.0, progress))
-                if log_message:
-                    self.jobs[job_id]["logs"].append(log_message)
+                if message:
+                    timestamp = datetime.now().strftime('%H:%M:%S')
+                    self.jobs[job_id]["logs"].append(f"[{timestamp}] {message}")
 
     def add_log(self, job_id: str, message: str):
         """Adds a log message to the job."""
         with self._lock:
             if job_id in self.jobs:
-                self.jobs[job_id]["logs"].append(message)
+                timestamp = datetime.now().strftime('%H:%M:%S')
+                self.jobs[job_id]["logs"].append(f"[{timestamp}] {message}")

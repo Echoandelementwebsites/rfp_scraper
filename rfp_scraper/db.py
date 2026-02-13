@@ -150,6 +150,21 @@ class DatabaseHandler:
         conn.commit()
         conn.close()
 
+    def url_already_scraped(self, url: str) -> bool:
+        """Checks if a URL source has already been processed."""
+        if not url: return False
+
+        # Normalize: Remove protocol/www to catch variations
+        clean_url = url.replace("https://", "").replace("http://", "").replace("www.", "").rstrip("/")
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        # Check source_url column in scraped_bids
+        cursor.execute("SELECT 1 FROM scraped_bids WHERE source_url LIKE ?", (f"%{clean_url}%",))
+        exists = cursor.fetchone() is not None
+        conn.close()
+        return exists
+
     def bid_exists(self, slug: str) -> bool:
         """Check if a bid with the given slug already exists."""
         conn = sqlite3.connect(self.db_path)

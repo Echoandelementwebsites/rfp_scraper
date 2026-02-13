@@ -278,7 +278,7 @@ with tab_agencies:
              st.error("No states found in database. Please go to 'States' tab and generate states first.")
         else:
             # Start Background Job
-            job_id = job_manager.start_job(run_discovery_task, target_agency_states, api_key)
+            job_id = job_manager.start_job(run_discovery_task, args=(target_agency_states, api_key), name="Discovery Task")
             st.success(f"Discovery started! Job ID: {job_id}")
             st.info("Monitor progress in the sidebar.")
             time.sleep(1)
@@ -393,7 +393,7 @@ with tab_scraper:
             st.error("Deep Scan requires a DeepSeek API Key. Please provide it in the sidebar.")
         else:
             # Start Background Job
-            job_id = job_manager.start_job(run_scraping_task, target_states, api_key)
+            job_id = job_manager.start_job(run_scraping_task, args=(target_states, api_key), name="Scraping Task")
             st.success(f"Scraping started! Job ID: {job_id}")
             st.info("You can monitor progress in the sidebar. The results will appear in the table below automatically as they are saved to the database.")
             time.sleep(1)

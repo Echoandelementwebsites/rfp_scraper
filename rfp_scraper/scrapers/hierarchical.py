@@ -221,6 +221,11 @@ class HierarchicalScraper(BaseScraper):
 
             print(f"Deep Scan: Scanning {agency_name} at {url}")
 
+            # --- DEDUPLICATION CHECK ---
+            if self.db.url_already_scraped(url):
+                print(f"Skipping {agency_name}: URL already scraped.")
+                continue  # Skip to next agency
+
             # Pre-Flight: Check for File URL
             if is_file_url(url):
                 print(f"Skipping {url}: Detected File Download.")
