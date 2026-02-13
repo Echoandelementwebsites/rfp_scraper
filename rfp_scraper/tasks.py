@@ -1,5 +1,6 @@
 import pandas as pd
 import random
+import os
 import logging
 from playwright.sync_api import sync_playwright
 from typing import List
@@ -65,6 +66,9 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
 
             manager.add_log(job_id, "🌍 Browser launched (Bundled Chromium).")
 
+            # Define state file path
+            STATE_FILE = "browser_state.json"
+
             for i, state in enumerate(states_to_scrape):
                 # Update progress
                 progress = (i) / total_states
@@ -92,6 +96,11 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
                 if factory.config.get("proxy"):
                     context_args["proxy"] = factory.config["proxy"]
 
+                # Check if we have a saved state from a previous run/site
+                if os.path.exists(STATE_FILE):
+                    context_args["storage_state"] = STATE_FILE
+                    manager.add_log(job_id, "🍪 Loaded verified session cookies.")
+
                 context = browser.new_context(**context_args)
 
                 # Override JS properties to match the profile
@@ -111,6 +120,11 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
 
                     try:
                         df = scraper.scrape(page)
+
+                        # 2. SAVE State (If scraping was successful, save the good cookies)
+                        if not df.empty or "verify" not in page.title().lower():
+                            context.storage_state(path=STATE_FILE)
+                            # manager.add_log(job_id, "💾 Session saved.")
 
                         if not df.empty:
                             df["SourceState"] = state

@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import os
+import time
 from typing import Optional, List
 from playwright.sync_api import Page
 from bs4 import BeautifulSoup
@@ -35,6 +36,54 @@ class HierarchicalScraper(BaseScraper):
         self.compliance = ComplianceManager()
         self.ai_parser = DeepSeekClient(api_key=api_key)
         self.db = DatabaseHandler()
+
+    def _handle_captcha(self, page, agency_name):
+        """
+        Pauses execution if a block is detected, allowing the user to solve it manually.
+        """
+        # Common block indicators
+        block_markers = ["verify you are human", "just a moment", "challenge", "cf-turnstile", "security check"]
+
+        # Fast check using title (cheapest) and partial content
+        is_blocked = False
+        try:
+            if any(m in page.title().lower() for m in block_markers):
+                is_blocked = True
+            else:
+                # Only check content if title was clean (avoids expensive DOM read if not needed)
+                content_snippet = page.evaluate("document.body.innerText.slice(0, 1000)").lower()
+                if any(m in content_snippet for m in block_markers):
+                    is_blocked = True
+        except:
+            pass # Page might be closed or empty
+
+        if is_blocked:
+            print(f"🛑 BLOCK DETECTED on {agency_name}!")
+            print("👉 ACTION REQUIRED: Please solve the CAPTCHA in the browser window manually.")
+            print("   (The script will resume automatically once the page loads.)")
+
+            # Wait loop (Max 2 minutes)
+            start_wait = time.time()
+            while True:
+                # Timeout safety
+                if time.time() - start_wait > 120:
+                    print("❌ Manual solution timed out. Skipping.")
+                    return False
+
+                try:
+                    # Check if markers are GONE (meaning user passed the challenge)
+                    # We check title again
+                    new_title = page.title().lower()
+                    if not any(m in new_title for m in block_markers) and "access denied" not in new_title:
+                        print("✅ CAPTCHA Solved! Resuming scrape...")
+                        time.sleep(2) # Let the real page settle
+                        return True
+                except:
+                    return False # Browser closed
+
+                time.sleep(2) # Polling interval
+
+        return True # Not blocked
 
     def _find_better_url(self, page: Page) -> Optional[str]:
         """
@@ -242,6 +291,11 @@ class HierarchicalScraper(BaseScraper):
                 try:
                     # 20s hard limit on loading
                     mimic_human_arrival(page, url, referrer_url="https://www.google.com/", timeout=20000)
+
+                    # --- FIX: Wait for Human instead of Skipping ---
+                    if not self._handle_captcha(page, agency_name):
+                        continue # Timed out or failed
+                    # -----------------------------------------------
 
                     # 10s hard limit on scrolling
                     smooth_scroll(page, max_seconds=10)
