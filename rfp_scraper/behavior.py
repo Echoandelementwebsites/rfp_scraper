@@ -85,30 +85,22 @@ def human_type(page, locator, text):
     except Exception as e:
         print(f"Error during human_type: {e}")
 
-def mimic_human_arrival(page, target_url, referrer_url=None, **kwargs):
-    """
-    Navigates to a URL with a fake referrer and simulates mouse movement.
-    Accepts additional kwargs for page.goto (e.g. timeout).
-    """
+def mimic_human_arrival(page, url, referrer_url=None, timeout=30000):
+    """Navigates with optional referrer and timeout."""
     if referrer_url:
-        # Set the Referer header for this navigation
-        # Note: This persists on the page object until changed.
         page.set_extra_http_headers({"Referer": referrer_url})
 
-    # Navigate
-    # We let exceptions propagate so the caller can handle timeouts/errors
-    # Ensure wait_until is domcontentloaded by default if not provided,
-    # but kwargs can override it.
-    if "wait_until" not in kwargs:
-        kwargs["wait_until"] = "domcontentloaded"
+    page.goto(url, wait_until="domcontentloaded", timeout=timeout)
 
-    page.goto(target_url, **kwargs)
-
-    # Randomly move mouse after load to simulate presence
+    # Initialize mouse
     try:
-        x = random.randint(100, 800)
-        y = random.randint(100, 600)
-        natural_mouse_move(page, x, y)
+        safe_width = page.viewport_size['width'] - 100
+        safe_height = page.viewport_size['height'] - 100
+        # Ensure positive range for randint
+        safe_width = max(100, safe_width)
+        safe_height = max(100, safe_height)
+
+        natural_mouse_move(page, random.randint(100, safe_width), random.randint(100, safe_height))
     except Exception:
-        # Ignore mouse move errors if page is not interactive
+        # Ignore mouse move errors if page context is invalid or closed
         pass

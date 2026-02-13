@@ -1,5 +1,7 @@
 import importlib
 import pkgutil
+import os
+import json
 from typing import List
 from rfp_scraper.scrapers.base import BaseScraper
 import rfp_scraper.scrapers
@@ -7,7 +9,22 @@ import rfp_scraper.scrapers
 class ScraperFactory:
     def __init__(self):
         self._scrapers = {}
+        self.config = self._load_config()
         self._load_scrapers()
+
+    def _load_config(self) -> dict:
+        """
+        Loads the config.json file.
+        """
+        # Determine path relative to this file
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(current_dir, "config.json")
+        try:
+            with open(config_path, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load config.json: {e}")
+            return {}
 
     def _load_scrapers(self):
         """

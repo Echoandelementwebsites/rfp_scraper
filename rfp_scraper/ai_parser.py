@@ -50,9 +50,10 @@ class DeepSeekClient:
             "08 Doors/Windows, 09 Finishes, 10 Specialties, 11 Equipment, 12 Furnishings, 13 Special Construction, "
             "14 Conveying Systems, 15 Mechanical (Plumbing/HVAC), 16 Electrical.\n\n"
             "Rules:\n"
-            "    Strict Match: Only return a Division if the text explicitly mentions work in that trade.\n"
-            "    Exclusions: Ignore 'General Requirements' (Div 01). Ignore Janitorial, Software, or Admin work (return []).\n"
-            "    No Hallucinations: If the text is vague or unrelated, return [].\n\n"
+            "    1. Strict Match: Only return a Division if the text explicitly mentions work in that trade.\n"
+            "    2. MAINTENANCE & RENOVATION ARE CONSTRUCTION: Painting, Flooring, Roofing, HVAC upgrades, and Renovation projects ARE valid. Do NOT discard them.\n"
+            "    3. Exclusions: Ignore 'General Requirements' (Div 01). Ignore Janitorial, Software, or Admin work (return []).\n"
+            "    4. No Hallucinations: If the text is vague or unrelated, return [].\n\n"
             "Output: Return a JSON list of strings (e.g., ['Division 03 - Concrete'])."
         )
 

@@ -58,7 +58,7 @@ class ConnecticutScraper(BaseScraper):
 
     def scrape_uconn(self, page):
         url = self.config.get("Connecticut", {}).get("UConn", "https://cpfp.procurement.uconn.edu/construction-current-opportunities-2020-2/")
-        page.goto(url)
+        page.goto(url, timeout=15000)
         page.wait_for_timeout(3000)
 
         results = []
@@ -93,9 +93,31 @@ class ConnecticutScraper(BaseScraper):
             slug_base = number_match.group(1).strip() if number_match else title_text
             slug = re.sub(r'[^a-z0-9]+', '-', (slug_base + "-" + title_text).lower()).strip('-')
 
-            link_el = card.locator("a").first
-            link = link_el.get_attribute("href") if link_el.count() else url
+            # Fix: Loop to find best link
+            best_link = url
+            links = card.locator("a").all()
+            found_priority = False
 
+            for lnk in links:
+                href = lnk.get_attribute("href")
+                if not href: continue
+
+                href_lower = href.lower()
+                # Ignore maps/calendar
+                if "maps" in href_lower or "calendar" in href_lower:
+                    continue
+
+                # If we haven't found a priority link yet, take this one as a candidate
+                if not found_priority:
+                     best_link = href
+
+                # If it is a priority link, take it and stop
+                if ".pdf" in href_lower or "procurement" in href_lower or "solicitation" in href_lower:
+                    best_link = href
+                    found_priority = True
+                    break
+
+            link = best_link
             city = self.infer_city(title_text, card_text)
 
             results.append({
@@ -118,7 +140,7 @@ class ConnecticutScraper(BaseScraper):
 
     def scrape_ct_source(self, page):
         url = self.config.get("Connecticut", {}).get("CTSource", "https://portal.ct.gov/das/ctsource/bidboard")
-        page.goto(url)
+        page.goto(url, timeout=15000)
         page.wait_for_timeout(5000)
 
         try:
@@ -160,9 +182,25 @@ class ConnecticutScraper(BaseScraper):
                          parser.parse(cell_text)
                      except:
                          title = cell_text
-                         link = cell.locator("a").first
-                         if link.count():
-                             details_link = link.get_attribute("href")
+                         # Fix: Loop to find best link here too
+                         links = cell.locator("a").all()
+                         found_priority = False
+
+                         for lnk in links:
+                             href = lnk.get_attribute("href")
+                             if not href: continue
+
+                             href_lower = href.lower()
+                             if "maps" in href_lower or "calendar" in href_lower:
+                                 continue
+
+                             if not found_priority:
+                                 details_link = href
+
+                             if ".pdf" in href_lower or "procurement" in href_lower or "solicitation" in href_lower:
+                                 details_link = href
+                                 found_priority = True
+                                 break
 
             if not deadline: continue
             if not self.is_qualified(deadline): continue
