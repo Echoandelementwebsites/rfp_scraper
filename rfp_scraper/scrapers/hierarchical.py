@@ -134,6 +134,10 @@ class HierarchicalScraper(BaseScraper):
                             print(f"Blocked (Pattern): {raw_title} -> {raw_link}")
                             continue
 
+                        if is_file_url(raw_link):
+                            print(f"Skipping (File): {raw_title} -> {raw_link}")
+                            continue
+
                         # --- Stage 2: Cleaning (Part A) ---
                         title = clean_text(raw_title)
                         # We don't have description yet, so we pass empty string for now or wait until extraction?
@@ -149,7 +153,7 @@ class HierarchicalScraper(BaseScraper):
                             continue
 
                         # 2. Deadline Check
-                        if not is_future_deadline(deadline, buffer_days=2):
+                        if not is_future_deadline(deadline, buffer_days=4):
                             # print(f"Skipping {title}: Deadline too soon or invalid ({deadline})")
                             continue
 
@@ -332,7 +336,7 @@ class HierarchicalScraper(BaseScraper):
                                 continue
 
                             # 2. Deadline Check
-                            if not is_future_deadline(deadline, buffer_days=2):
+                            if not is_future_deadline(deadline, buffer_days=4):
                                 continue
 
                             if not is_valid_rfp(title, description, client):
