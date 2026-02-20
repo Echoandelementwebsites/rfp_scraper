@@ -116,7 +116,7 @@ with tab_states:
 
     # Display States Table
     df_states = db.get_all_states()
-    st.dataframe(df_states, use_container_width=True)
+    st.dataframe(df_states, width='stretch')
 
     # Export
     if not df_states.empty:
@@ -217,7 +217,7 @@ with tab_local_gov:
     if lg_mode == "Single State" and selected_lg_state and not df_local_govs.empty:
         df_local_govs = df_local_govs[df_local_govs['state_name'] == selected_lg_state]
 
-    st.dataframe(df_local_govs, use_container_width=True)
+    st.dataframe(df_local_govs, width='stretch')
 
     # Export
     if not df_local_govs.empty:
@@ -335,9 +335,9 @@ with tab_agencies:
         display_cols = ['state_name', 'jurisdiction_label', 'organization_name', 'url', 'category', 'verified', 'created_at']
         # Filter only existing columns just in case
         display_cols = [c for c in display_cols if c in df_agencies.columns]
-        st.dataframe(df_agencies[display_cols], use_container_width=True)
+        st.dataframe(df_agencies[display_cols], width='stretch')
     else:
-        st.dataframe(df_agencies, use_container_width=True)
+        st.dataframe(df_agencies, width='stretch')
 
     # Export
     if not df_agencies.empty:
@@ -427,7 +427,7 @@ with tab_scraper:
     if 'matching_trades' in display_df.columns:
         display_df = display_df.rename(columns={'matching_trades': 'Trades'})
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width='stretch')
 
     # Export Section
     if not persistent_df.empty:

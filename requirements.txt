@@ -8,3 +8,4 @@ duckduckgo-search
 openai
 xlsxwriter
 python-dotenv
+pyvirtualdisplay

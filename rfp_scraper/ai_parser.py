@@ -23,16 +23,29 @@ class DeepSeekClient:
 
     def _clean_and_parse_json(self, content: str) -> Any:
         """Helper to clean markdown code blocks and parse JSON."""
-        # Simple cleanup
         content = content.strip()
-        if content.startswith("```json"):
-            content = content.replace("```json", "", 1)
-            if content.endswith("```"):
-                content = content[:-3]
-        elif content.startswith("```"):
-            content = content.replace("```", "", 1)
-            if content.endswith("```"):
-                content = content[:-3]
+
+        # Robust Markdown Strip
+        if content.startswith("```"):
+            # Find first newline to skip language identifier (json, xml, etc.)
+            first_newline = content.find("\n")
+            if first_newline != -1:
+                content = content[first_newline:].strip()
+            else:
+                # If no newline, maybe just ```json ...
+                # But typically it's ```json\n...
+                # Let's try to remove leading ```[a-z]*
+                content = re.sub(r"^```[a-z]*\s*", "", content)
+
+        if content.endswith("```"):
+            content = content[:-3].strip()
+
+        # Fallback: Regex extraction if there's conversational text
+        # Look for { ... } or [ ... ]
+        if not (content.startswith("{") or content.startswith("[")):
+             match = re.search(r'(\{.*\}|\[.*\])', content, re.DOTALL)
+             if match:
+                 content = match.group(0)
 
         return json.loads(content)
 
@@ -55,7 +68,7 @@ class DeepSeekClient:
             "    2. MAINTENANCE & RENOVATION ARE CONSTRUCTION: Painting, Flooring, Roofing, HVAC upgrades, and Renovation projects ARE valid. Do NOT discard them.\n"
             "    3. Exclusions: Ignore 'General Requirements' (Div 01). Ignore Janitorial, Software, or Admin work (return []).\n"
             "    4. No Hallucinations: If the text is vague or unrelated, return [].\n\n"
-            "Output: Return a JSON list of strings (e.g., ['Division 03 - Concrete'])."
+            "Output: Return a JSON object with one key 'divisions' containing a list of strings (e.g., {'divisions': ['Division 03 - Concrete']})."
         )
 
         user_content = f"Title: {title}\n\nDescription: {description[:3000]}"
@@ -74,20 +87,16 @@ class DeepSeekClient:
             data = self._clean_and_parse_json(content)
 
             if isinstance(data, dict):
-                # Sometimes models return {"divisions": [...]}
+                # We asked for {"divisions": [...]}
                 if "divisions" in data:
                     return data["divisions"]
-                # Sometimes they obey strictly and return list (but parsed as dict if root is object?)
-                # If the prompt asked for a JSON list, response_format json_object might force an object wrapper.
-                # DeepSeek might return {"key": [...]}. We should handle both.
-                # However, the prompt says "Return a JSON list".
-                # If we use json_object, we should ask for an object.
-                # Let's check keys.
+                # Fallback if model returns other keys
                 for key, val in data.items():
                     if isinstance(val, list):
                         return val
                 return []
             elif isinstance(data, list):
+                # Should not happen with json_object mode asking for object, but handle it
                 return data
 
             return []
@@ -115,7 +124,7 @@ class DeepSeekClient:
                 model="deepseek-chat",
                 messages=[
                     {"role": "system", "content": prompt},
-                    {"role": "user", "content": text_content[:10000]}
+                    {"role": "user", "content": text_content[:50000]}
                 ],
                 response_format={ "type": "json_object" },
             )

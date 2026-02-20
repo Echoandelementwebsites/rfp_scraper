@@ -28,8 +28,8 @@ class DatabaseHandler:
                 slug TEXT PRIMARY KEY,
                 client_name TEXT,
                 title TEXT,
-                deadline TEXT,
-                scraped_at TEXT,
+                deadline TEXT CHECK(deadline IS NULL OR deadline GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+                scraped_at TEXT CHECK(scraped_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*'),
                 source_url TEXT,
                 state TEXT,
                 rfp_description TEXT,
@@ -467,6 +467,16 @@ class DatabaseHandler:
         # Remove www.
         if clean_url.startswith("www."):
             clean_url = clean_url[4:]
+
+        # Remove localized sub-paths
+        for sub in ['/en/', '/portal/']:
+            clean_url = clean_url.replace(sub, '/')
+
+        # Handle trailing variants
+        if clean_url.endswith('/en'):
+            clean_url = clean_url[:-3]
+        if clean_url.endswith('/portal'):
+            clean_url = clean_url[:-7]
 
         if clean_url.endswith('/'):
             clean_url = clean_url[:-1]
