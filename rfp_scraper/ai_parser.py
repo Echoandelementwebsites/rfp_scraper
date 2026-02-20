@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from typing import List, Optional, Any, Dict
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -120,7 +121,15 @@ class DeepSeekClient:
             )
 
             content = response.choices[0].message.content
-            data = self._clean_and_parse_json(content)
+
+            # Regex JSON Extraction
+            match = re.search(r'\[.*\]', content, re.DOTALL)
+            if match:
+                json_str = match.group(0)
+                data = json.loads(json_str)
+            else:
+                print("Failed to locate JSON array in AI response.")
+                return []
 
             # Ensure it's a list
             if isinstance(data, dict):

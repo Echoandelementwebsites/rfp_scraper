@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import datetime
+import urllib.parse
 from typing import Optional, List, Tuple
 import pandas as pd
 
@@ -15,7 +16,7 @@ class DatabaseHandler:
 
     def _init_db(self):
         """Initialize the database and tables."""
-        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=15.0)
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.commit()
 
@@ -116,6 +117,10 @@ class DatabaseHandler:
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE agencies ADD COLUMN local_jurisdiction_id INTEGER")
 
+        # Add Performance Indexes
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_scraped_bids_url ON scraped_bids(source_url)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agencies_state ON agencies(state_id)")
+
         # --- Data Migration ---
         # Move "pending" agencies (no URL) to local_jurisdictions
 
@@ -155,9 +160,9 @@ class DatabaseHandler:
         if not url: return False
 
         # Normalize: Remove protocol/www to catch variations
-        clean_url = url.replace("https://", "").replace("http://", "").replace("www.", "").rstrip("/")
+        clean_url = self._normalize_url(url)
 
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         # Check source_url column in scraped_bids
         cursor.execute("SELECT 1 FROM scraped_bids WHERE source_url LIKE ?", (f"%{clean_url}%",))
@@ -167,7 +172,7 @@ class DatabaseHandler:
 
     def bid_exists(self, slug: str) -> bool:
         """Check if a bid with the given slug already exists."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         cursor.execute("SELECT 1 FROM scraped_bids WHERE slug = ?", (slug,))
         exists = cursor.fetchone() is not None
@@ -176,7 +181,7 @@ class DatabaseHandler:
 
     def insert_bid(self, slug: str, client_name: str, title: str, deadline: str, source_url: str, state: str = "Unknown", rfp_description: Optional[str] = None, matching_trades: Optional[str] = None):
         """Insert a new bid into the database or update if exists."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         scraped_at = datetime.datetime.now().isoformat()
         try:
@@ -198,7 +203,7 @@ class DatabaseHandler:
 
     def get_bids(self, state: Optional[str] = None) -> pd.DataFrame:
         """Retrieve bids, optionally filtered by state."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         try:
             if state:
                 query = "SELECT * FROM scraped_bids WHERE state = ?"
@@ -217,7 +222,7 @@ class DatabaseHandler:
         Retrieves a single agency record matching the jurisdiction and category.
         Returns a dictionary representation of the row.
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -241,7 +246,7 @@ class DatabaseHandler:
         """
         Retrieves a single agency record matching the name.
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -266,7 +271,7 @@ class DatabaseHandler:
 
     def update_agency_url(self, agency_id: int, new_url: str):
         """Updates the URL for a specific agency and sets verified=True."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         try:
             cursor.execute("""
@@ -282,7 +287,7 @@ class DatabaseHandler:
 
     def update_agency_name(self, agency_id: int, new_name: str):
         """Updates the name for a specific agency."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         try:
             cursor.execute("""
@@ -298,7 +303,7 @@ class DatabaseHandler:
 
     def delete_agency(self, agency_id: int):
         """Deletes an agency record."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         try:
             cursor.execute("DELETE FROM agencies WHERE id = ?", (agency_id,))
@@ -310,7 +315,7 @@ class DatabaseHandler:
 
     def get_local_jurisdictions(self, state_id: Optional[int] = None) -> pd.DataFrame:
         """Retrieve local jurisdictions, optionally filtered by state."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         try:
             if state_id:
                 query = "SELECT * FROM local_jurisdictions WHERE state_id = ?"
@@ -329,7 +334,7 @@ class DatabaseHandler:
         Add a local jurisdiction if it doesn't exist.
         Returns the ID of the jurisdiction.
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
 
         # Check existence
@@ -351,7 +356,7 @@ class DatabaseHandler:
 
     def add_discovered_url(self, url: str, state: str):
         """Add a discovered URL to the log if it doesn't exist."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         try:
             # We use INSERT OR IGNORE to avoid overwriting existing status
@@ -365,7 +370,7 @@ class DatabaseHandler:
 
     def get_pending_urls(self, state: str) -> List[str]:
         """Get all pending URLs for a given state."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT url FROM discovery_log
@@ -377,7 +382,7 @@ class DatabaseHandler:
 
     def mark_url_processed(self, url: str, status: str = 'processed'):
         """Update the status of a URL."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         now = datetime.datetime.now().isoformat()
         cursor.execute("""
@@ -400,7 +405,7 @@ class DatabaseHandler:
 
     def add_state(self, name: str):
         """Insert a state if it doesn't exist."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         created_at = datetime.datetime.now().isoformat()
         try:
@@ -417,7 +422,7 @@ class DatabaseHandler:
 
     def get_all_states(self) -> pd.DataFrame:
         """Return all states as a DataFrame."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         try:
             df = pd.read_sql_query("SELECT * FROM states ORDER BY name", conn)
         except Exception:
@@ -432,21 +437,41 @@ class DatabaseHandler:
         """Normalize URL for deduplication checks."""
         if not url:
             return ""
-        url = url.strip().lower()
 
-        # Remove scheme
-        if url.startswith("https://"):
-            url = url[8:]
-        elif url.startswith("http://"):
-            url = url[7:]
+        # Use urllib to strip query/fragment
+        parsed = urllib.parse.urlparse(url)
+        clean_url = f"{parsed.netloc}{parsed.path}" # scheme removed below
+
+        # Re-apply manual cleanup (lower, strip)
+        clean_url = clean_url.strip().lower()
+
+        # Remove scheme (handled above, but double check if netloc was empty due to missing scheme in input)
+        # If input was 'google.com', parsed.netloc might be empty if scheme is missing.
+        # Let's handle generic case:
+
+        if not parsed.netloc and not parsed.scheme:
+             # URL might be just 'google.com/path'
+             clean_url = url.strip().lower()
+             # Strip query manually if parse failed to catch it without scheme
+             if '?' in clean_url:
+                 clean_url = clean_url.split('?')[0]
+             if '#' in clean_url:
+                 clean_url = clean_url.split('#')[0]
+
+        # Remove scheme prefixes if still present (e.g. from original string logic)
+        if clean_url.startswith("https://"):
+            clean_url = clean_url[8:]
+        elif clean_url.startswith("http://"):
+            clean_url = clean_url[7:]
 
         # Remove www.
-        if url.startswith("www."):
-            url = url[4:]
+        if clean_url.startswith("www."):
+            clean_url = clean_url[4:]
 
-        if url.endswith('/'):
-            url = url[:-1]
-        return url
+        if clean_url.endswith('/'):
+            clean_url = clean_url[:-1]
+
+        return clean_url
 
     def agency_exists(self, state_id: int, url: Optional[str] = None, name: Optional[str] = None, category: Optional[str] = None, local_jurisdiction_id: Optional[int] = None) -> bool:
         """
@@ -454,7 +479,7 @@ class DatabaseHandler:
         If URL is provided, check by normalized URL.
         If URL is None, check by (state_id, organization_name, category, local_jurisdiction_id).
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
 
         if url:
@@ -500,7 +525,7 @@ class DatabaseHandler:
             print(f"Skipping duplicate agency: {name} (URL: {url}) for state_id {state_id}")
             return
 
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         cursor = conn.cursor()
         created_at = datetime.datetime.now().isoformat()
         verified_int = 1 if verified else 0
@@ -517,7 +542,7 @@ class DatabaseHandler:
 
     def get_agencies_by_state(self, state_id: int) -> pd.DataFrame:
         """Return agencies for a specific state as a DataFrame."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         try:
             query = "SELECT * FROM agencies WHERE state_id = ?"
             df = pd.read_sql_query(query, conn, params=(state_id,))
@@ -529,7 +554,7 @@ class DatabaseHandler:
 
     def get_all_agencies(self) -> pd.DataFrame:
         """Return all agencies with their associated state names and jurisdiction labels."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         try:
             query = """
                 SELECT
