@@ -2,6 +2,7 @@ import pandas as pd
 import random
 import os
 import logging
+import platform
 from playwright.sync_api import sync_playwright
 from typing import List
 
@@ -36,6 +37,16 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
     """
     Background task for scraping RFPs.
     """
+    # Headless Linux Server Crash Fix
+    if platform.system() == "Linux":
+        try:
+            from pyvirtualdisplay import Display
+            display = Display(visible=0, size=(1920, 1080))
+            display.start()
+            manager.add_log(job_id, "🖥️ Xvfb Virtual Display started for Linux.")
+        except ImportError:
+            manager.add_log(job_id, "⚠️ WARNING: pyvirtualdisplay not installed. Visible browser may crash on headless Linux.")
+
     factory = ScraperFactory()
     all_results = pd.DataFrame()
     total_states = len(states_to_scrape)
@@ -103,6 +114,9 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
 
                 context = browser.new_context(**context_args)
 
+                # Dynamic File Download Hang Prevention
+                context.route("**/*", lambda route: route.abort() if route.request.resource_type in ["media", "font", "image"] else route.continue_())
+
                 # Override JS properties to match the profile
                 context.add_init_script(f"""
                     Object.defineProperty(navigator, 'platform', {{get: () => '{profile["platform"]}'}});
@@ -113,7 +127,8 @@ def run_scraping_task(job_id, manager, states_to_scrape, api_key):
                 try:
                     base_scraper = factory.get_scraper(state)
                     # Always use HierarchicalScraper (Deep Scan)
-                    scraper = HierarchicalScraper(state, base_scraper=base_scraper, api_key=api_key)
+                    # Pass manager and job_id for Phase 4 visibility
+                    scraper = HierarchicalScraper(state, base_scraper=base_scraper, api_key=api_key, manager=manager, job_id=job_id)
 
                     # Create a new page for each state to keep it clean
                     page = context.new_page()

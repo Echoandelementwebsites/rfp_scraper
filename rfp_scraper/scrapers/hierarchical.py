@@ -24,18 +24,20 @@ EXTRACT_MAIN_CONTENT_JS = """
     clone.querySelectorAll(selectors.join(',')).forEach(el => el.remove());
 
     const main = clone.querySelector('main, article, #content, .content, #main, .main-body');
-    if (main) return main.innerHTML.trim();
-    return clone.innerHTML.trim();
+    if (main) return main.innerText.trim();
+    return clone.innerText.trim();
 }
 """
 
 class HierarchicalScraper(BaseScraper):
-    def __init__(self, state_name: str, base_scraper: Optional[BaseScraper] = None, api_key: Optional[str] = None):
+    def __init__(self, state_name: str, base_scraper: Optional[BaseScraper] = None, api_key: Optional[str] = None, manager=None, job_id=None):
         self.state_name = state_name
         self.base_scraper = base_scraper
         self.compliance = ComplianceManager()
         self.ai_parser = DeepSeekClient(api_key=api_key)
         self.db = DatabaseHandler()
+        self.manager = manager
+        self.job_id = job_id
 
     def _handle_captcha(self, page, agency_name):
         """
@@ -58,7 +60,10 @@ class HierarchicalScraper(BaseScraper):
             pass # Page might be closed or empty
 
         if is_blocked:
-            print(f"🛑 BLOCK DETECTED on {agency_name}!")
+            msg = f"🛑 BLOCK DETECTED on {agency_name}!"
+            print(msg)
+            if self.manager: self.manager.add_log(self.job_id, msg)
+
             print("👉 ACTION REQUIRED: Please solve the CAPTCHA in the browser window manually.")
             print("   (The script will resume automatically once the page loads.)")
 
@@ -395,10 +400,14 @@ class HierarchicalScraper(BaseScraper):
                         print("   -> No bids found by AI.")
 
                 except Exception as ai_err:
-                    print(f"   ❌ AI Error: {ai_err}")
+                    msg = f"   ❌ AI Error: {ai_err}"
+                    print(msg)
+                    if self.manager: self.manager.add_log(self.job_id, msg)
 
             except Exception as e:
-                print(f"   ❌ Critical Error on {agency_name}: {e}")
+                msg = f"   ❌ Critical Error on {agency_name}: {e}"
+                print(msg)
+                if self.manager: self.manager.add_log(self.job_id, msg)
                 # Save a screenshot so we know what killed it
                 try: page.screenshot(path=f"logs/errors/crash_{agency_name[:10]}.png")
                 except: pass
