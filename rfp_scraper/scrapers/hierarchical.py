@@ -3,6 +3,7 @@ import re
 import os
 import asyncio
 import json
+import threading
 from typing import Optional, List
 from playwright.sync_api import Page
 from bs4 import BeautifulSoup
@@ -373,8 +374,28 @@ class HierarchicalScraper(BaseScraper):
                 # 3. CRAWL4AI LIST EXTRACTION
                 print(f"   -> 🤖 Analyzing List Page via Crawl4AI...")
                 try:
-                    # Run the async crawler to get structured bids
-                    extracted_bids = asyncio.run(self._extract_with_crawl4ai(target_url))
+                    extracted_bids = []
+                    ai_error = None
+
+                    def run_async_crawl():
+                        nonlocal extracted_bids, ai_error
+                        try:
+                            # Create a brand new, isolated event loop just for Crawl4AI
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            extracted_bids = loop.run_until_complete(self._extract_with_crawl4ai(target_url))
+                        except Exception as e:
+                            ai_error = e
+                        finally:
+                            loop.close()
+
+                    # Spawn thread to avoid event loop collisions with Playwright/Streamlit
+                    t = threading.Thread(target=run_async_crawl)
+                    t.start()
+                    t.join() # Wait for Crawl4AI to finish
+
+                    if ai_error:
+                        raise ai_error
 
                     if extracted_bids:
                         print(f"   ✅ Crawl4AI found {len(extracted_bids)} bids.")
