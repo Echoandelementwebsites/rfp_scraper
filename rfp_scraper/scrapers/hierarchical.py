@@ -3,6 +3,7 @@ import re
 import os
 import asyncio
 import json
+import threading
 from typing import Optional, List
 from playwright.sync_api import Page
 from bs4 import BeautifulSoup
@@ -373,9 +374,6 @@ class HierarchicalScraper(BaseScraper):
                 # 3. CRAWL4AI LIST EXTRACTION
                 print(f"   -> 🤖 Analyzing List Page via Crawl4AI...")
                 try:
-                    import threading
-                    import asyncio
-
                     extracted_bids = []
                     ai_error = None
 
