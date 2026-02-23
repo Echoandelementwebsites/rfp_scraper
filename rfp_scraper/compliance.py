@@ -30,19 +30,23 @@ class ComplianceManager:
             rp = urllib.robotparser.RobotFileParser()
             rp.set_url(f"{base_url}/robots.txt")
             try:
-                # Use a short timeout to fetch robots.txt
-                rp.read()
+                # Use requests with a strict 5-second timeout
+                resp = requests.get(f"{base_url}/robots.txt", timeout=5, headers={"User-Agent": user_agent})
+
+                if resp.status_code == 200:
+                    rp.parse(resp.text.splitlines())
+                elif resp.status_code in (401, 403):
+                    # Standard protocol: 401/403 means strictly forbidden
+                    rp.disallow_all = True
+                else:
+                    # 404 Not Found (or 500 errors): No valid robots.txt, assume allowed
+                    rp.allow_all = True
+
             except Exception:
-                # If robots.txt fails to load, assume allowed (per standard practice) or default to disallowed?
-                # Standard practice is 'allow' if robots.txt is missing/unreachable,
-                # but 'disallow' if we want to be very strict.
-                # Given 'best effort' requirement, we'll allow if we can't read it,
-                # unless it explicitly forbids.
-                # However, rp.read() might fail on network errors.
-                # If read() fails, the internal state might not be set.
-                # A fresh RobotFileParser defaults to allow_all = False by default implementation?
-                # Actually, default is allow all if no rules found.
-                pass
+                # Timeout or DNS error: Server is unresponsive.
+                # Fail-open so our scraper doesn't hang or skip valid agencies.
+                rp.allow_all = True
+
             self._robot_parsers[base_url] = rp
 
         return self._robot_parsers[base_url].can_fetch(user_agent, url)
