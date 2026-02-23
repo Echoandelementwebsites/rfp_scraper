@@ -4,6 +4,9 @@ import os
 import asyncio
 import json
 import threading
+import requests
+import PyPDF2
+import io
 from typing import Optional, List
 from playwright.sync_api import Page
 from bs4 import BeautifulSoup
@@ -26,7 +29,7 @@ class ExtractedBidSchema(BaseModel):
     deadline: str = Field(description="The due date of the bid in YYYY-MM-DD format. Return empty string if none.")
     description: str = Field(description="A brief summary of the work required.")
     clientName: str = Field(description="The name of the agency, city, or department issuing the bid.")
-    link: str = Field(description="The specific absolute URL pointing to the full details/document of this specific bid. Return empty string if none.")
+    link: str = Field(description="The specific absolute URL pointing to the full details OR the PDF document of this specific bid. Return empty string if none.")
 
 # JavaScript to extract clean HTML and remove noise (scripts, navs)
 EXTRACT_MAIN_CONTENT_JS = """
@@ -122,25 +125,19 @@ class HierarchicalScraper(BaseScraper):
         return True
 
     async def _extract_with_crawl4ai(self, url: str) -> List[dict]:
-        """
-        Uses Crawl4AI to bypass Cloudflare, flatten iframes, and extract structured JSON using DeepSeek.
-        """
+        """Uses Crawl4AI to bypass Cloudflare, flatten iframes, and extract JSON using DeepSeek."""
         print(f"   -> 🕷️ Launching Crawl4AI for: {url}")
 
-        llm_config = LLMConfig(
+        extraction_strategy = LLMExtractionStrategy(
             provider="openai/deepseek-chat",
             api_token=self.ai_parser.api_key,
-            base_url="https://api.deepseek.com"
-        )
-
-        extraction_strategy = LLMExtractionStrategy(
-            llm_config=llm_config,
+            base_url="https://api.deepseek.com",
             schema=ExtractedBidSchema.model_json_schema(),
             extraction_type="schema",
             instruction=(
                 "Extract all construction, infrastructure, and maintenance RFPs. "
-                "Ignore Janitorial, Software, or purely Admin work. "
-                "Return a list of matching bids. ALWAYS try to find the specific detail link for the bid."
+                "Ignore Janitorial, Software, or Admin work. "
+                "ALWAYS try to find the specific detail link or PDF link for the bid."
             )
         )
 
@@ -148,9 +145,9 @@ class HierarchicalScraper(BaseScraper):
             extraction_strategy=extraction_strategy,
             cache_mode=CacheMode.BYPASS,
             word_count_threshold=10,
-            process_iframes=True,         # Extracts Bonfire/OpenGov portals
-            remove_overlay_elements=True, # Kills cookie banners
-            magic=True                    # Bypasses standard bot protections
+            process_iframes=True,
+            remove_overlay_elements=True,
+            magic=True
         )
 
         browser_config = BrowserConfig(headless=True, verbose=False)
@@ -158,20 +155,14 @@ class HierarchicalScraper(BaseScraper):
         try:
             async with AsyncWebCrawler(config=browser_config) as crawler:
                 result = await crawler.arun(url=url, config=run_config)
-
-                if not result.success:
-                    print(f"   ❌ Crawl4AI Failed: {result.error_message}")
-                    return []
-
+                if not result.success: return []
                 if result.extracted_content:
                     parsed_data = json.loads(result.extracted_content)
                     if isinstance(parsed_data, list): return parsed_data
                     elif isinstance(parsed_data, dict) and "items" in parsed_data: return parsed_data["items"]
                     elif isinstance(parsed_data, dict): return [parsed_data]
-
                 return []
-        except Exception as e:
-            print(f"   ❌ Crawl4AI Exception: {e}")
+        except:
             return []
 
     def scrape(self, page: Page) -> pd.DataFrame:
@@ -371,7 +362,7 @@ class HierarchicalScraper(BaseScraper):
 
                 target_url = better_url if (better_url and better_url != page.url and better_url != url) else page.url
 
-                # 3. CRAWL4AI LIST EXTRACTION
+                # 3. CRAWL4AI LIST EXTRACTION (Thread-Safe with Guillotine)
                 print(f"   -> 🤖 Analyzing List Page via Crawl4AI...")
                 try:
                     extracted_bids = []
@@ -379,21 +370,27 @@ class HierarchicalScraper(BaseScraper):
 
                     def run_async_crawl():
                         nonlocal extracted_bids, ai_error
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
                         try:
-                            # Create a brand new, isolated event loop just for Crawl4AI
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            extracted_bids = loop.run_until_complete(self._extract_with_crawl4ai(target_url))
+                            # INTERNAL GUILLOTINE: 120 seconds
+                            extracted_bids = loop.run_until_complete(
+                                asyncio.wait_for(self._extract_with_crawl4ai(target_url), timeout=120.0)
+                            )
+                        except asyncio.TimeoutError:
+                            ai_error = Exception("Crawl4AI hit the 120s internal timeout.")
                         except Exception as e:
                             ai_error = e
                         finally:
-                            loop.close()
+                            try: loop.close()
+                            except: pass
 
-                    # Spawn thread to avoid event loop collisions with Playwright/Streamlit
                     t = threading.Thread(target=run_async_crawl)
                     t.start()
-                    t.join() # Wait for Crawl4AI to finish
+                    t.join(timeout=130.0) # EXTERNAL GUILLOTINE
 
+                    if t.is_alive():
+                        raise Exception("CRITICAL HANG: Crawl4AI thread zombified.")
                     if ai_error:
                         raise ai_error
 
@@ -401,34 +398,46 @@ class HierarchicalScraper(BaseScraper):
                         print(f"   ✅ Crawl4AI found {len(extracted_bids)} bids.")
 
                         for bid in extracted_bids:
-                            # --- Stage 2: Cleaning ---
                             raw_title = bid.get('title', 'Untitled')
                             raw_client = bid.get('clientName') or agency_name
                             raw_deadline = bid.get('deadline')
 
-                            # Grab specific link if AI found one, fallback to target_url
                             bid_link = bid.get('link') or bid.get('url') or target_url
                             ai_description = clean_text(bid.get('description', ''), title_case=False)
                             description = ai_description
 
-                            # 4. BACKGROUND TAB: FETCH FULL UNABRIDGED DESCRIPTION
-                            if bid_link and bid_link != url and bid_link != better_url and not is_file_url(bid_link):
-                                detail_page = None
-                                try:
-                                    print(f"      -> 📄 Opening detail page for full text: {bid_link}")
-                                    detail_page = page.context.new_page()
-                                    detail_page.goto(bid_link, wait_until="domcontentloaded", timeout=15000)
+                            # 4. FETCH FULL DESCRIPTION (Handles HTML or PDF)
+                            if bid_link and bid_link != url and bid_link != better_url:
+                                if is_file_url(bid_link) and ".pdf" in bid_link.lower():
+                                    # --- PDF EXTRACTION ---
+                                    try:
+                                        print(f"      -> 📑 Extracting PDF text: {bid_link}")
+                                        # Use standard requests to bypass Playwright's download events
+                                        resp = requests.get(bid_link, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+                                        if resp.status_code == 200:
+                                            pdf_reader = PyPDF2.PdfReader(io.BytesIO(resp.content))
+                                            # Read max 15 pages to prevent token bloat
+                                            pdf_text = " ".join([p.extract_text() for p in pdf_reader.pages[:15] if p.extract_text()])
+                                            if len(pdf_text) > 50:
+                                                description = clean_text(pdf_text, title_case=False)
+                                    except Exception as e:
+                                        print(f"      -> ⚠️ PDF extraction failed: {str(e)[:50]}")
+                                elif not is_file_url(bid_link):
+                                    # --- HTML EXTRACTION (Background Tab) ---
+                                    detail_page = None
+                                    try:
+                                        print(f"      -> 📄 Opening detail page: {bid_link}")
+                                        detail_page = page.context.new_page()
+                                        detail_page.set_default_timeout(120000) # CONTEXT GUILLOTINE: 120s
+                                        detail_page.goto(bid_link, wait_until="domcontentloaded")
 
-                                    # Extract massive full text using our JS script
-                                    full_text = detail_page.evaluate(EXTRACT_MAIN_CONTENT_JS)
-                                    if full_text and len(full_text) > len(ai_description):
-                                        description = clean_text(full_text, title_case=False)
-
-                                except Exception as e:
-                                    print(f"      -> ⚠️ Detail extraction failed, using summary: {e}")
-                                    description = ai_description
-                                finally:
-                                    if detail_page: detail_page.close()
+                                        full_text = detail_page.evaluate(EXTRACT_MAIN_CONTENT_JS)
+                                        if full_text and len(full_text) > len(ai_description):
+                                            description = clean_text(full_text, title_case=False)
+                                    except Exception as e:
+                                        print(f"      -> ⚠️ Detail extraction failed: {str(e)[:50]}")
+                                    finally:
+                                        if detail_page: detail_page.close()
 
                             title = clean_text(raw_title)
                             client = clean_text(raw_client)
@@ -440,7 +449,7 @@ class HierarchicalScraper(BaseScraper):
                             if not is_valid_rfp(title, description, client): continue
 
                             # --- Stage 3: Classification ---
-                            # Pass the ENTIRE description for highly accurate trade classification
+                            # Pass the ENTIRE PDF/HTML text for accurate trade classification
                             trades = self.ai_parser.classify_csi_divisions(title, description)
                             if not trades: continue
 
@@ -451,7 +460,7 @@ class HierarchicalScraper(BaseScraper):
                             self.db.insert_bid(
                                 slug, client, title, deadline, bid_link,
                                 state=self.state_name,
-                                rfp_description=description, # Saves the full massive text
+                                rfp_description=description, # Saves the full text from the PDF/Page
                                 matching_trades=matching_trades_str
                             )
 
