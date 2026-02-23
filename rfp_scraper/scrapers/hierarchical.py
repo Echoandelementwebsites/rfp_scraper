@@ -1,9 +1,15 @@
 import pandas as pd
 import re
 import os
+import asyncio
+import json
 from typing import Optional, List
 from playwright.sync_api import Page
 from bs4 import BeautifulSoup
+from pydantic import BaseModel, Field
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
+from crawl4ai.extraction_strategy import LLMExtractionStrategy
+from crawl4ai.async_configs import LLMConfig
 
 from rfp_scraper.scrapers.base import BaseScraper
 from rfp_scraper.compliance import ComplianceManager
@@ -13,6 +19,13 @@ from rfp_scraper.utils import (
     clean_text, normalize_date, is_valid_rfp, BLOCKED_URL_PATTERNS, is_future_deadline, is_file_url
 )
 from rfp_scraper.behavior import smooth_scroll, human_delay, mimic_human_arrival
+
+class ExtractedBidSchema(BaseModel):
+    title: str = Field(description="The title or name of the project/RFP.")
+    deadline: str = Field(description="The due date of the bid in YYYY-MM-DD format. Return empty string if none.")
+    description: str = Field(description="A brief summary of the work required.")
+    clientName: str = Field(description="The name of the agency, city, or department issuing the bid.")
+    link: str = Field(description="The specific absolute URL pointing to the full details/document of this specific bid. Return empty string if none.")
 
 # JavaScript to extract clean HTML and remove noise (scripts, navs)
 EXTRACT_MAIN_CONTENT_JS = """
@@ -106,6 +119,59 @@ class HierarchicalScraper(BaseScraper):
             if pattern in url_lower or pattern in text_lower:
                 return False
         return True
+
+    async def _extract_with_crawl4ai(self, url: str) -> List[dict]:
+        """
+        Uses Crawl4AI to bypass Cloudflare, flatten iframes, and extract structured JSON using DeepSeek.
+        """
+        print(f"   -> 🕷️ Launching Crawl4AI for: {url}")
+
+        llm_config = LLMConfig(
+            provider="openai/deepseek-chat",
+            api_token=self.ai_parser.api_key,
+            base_url="https://api.deepseek.com"
+        )
+
+        extraction_strategy = LLMExtractionStrategy(
+            llm_config=llm_config,
+            schema=ExtractedBidSchema.model_json_schema(),
+            extraction_type="schema",
+            instruction=(
+                "Extract all construction, infrastructure, and maintenance RFPs. "
+                "Ignore Janitorial, Software, or purely Admin work. "
+                "Return a list of matching bids. ALWAYS try to find the specific detail link for the bid."
+            )
+        )
+
+        run_config = CrawlerRunConfig(
+            extraction_strategy=extraction_strategy,
+            cache_mode=CacheMode.BYPASS,
+            word_count_threshold=10,
+            process_iframes=True,         # Extracts Bonfire/OpenGov portals
+            remove_overlay_elements=True, # Kills cookie banners
+            magic=True                    # Bypasses standard bot protections
+        )
+
+        browser_config = BrowserConfig(headless=True, verbose=False)
+
+        try:
+            async with AsyncWebCrawler(config=browser_config) as crawler:
+                result = await crawler.arun(url=url, config=run_config)
+
+                if not result.success:
+                    print(f"   ❌ Crawl4AI Failed: {result.error_message}")
+                    return []
+
+                if result.extracted_content:
+                    parsed_data = json.loads(result.extracted_content)
+                    if isinstance(parsed_data, list): return parsed_data
+                    elif isinstance(parsed_data, dict) and "items" in parsed_data: return parsed_data["items"]
+                    elif isinstance(parsed_data, dict): return [parsed_data]
+
+                return []
+        except Exception as e:
+            print(f"   ❌ Crawl4AI Exception: {e}")
+            return []
 
     def scrape(self, page: Page) -> pd.DataFrame:
         results = []
@@ -302,83 +368,84 @@ class HierarchicalScraper(BaseScraper):
                         except:
                             print("   -> Could not load better URL, staying on main page.")
 
-                # 3. EXTRACTION
-                content = page.evaluate(EXTRACT_MAIN_CONTENT_JS)
+                target_url = better_url if (better_url and better_url != page.url and better_url != url) else page.url
 
-                if not content or len(content) < 100:
-                    print("   -> Content empty. Skipping.")
-                    continue
-
-                # 4. AI ANALYSIS (Protected)
-                print(f"   -> 🤖 Analyzing ({len(content)} chars)...")
+                # 3. CRAWL4AI LIST EXTRACTION
+                print(f"   -> 🤖 Analyzing List Page via Crawl4AI...")
                 try:
-                    # Truncate content to prevent API timeouts
-                    safe_content = content[:100000]
-                    extracted_bids = self.ai_parser.parse_rfp_content(safe_content)
+                    # Run the async crawler to get structured bids
+                    extracted_bids = asyncio.run(self._extract_with_crawl4ai(target_url))
 
                     if extracted_bids:
-                        print(f"   ✅ AI found {len(extracted_bids)} bids.")
+                        print(f"   ✅ Crawl4AI found {len(extracted_bids)} bids.")
+
                         for bid in extracted_bids:
                             # --- Stage 2: Cleaning ---
                             raw_title = bid.get('title', 'Untitled')
                             raw_client = bid.get('clientName') or agency_name
                             raw_deadline = bid.get('deadline')
 
-                            # Clean description without title casing
-                            description = clean_text(bid.get('description', ''), title_case=False)
+                            # Grab specific link if AI found one, fallback to target_url
+                            bid_link = bid.get('link') or bid.get('url') or target_url
+                            ai_description = clean_text(bid.get('description', ''), title_case=False)
+                            description = ai_description
+
+                            # 4. BACKGROUND TAB: FETCH FULL UNABRIDGED DESCRIPTION
+                            if bid_link and bid_link != url and bid_link != better_url and not is_file_url(bid_link):
+                                detail_page = None
+                                try:
+                                    print(f"      -> 📄 Opening detail page for full text: {bid_link}")
+                                    detail_page = page.context.new_page()
+                                    detail_page.goto(bid_link, wait_until="domcontentloaded", timeout=15000)
+
+                                    # Extract massive full text using our JS script
+                                    full_text = detail_page.evaluate(EXTRACT_MAIN_CONTENT_JS)
+                                    if full_text and len(full_text) > len(ai_description):
+                                        description = clean_text(full_text, title_case=False)
+
+                                except Exception as e:
+                                    print(f"      -> ⚠️ Detail extraction failed, using summary: {e}")
+                                    description = ai_description
+                                finally:
+                                    if detail_page: detail_page.close()
 
                             title = clean_text(raw_title)
                             client = clean_text(raw_client)
                             deadline = normalize_date(raw_deadline)
 
-                            # 1. State Check
-                            if not self.state_name or self.state_name == "Unknown":
-                                continue
-
-                            # 2. Deadline Check
-                            if not is_future_deadline(deadline, buffer_days=4):
-                                continue
-
-                            if not is_valid_rfp(title, description, client):
-                                # print(f"Invalid RFP (Deep Scan): {title}") # Optional verbosity
-                                continue
+                            # Validation Checks
+                            if not self.state_name or self.state_name == "Unknown": continue
+                            if not is_future_deadline(deadline, buffer_days=4): continue
+                            if not is_valid_rfp(title, description, client): continue
 
                             # --- Stage 3: Classification ---
+                            # Pass the ENTIRE description for highly accurate trade classification
                             trades = self.ai_parser.classify_csi_divisions(title, description)
-                            if not trades:
-                                continue
+                            if not trades: continue
 
                             matching_trades_str = ", ".join(trades)
+                            slug = self.db.generate_slug(title, client, bid_link)
 
-                            # Deduplication Slug
-                            slug = self.db.generate_slug(title, client, url)
-
-                            # Save to DB (Persistence)
+                            # Save to DB
                             self.db.insert_bid(
-                                slug, client, title, deadline, url,
+                                slug, client, title, deadline, bid_link,
                                 state=self.state_name,
-                                rfp_description=description,
+                                rfp_description=description, # Saves the full massive text
                                 matching_trades=matching_trades_str
                             )
 
-                            print(f"Accepted (Deep Scan): {title} [{matching_trades_str}]")
-
-                            # Append to results for current run
+                            print(f"      + Saved: {title} [{matching_trades_str}]")
                             results.append({
-                                "title": title,
-                                "client": client,
-                                "deadline": deadline,
-                                "description": description,
-                                "link": url,
-                                "source_type": "Deep Scan",
-                                "rfp_description": description,
+                                "title": title, "client": client, "deadline": deadline,
+                                "description": description, "link": bid_link,
+                                "source_type": "Deep Scan", "rfp_description": description,
                                 "matching_trades": matching_trades_str
                             })
                     else:
-                        print("   -> No bids found by AI.")
+                        print("   -> No bids found by Crawl4AI.")
 
                 except Exception as ai_err:
-                    msg = f"   ❌ AI Error: {ai_err}"
+                    msg = f"   ❌ AI/Crawl4AI Error: {ai_err}"
                     print(msg)
                     if self.manager: self.manager.add_log(self.job_id, msg)
 

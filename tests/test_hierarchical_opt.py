@@ -1,7 +1,12 @@
+import sys
+import os
+sys.path.append(os.getcwd())
+
 import unittest
 from unittest.mock import MagicMock, patch
 import pandas as pd
 from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
+import asyncio
 
 class TestHierarchicalScraperOptimization(unittest.TestCase):
     def setUp(self):
@@ -56,31 +61,40 @@ class TestHierarchicalScraperOptimization(unittest.TestCase):
         self.assertIn("const keywords =", args[0])
         self.assertIn("document.querySelectorAll('a')", args[0])
 
-    def test_scrape_deep_scan_flow(self):
+    @patch('rfp_scraper.scrapers.hierarchical.HierarchicalScraper._extract_with_crawl4ai')
+    def test_scrape_deep_scan_flow(self, mock_extract):
         """Verify the deep scan loop flow with the new logic."""
         # 1. Setup mocks for the flow
 
         # _find_better_url returns a better URL
-        # We need to mock page.evaluate carefully because it's used multiple times
-        # 1st call: _find_better_url (returns better URL)
-        # 2nd call: EXTRACT_MAIN_CONTENT_JS (returns content)
+        # Mock page.evaluate carefully because it's used multiple times
         def evaluate_side_effect(script):
             if "const keywords =" in script:
                 return "http://example.com/bids"
             if "const clone = document.body.cloneNode(true)" in script:
-                return "<html><body>RFP for Construction</body></html>" + "A" * 100
+                return "Full Detail Text Is Much Longer Than The Summary To Ensure It Is Picked Up"
             return None
 
         self.mock_page.evaluate.side_effect = evaluate_side_effect
         self.mock_page.url = "http://example.com" # Start at main page
 
-        # Mock AI parser
-        self.mock_ai_parser.parse_rfp_content.return_value = [{
-            'title': 'Construction RFP',
-            'clientName': 'Test Agency',
-            'deadline': '2030-12-31',
-            'description': 'Building a bridge'
-        }]
+        # Configure detail_page mock (the new page opened for details)
+        detail_page_mock = self.mock_page.context.new_page.return_value
+        detail_page_mock.evaluate.return_value = "Full Detail Text Is Much Longer Than The Summary To Ensure It Is Picked Up"
+
+        # Mock Crawl4AI extraction
+        # Since _extract_with_crawl4ai is async, we return a coroutine
+        async def async_return(*args, **kwargs):
+            return [{
+                'title': 'Construction RFP',
+                'clientName': 'Test Agency',
+                'deadline': '2030-12-31',
+                'description': 'Building a bridge',
+                'link': 'http://example.com/detail'
+            }]
+
+        mock_extract.side_effect = async_return
+
         self.mock_ai_parser.classify_csi_divisions.return_value = ['03 - Concrete']
 
         # 2. Run scrape
@@ -89,22 +103,26 @@ class TestHierarchicalScraperOptimization(unittest.TestCase):
         # 3. Assertions
 
         # Verify navigation
-        # Should navigate to main URL first
         self.mock_mimic.assert_any_call(self.mock_page, 'http://example.com', referrer_url='https://www.google.com/', timeout=20000)
-        # Should navigate to better URL
         self.mock_mimic.assert_any_call(self.mock_page, 'http://example.com/bids', referrer_url='http://example.com', timeout=15000)
 
-        # Verify extraction
-        self.mock_ai_parser.parse_rfp_content.assert_called()
+        # Verify extraction call
+        # It's called with target_url, which is 'http://example.com/bids'
+        mock_extract.assert_called_with('http://example.com/bids')
+
+        # Verify Detail Page opened
+        # The code opens a new context/page: page.context.new_page()
+        self.mock_page.context.new_page.assert_called()
+        detail_page = self.mock_page.context.new_page.return_value
+        detail_page.goto.assert_called_with('http://example.com/detail', wait_until="domcontentloaded", timeout=15000)
 
         # Verify DB insert
         self.mock_db.insert_bid.assert_called()
         args, kwargs = self.mock_db.insert_bid.call_args
-        # insert_bid(slug, client, title, ...)
-        # title is the 3rd positional argument (index 2)
-        # However, checking if it was passed positionally
-        self.assertEqual(args[2], 'Construction Rfp') # Note: clean_text converts to Title Case
+        self.assertEqual(args[2], 'Construction Rfp') # Title Case
         self.assertEqual(kwargs['matching_trades'], '03 - Concrete')
+        # Check description used is the full text if available
+        self.assertEqual(kwargs['rfp_description'], 'Full Detail Text Is Much Longer Than The Summary To Ensure It Is Picked Up')
 
     def test_scrape_skips_file_url(self):
         """Verify that file URLs detected by _find_better_url are skipped."""
@@ -121,8 +139,6 @@ class TestHierarchicalScraperOptimization(unittest.TestCase):
         self.scraper.scrape(self.mock_page)
 
         # Verify we did NOT navigate to the PDF
-        # We check all calls to mimic_human_arrival
-        # Calls: (page, url, ...)
         navigated_urls = [call.args[1] for call in self.mock_mimic.call_args_list]
         self.assertNotIn("http://example.com/bids.pdf", navigated_urls)
 
