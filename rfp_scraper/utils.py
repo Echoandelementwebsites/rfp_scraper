@@ -114,25 +114,6 @@ def is_valid_rfp(title: str, description: str, client_name: str) -> bool:
         if "bridge" in title_lower or "highway" in title_lower:
             return False
 
-    # 4. Date/Time Title Check
-    # If title is just a date like "October 12, 2023" or "10/12/2023", it's likely a meeting agenda or noise.
-    # We attempt to parse the title as a date. If it succeeds and covers most of the string, reject it.
-    try:
-        # strict=False allows fuzzy, but if the whole string parses easily, it might be a date.
-        # However, parser.parse("Project 123") might fail or pass depending on context.
-        # A safer check is if the title is very short and contains digits/slashes
-        # or if we explicitly try to parse it.
-        # Let's try a strict parse logic: if the title can be parsed as a date and has no other words
-        # (ignoring common day names/months), reject.
-
-        # Simple heuristic: if it parses as a date and length is short (< 20 chars)
-        if len(title_lower) < 20:
-            dt = parser.parse(title_lower)
-            # If we got here, it's a date-like string.
-            return False
-    except:
-        pass
-
     return True
 
 
