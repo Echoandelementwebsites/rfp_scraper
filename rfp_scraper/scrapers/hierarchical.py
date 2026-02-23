@@ -194,10 +194,6 @@ class HierarchicalScraper(BaseScraper):
                             print(f"Blocked (Pattern): {raw_title} -> {raw_link}")
                             continue
 
-                        if is_file_url(raw_link):
-                            print(f"Skipping (File): {raw_title} -> {raw_link}")
-                            continue
-
                         # --- Stage 2: Cleaning (Part A) ---
                         title = clean_text(raw_title)
                         # We don't have description yet, so we pass empty string for now or wait until extraction?
@@ -230,21 +226,34 @@ class HierarchicalScraper(BaseScraper):
 
                         try:
                             print(f"Verifying: {title} -> {raw_link}")
-                            # Navigate
-                            try:
-                                response = page.goto(raw_link, wait_until="domcontentloaded", timeout=20000)
-                            except Exception:
-                                response = None
-
-                            if not response or response.status >= 400:
-                                print(f"Broken link ({response.status if response else 'Error'}): {raw_link}")
+                            if is_file_url(raw_link) and ".pdf" in raw_link.lower():
+                                # --- PDF EXTRACTION ---
+                                try:
+                                    resp = requests.get(raw_link, timeout=(10, 20), headers={"User-Agent": "Mozilla/5.0"})
+                                    if resp.status_code == 200:
+                                        pdf_bytes = resp.content[:10485760] # 10MB limit
+                                        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
+                                        pdf_text = " ".join([p.extract_text() for p in pdf_reader.pages[:10] if p.extract_text()])
+                                        if len(pdf_text) > 50:
+                                            rfp_description = clean_text(pdf_text, title_case=False)
+                                except Exception as e:
+                                    print(f"PDF verification failed for {raw_link}: {str(e)[:50]}")
+                            elif is_file_url(raw_link):
+                                print(f"Skipping non-PDF file: {raw_link}")
                                 continue
+                            elif not is_file_url(raw_link):
+                                # --- HTML EXTRACTION ---
+                                try:
+                                    response = page.goto(raw_link, wait_until="commit", timeout=20000)
+                                    page.wait_for_timeout(1000)
+                                except Exception:
+                                    response = None
 
-                            # Extract Text
-                            rfp_description = clean_text(page.evaluate("document.body.innerText"), title_case=False)
-                            if not rfp_description:
-                                rfp_description = ""
+                                if not response or response.status >= 400:
+                                    print(f"Broken link ({response.status if response else 'Error'}): {raw_link}")
+                                    continue
 
+                                rfp_description = clean_text(page.evaluate("document.body.innerText"), title_case=False)
                         except Exception as e:
                             print(f"Link verification failed for {raw_link}: {e}")
                             continue
@@ -352,11 +361,13 @@ class HierarchicalScraper(BaseScraper):
 
                 if better_url and better_url != page.url and better_url != url:
                     print(f"   -> Better URL found: {better_url}")
-                    if is_file_url(better_url):
-                         print(f"   -> Skipping better URL (File): {better_url}")
+                    if is_file_url(better_url) and ".pdf" in better_url.lower():
+                         print(f"   -> Better URL is a PDF. Setting as target.")
+                         # Allow it to bypass navigation so Crawl4AI/PDF Extractor catches it below
+                    elif is_file_url(better_url):
+                         print(f"   -> Skipping better URL (Invalid File Type): {better_url}")
                     else:
                         try:
-                            # Navigate to the better section
                             mimic_human_arrival(page, better_url, referrer_url=page.url, timeout=15000)
                             smooth_scroll(page, max_seconds=5)
                         except:
