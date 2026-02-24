@@ -26,8 +26,12 @@ from rfp_scraper_v2.crawlers.prompts import (
 
 # Initialize DeepSeek Client (for direct calls)
 # Assuming DEEPSEEK_API_KEY is in environment
+api_key = os.getenv("DEEPSEEK_API_KEY")
+if not api_key:
+    api_key = "dummy"
+
 client = AsyncOpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    api_key=api_key,
     base_url="https://api.deepseek.com"
 )
 

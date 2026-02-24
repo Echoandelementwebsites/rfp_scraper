@@ -19,25 +19,19 @@ project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from rfp_scraper.factory import ScraperFactory
-from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 # Use the new v2 database and the new v2 bridge task
 from rfp_scraper_v2.core.database import DatabaseHandler
-from rfp_scraper_v2.orchestrator import run_v2_scraping_task
+from rfp_scraper_v2.orchestrator import run_v2_scraping_task, run_v2_discovery_task
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url, check_url_reachability, get_state_abbreviation
-from rfp_scraper.discovery import DiscoveryEngine, discover_agency_url, is_better_url, find_special_district_domain
-from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns, SPECIAL_CATEGORIES
 from rfp_scraper.cisa_manager import CisaManager
 from rfp_scraper.job_manager import JobManager
-from rfp_scraper.tasks import run_scraping_task, run_discovery_task # Keep legacy discovery for now if needed
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
 st.title("🏗️ National Construction RFP Scraper")
 
 # Initialize Helpers
-factory = ScraperFactory()
 db = DatabaseHandler()
 
 # Initialize Job Manager (Session State)
@@ -45,7 +39,10 @@ if 'job_manager' not in st.session_state:
     st.session_state.job_manager = JobManager()
 
 job_manager = st.session_state.job_manager
-available_states = factory.get_available_states()
+
+# Get available states from DB for scraper
+available_states_df = db.get_all_states()
+available_states = available_states_df['name'].tolist() if not available_states_df.empty else []
 
 # --- Global Configuration (Sidebar) ---
 st.sidebar.header("Global Configuration")
@@ -246,13 +243,6 @@ with tab_agencies:
     st.header("🏛️ Agency & Local Gov URL Discovery")
     st.markdown("Unified URL discovery for State Agencies and identified Local Governments (AI-Native).")
 
-    # Initialize Discovery Engine
-    discovery_engine = DiscoveryEngine()
-
-    # Load Template (Standard Agencies)
-    template = load_agency_template()
-    search_scope = extract_search_scope(template)
-
     # Input Options
     col_ag1, col_ag2 = st.columns(2)
     with col_ag1:
@@ -280,7 +270,8 @@ with tab_agencies:
              st.error("No states found in database. Please go to 'States' tab and generate states first.")
         else:
             # Start Background Job
-            job_id = job_manager.start_job(run_discovery_task, args=(target_agency_states, api_key), name="Discovery Task")
+            # Use V2 Discovery Bridge
+            job_id = job_manager.start_job(run_v2_discovery_task, args=(target_agency_states, api_key), name="V2 Discovery Task")
             st.success(f"Discovery started! Job ID: {job_id}")
             st.info("Monitor progress in the sidebar.")
             time.sleep(1)
