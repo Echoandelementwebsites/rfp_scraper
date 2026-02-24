@@ -3,7 +3,7 @@ import requests
 import io
 import re
 from typing import Optional, Dict, Tuple
-from rfp_scraper.db import DatabaseHandler
+from rfp_scraper_v2.core.database import DatabaseHandler
 
 class CisaManager:
     CISA_CSV_URL = "https://raw.githubusercontent.com/cisagov/dotgov-data/main/current-full.csv"

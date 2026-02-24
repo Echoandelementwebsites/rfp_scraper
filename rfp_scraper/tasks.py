@@ -10,7 +10,7 @@ from rfp_scraper.factory import ScraperFactory
 from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
 from rfp_scraper.discovery import DiscoveryEngine, discover_agency_url, is_better_url, find_special_district_domain
 from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, SPECIAL_CATEGORIES
-from rfp_scraper.db import DatabaseHandler
+from rfp_scraper_v2.core.database import DatabaseHandler
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url, check_url_reachability, get_state_abbreviation
 
