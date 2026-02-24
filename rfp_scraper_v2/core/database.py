@@ -429,6 +429,7 @@ class DatabaseHandler:
                 SELECT
                     a.*,
                     s.name as state_name,
+                    lj.type as jurisdiction_type,
                     COALESCE(lj.name || ' (' || lj.type || ')', s.name) as jurisdiction_label
                 FROM agencies a
                 JOIN states s ON a.state_id = s.id
