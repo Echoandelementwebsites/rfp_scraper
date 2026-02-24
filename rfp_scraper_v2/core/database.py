@@ -437,7 +437,8 @@ class DatabaseHandler:
                 ORDER BY s.name, a.organization_name
             """
             df = pd.read_sql_query(query, conn)
-        except Exception:
+        except Exception as e:
+             print(f"CRITICAL DB ERROR in get_all_agencies: {e}")
              df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'local_jurisdiction_id', 'state_name', 'jurisdiction_label'])
         finally:
             conn.close()
