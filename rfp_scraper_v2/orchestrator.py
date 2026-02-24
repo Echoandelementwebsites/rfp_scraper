@@ -4,10 +4,11 @@ import os
 import re
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from crawl4ai import AsyncWebCrawler
 
 from rfp_scraper_v2.core.models import Agency
 from rfp_scraper_v2.core.database import DatabaseHandler
-from rfp_scraper_v2.crawlers.pipeline import process_agency
+from rfp_scraper_v2.crawlers.pipeline import process_agency, discover_portal
 import rfp_scraper_v2.crawlers.pipeline as pipeline
 from openai import AsyncOpenAI
 
@@ -156,6 +157,112 @@ def parse_local_agencies(data: Dict[str, Any], target_states: List[str] = None) 
             ))
 
     return agencies
+
+async def discover_agency_only(agency: Agency, db, manager=None, job_id=None):
+    """
+    Step 1 Only: Finds the portal URL and updates the DB without extraction.
+    """
+    async with AsyncWebCrawler() as crawler:
+        procurement_url = agency.procurement_url
+        if not procurement_url:
+            if agency.homepage_url:
+                if manager: manager.add_log(job_id, f"🔍 Discovering portal for {agency.name}...")
+                else: print(f"🔍 Discovering portal for {agency.name}...")
+
+                procurement_url = await discover_portal(crawler, agency.homepage_url)
+
+                if procurement_url:
+                    if manager: manager.add_log(job_id, f"✅ Found: {procurement_url}")
+                    else: print(f"✅ Found: {procurement_url}")
+                    db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+                else:
+                    if manager: manager.add_log(job_id, f"⚠️ No portal found for {agency.name}")
+                    else: print(f"⚠️ No portal found for {agency.name}")
+            else:
+                 if manager: manager.add_log(job_id, f"⚠️ No homepage URL for {agency.name}")
+        else:
+             if manager: manager.add_log(job_id, f"ℹ️ Already has portal: {procurement_url}")
+             # Ensure it is saved/verified
+             db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+
+async def run_discovery_orchestrator(target_states: List[str], manager=None, job_id: str = None, api_key: str = None):
+    """
+    Discovery-Only Logic for Orchestrator V2.
+    """
+    if manager:
+        manager.add_log(job_id, "🚀 Starting V2 Discovery Orchestrator...")
+
+    # Inject API Key if provided
+    if api_key:
+        os.environ["DEEPSEEK_API_KEY"] = api_key
+        # Reload client to pick up new key
+        pipeline.client = AsyncOpenAI(
+            api_key=api_key,
+            base_url="https://api.deepseek.com"
+        )
+
+    # Database Setup
+    db = DatabaseHandler()
+
+    # Load Data
+    state_data = load_json("state_agency_dictionary.json")
+    local_data = load_json("cities_towns_dictionary.json")
+
+    # Parse with filtering
+    if manager: manager.add_log(job_id, f"Parsing agencies for {len(target_states)} states...")
+
+    state_agencies = parse_state_agencies(state_data, target_states)
+    local_agencies = parse_local_agencies(local_data, target_states)
+
+    all_agencies = state_agencies + local_agencies
+
+    msg = f"Loaded {len(all_agencies)} total agencies."
+    if manager: manager.add_log(job_id, msg)
+
+    if not all_agencies:
+        if manager: manager.add_log(job_id, "⚠️ No agencies found for selected states.")
+        return
+
+    # Process Loop
+    async def bounded_process(a):
+        async with SEM_AGENCIES:
+            try:
+                await discover_agency_only(a, db, manager, job_id)
+            except Exception as e:
+                err_msg = f"❌ Failed {a.name}: {e}"
+                if manager: manager.add_log(job_id, err_msg)
+                else: print(err_msg)
+
+    tasks = [bounded_process(a) for a in all_agencies]
+
+    if tasks:
+        await asyncio.gather(*tasks)
+
+    if manager: manager.add_log(job_id, "✅ Discovery Orchestration Complete.")
+
+def run_v2_discovery_task(job_id: str, manager, target_states: list, api_key: str):
+    """
+    Sync-to-Async Bridge for Tab 2: Agency Discovery.
+    Reads the local JSON dictionaries, discovers procurement portals
+    using the v2 pipeline, and saves them to the database.
+    """
+    manager.add_log(job_id, f"🔍 Starting V2 JSON Dictionary Discovery for {len(target_states)} states...")
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(run_discovery_orchestrator(target_states, manager, job_id, api_key))
+
+        manager.add_log(job_id, "✅ V2 Discovery completed successfully.")
+    except Exception as e:
+        manager.add_log(job_id, f"❌ Discovery Crash: {str(e)}")
+        raise e
+    finally:
+        pending = asyncio.all_tasks(loop)
+        for task in pending: task.cancel()
+        if pending: loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+        loop.close()
 
 async def run_orchestrator(target_states: List[str], manager=None, job_id: str = None, api_key: str = None):
     """
