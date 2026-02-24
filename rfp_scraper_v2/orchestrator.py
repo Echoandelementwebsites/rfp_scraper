@@ -15,6 +15,28 @@ from openai import AsyncOpenAI
 # Concurrency Limit for Agencies
 SEM_AGENCIES = asyncio.Semaphore(5)
 
+def get_agencies_for_scraping(db, target_states: List[str]) -> List[Agency]:
+    """Pulls verified agencies from the DB for the Scraping pipeline."""
+    df = db.get_all_agencies()
+    if df.empty: return []
+
+    if target_states:
+        df = df[df['state_name'].isin(target_states)]
+
+    agencies = []
+    for _, row in df.iterrows():
+        # If url is missing, skip
+        if not row.get('url'): continue
+
+        agencies.append(Agency(
+            name=row.get('organization_name', 'Unknown'),
+            state=row.get('state_name', 'Unknown'),
+            type=row.get('jurisdiction_type', 'state_agency'),
+            homepage_url=row['url'],
+            procurement_url=row['url'] # We assume the URL in the DB is the starting point
+        ))
+    return agencies
+
 def load_json(filename: str) -> Dict[str, Any]:
     # Robust path handling: Look in project root relative to this file
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -285,24 +307,17 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
     # Database Setup
     db = DatabaseHandler()
 
-    # Load Data
-    state_data = load_json("state_agency_dictionary.json")
-    local_data = load_json("cities_towns_dictionary.json")
+    if manager: manager.add_log(job_id, f"Fetching verified agencies from DB for {len(target_states)} states...")
 
-    # Parse with filtering
-    if manager: manager.add_log(job_id, f"Parsing agencies for {len(target_states)} states...")
+    # Pull target agencies from the Database
+    all_agencies = get_agencies_for_scraping(db, target_states)
 
-    state_agencies = parse_state_agencies(state_data, target_states)
-    local_agencies = parse_local_agencies(local_data, target_states)
-
-    all_agencies = state_agencies + local_agencies
-
-    msg = f"Loaded {len(all_agencies)} total agencies."
+    msg = f"Loaded {len(all_agencies)} target agencies for scraping."
     if manager: manager.add_log(job_id, msg)
     else: print(msg)
 
     if not all_agencies:
-        if manager: manager.add_log(job_id, "⚠️ No agencies found for selected states.")
+        if manager: manager.add_log(job_id, "⚠️ No agencies found in DB. Go to Tab 2 and run Discovery or CISA Repair first.")
         return
 
     # Process Loop
