@@ -277,41 +277,6 @@ with tab_agencies:
             time.sleep(1)
             st.rerun()
 
-    # CISA Repair Button
-    st.divider()
-    st.subheader("🛠️ Database Maintenance")
-
-    if st.button("🔄 Auto-Repair with CISA Registry"):
-        if not target_agency_states:
-             st.error("No states selected/found. Please select a state above.")
-        else:
-            with st.spinner("Downloading official federal registry and syncing..."):
-                cisa_manager = CisaManager()
-                total_added = 0
-                total_updated = 0
-
-                progress_bar_cisa = st.progress(0)
-                status_text_cisa = st.empty()
-                total_states_cisa = len(target_agency_states)
-
-                for i, state_name in enumerate(target_agency_states):
-                    status_text_cisa.text(f"Syncing {state_name} ({i+1}/{total_states_cisa})...")
-                    state_row = df_current_states[df_current_states['name'] == state_name]
-                    if state_row.empty: continue
-                    state_id = int(state_row.iloc[0]['id'])
-                    state_abbr = get_state_abbreviation(state_name)
-
-                    if state_abbr:
-                        stats = cisa_manager.sync_state_database(db, state_id, state_abbr)
-                        total_added += stats['added']
-                        total_updated += stats['updated']
-
-                    progress_bar_cisa.progress((i + 1) / total_states_cisa)
-
-                status_text_cisa.empty()
-                st.success(f"✅ Database Repaired: Added {total_added} new agencies, Fixed {total_updated} URLs.")
-                time.sleep(2)
-                st.rerun()
 
     # Display Agencies Table
     st.divider()

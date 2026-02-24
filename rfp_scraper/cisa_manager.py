@@ -119,25 +119,6 @@ class CisaManager:
             print(f"No CISA records found for {state_abbr}")
             return stats
 
-        # Pre-fetch local jurisdictions for linking
-        # Create a lookup: {(name_lower, type): id}
-        ljs = db.get_local_jurisdictions(state_id=state_id)
-        lj_lookup = {}
-        if not ljs.empty:
-            for _, row in ljs.iterrows():
-                key = (str(row['name']).lower().strip(), str(row['type']).lower().strip())
-                lj_lookup[key] = row['id']
-                # Also lookup just by name if it's unique?
-                # Let's stick to name+type if possible, but CISA only gives us City name.
-                # So maybe a secondary lookup {name_lower: id} (first match)
-
-        lj_name_lookup = {}
-        if not ljs.empty:
-            for _, row in ljs.iterrows():
-                n = str(row['name']).lower().strip()
-                if n not in lj_name_lookup:
-                    lj_name_lookup[n] = row['id']
-
         # Iterate CISA records
         for _, row in state_df.iterrows():
             domain = row['Domain name'].strip().lower()
@@ -154,38 +135,45 @@ class CisaManager:
             city_name = str(row['City']).strip()
             domain_type = str(row['Domain type']).strip().lower()
 
-            # Determine Category
-            category = 'state_agency' # Default
-            jurisdiction_type = None # 'city', 'county', etc.
+            # Determine Category & Clean Name
+            category = 'state_agency'
+            jurisdiction_type = None
+            clean_name = org_name
+
+            org_lower = org_name.lower()
 
             if 'state' in domain_type:
                 category = 'state_agency'
             elif any(x in domain_type for x in ['local', 'city', 'county']):
-                # Refine local category
-                if 'county' in domain_type or 'county' in org_name.lower():
+                if 'county' in domain_type or 'county' in org_lower:
                     category = 'county'
                     jurisdiction_type = 'county'
-                elif 'city' in domain_type or 'city' in org_name.lower():
+                    clean_name = re.sub(r'(?i)\bcounty\b', '', org_name).strip()
+                elif 'city' in domain_type or 'city of' in org_lower:
                     category = 'city'
                     jurisdiction_type = 'city'
+                    clean_name = re.sub(r'(?i)^city of\s*', '', org_name).strip()
+                elif 'town' in domain_type or 'town of' in org_lower:
+                    category = 'town'
+                    jurisdiction_type = 'town'
+                    clean_name = re.sub(r'(?i)^town of\s*', '', org_name).strip()
+                elif 'village' in domain_type or 'village of' in org_lower:
+                    category = 'village'
+                    jurisdiction_type = 'village'
+                    clean_name = re.sub(r'(?i)^village of\s*', '', org_name).strip()
                 else:
-                    category = 'local' # Generic local
+                    category = 'local'
+                    jurisdiction_type = 'city' # Default fallback
+                    clean_name = org_name
 
-            # Special case handling for "Town of"
-            if 'town of' in org_name.lower():
-                category = 'town'
-                jurisdiction_type = 'town'
+            # Strip trailing/leading punctuation
+            clean_name = clean_name.strip(' ,.-')
 
-            # Attempt Linking
+            # Attempt Linking / Auto-Create
             local_jurisdiction_id = None
-            if jurisdiction_type and city_name:
-                # Try to match City name + Type
-                key = (city_name.lower(), jurisdiction_type)
-                if key in lj_lookup:
-                    local_jurisdiction_id = lj_lookup[key]
-                # Fallback: Try just name match (e.g. CISA says City="Milford", DB has Town="Milford")
-                elif city_name.lower() in lj_name_lookup:
-                    local_jurisdiction_id = lj_name_lookup[city_name.lower()]
+            if jurisdiction_type and clean_name:
+                # Automatically append to local_jurisdictions if it doesn't exist, and get the ID
+                local_jurisdiction_id = db.append_local_jurisdiction(state_id, clean_name, jurisdiction_type)
 
             # Check if agency exists
             # We check by:
