@@ -65,12 +65,19 @@ class JobManager:
             return self.jobs.get(job_id)
 
     def get_active_jobs(self) -> List[Dict[str, Any]]:
-        """Returns a list of active (running) jobs with their IDs."""
+        """Returns a list of all jobs (running, failed, or completed) so UI can show logs."""
         with self._lock:
+            # Sort jobs so the most recent ones appear first in the sidebar
+            sorted_jobs = sorted(
+                self.jobs.values(),
+                key=lambda x: x['start_time'],
+                reverse=True
+            )
+
+            # Return up to the 5 most recent jobs
             return [
-                {"id": jid, **info}
-                for jid, info in self.jobs.items()
-                if info["status"] == "running"
+                {"id": info["id"], **info}
+                for info in sorted_jobs[:5]
             ]
 
     def update_progress(self, job_id: str, progress: float, message: str = None):
