@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="Created an rfp data sanitizing script">
+    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="Correct sanitizing script - v2">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/run_db_cleanup.py" beforeDir="false" afterPath="$PROJECT_DIR$/run_db_cleanup.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,16 +23,22 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/ShaunM/Downloads/rfp_scraper&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/home/ShaunM/PycharmProjects/IndustrialAreaAutoParts",
+    "two.files.diff.last.used.file": "/home/ShaunM/Downloads/rfp_scraper/rfp_scraper/rfp_scraper/rfp_scraper.db"
   }
-}</component>
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/rfp_scraper" />
+    </key>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -81,7 +86,15 @@
       <option name="project" value="LOCAL" />
       <updated>1770319822799</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Correct sanitizing script - v2">
+      <option name="closed" value="true" />
+      <created>1770384234670</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1770384234670</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -89,6 +102,7 @@
     <MESSAGE value="Updated cities .json file" />
     <MESSAGE value="Updated specific_pattern arrays for City, Town" />
     <MESSAGE value="Created an rfp data sanitizing script" />
-    <option name="LAST_COMMIT_MESSAGE" value="Created an rfp data sanitizing script" />
+    <MESSAGE value="Correct sanitizing script - v2" />
+    <option name="LAST_COMMIT_MESSAGE" value="Correct sanitizing script - v2" />
   </component>
 </project>
