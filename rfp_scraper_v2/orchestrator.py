@@ -97,10 +97,11 @@ def get_agencies_for_scraping(db, target_states: List[str]) -> List[Agency]:
         start_url = row.get('procurement_url') or row['url']
 
         agencies.append(Agency(
-            name=row.get('organization_name', 'Unknown'),
-            state=row.get('state_name', 'Unknown'),
-            type=row.get('jurisdiction_type', 'state_agency'),
-            homepage_url=row['url'],
+            # The 'or' guarantees that if the DB returns None, it falls back to a string
+            name=row.get('organization_name') or 'Unknown',
+            state=row.get('state_name') or 'Unknown',
+            type=row.get('jurisdiction_type') or 'state_agency',
+            homepage_url=row.get('url') or '',
             procurement_url=start_url
         ))
     return agencies
@@ -122,8 +123,9 @@ def get_jurisdictions_for_discovery(db, target_states: List[str], domain_pattern
 
         state_juris = juris_df[juris_df['state_id'] == state_id]
         for _, row in state_juris.iterrows():
-            name = row['name']
-            j_type = row['type']
+            name = row.get('name') or 'Unknown'
+            j_type = row.get('type') or 'unknown'
+
             guessed_url = generate_homepage_url(name, state_abbr, j_type, domain_patterns)
 
             agencies.append(Agency(
