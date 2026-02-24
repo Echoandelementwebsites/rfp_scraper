@@ -395,8 +395,19 @@ class HierarchicalScraper(BaseScraper):
                         except Exception as e:
                             ai_error = e
                         finally:
-                            try: loop.close()
-                            except: pass
+                            try:
+                                # Clean up pending background tasks (like litellm telemetry)
+                                pending = asyncio.all_tasks(loop)
+                                for task in pending:
+                                    task.cancel()
+
+                                # Let the cancelled tasks finish aborting
+                                if pending:
+                                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+
+                                loop.close()
+                            except Exception:
+                                pass
 
                     t = threading.Thread(target=run_async_crawl)
                     t.start()
