@@ -149,7 +149,11 @@ class HierarchicalScraper(BaseScraper):
             word_count_threshold=10,
             process_iframes=True,
             remove_overlay_elements=True,
-            magic=True
+            magic=True,
+            # --- FIX: Prevent Execution Context Destroyed errors on redirects ---
+            wait_until="networkidle",      # Wait for all sneaky JS redirects to finish
+            delay_before_return_html=2.0,  # Give the DOM 2 seconds to fully paint and stabilize
+            page_timeout=60000             # Allow up to 60s for the heavy redirects to resolve
         )
 
         browser_config = BrowserConfig(headless=True, verbose=False)
