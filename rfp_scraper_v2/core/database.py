@@ -581,7 +581,7 @@ class DatabaseHandler:
                         full_text = EXCLUDED.full_text,
                         csi_divisions = EXCLUDED.csi_divisions,
                         scraped_at = EXCLUDED.scraped_at
-                """, (bid.slug, bid.client_name, bid.title, bid.deadline, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at))
+                """, (bid.slug, bid.clientName, bid.title, bid.deadline, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at))
             else:
                 cursor.execute("""
                     INSERT INTO bids (slug, client_name, title, deadline, description, link, full_text, csi_divisions, state, scraped_at)
@@ -592,7 +592,7 @@ class DatabaseHandler:
                         full_text=excluded.full_text,
                         csi_divisions=excluded.csi_divisions,
                         scraped_at=excluded.scraped_at
-                """, (bid.slug, bid.client_name, bid.title, bid.deadline, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at))
+                """, (bid.slug, bid.clientName, bid.title, bid.deadline, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at))
             conn.commit()
         except Exception as e:
             print(f"Error saving bid {bid.slug}: {e}")
@@ -611,9 +611,9 @@ class DatabaseHandler:
             title=title,
             clientName=client_name,
             deadline=deadline,
-            description=rfp_description,
+            description=rfp_description or "",
             link=source_url,
-            full_text=None,
+            full_text="",
             csi_divisions=csi,
             slug=slug
         )
