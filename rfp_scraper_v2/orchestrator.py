@@ -12,6 +12,7 @@ from rfp_scraper_v2.core.database import DatabaseHandler, ABBR_TO_STATE
 from rfp_scraper_v2.crawlers.pipeline import process_agency, discover_portal
 import rfp_scraper_v2.crawlers.pipeline as pipeline
 from openai import AsyncOpenAI
+from rfp_scraper.utils import get_state_abbreviation
 
 # Concurrency Limit for Agencies
 SEM_AGENCIES = asyncio.Semaphore(5)
@@ -80,7 +81,7 @@ def generate_homepage_url(name: str, state_abbr: str, atype: str, patterns: List
 
     return candidates[0] if candidates else golden
 
-def get_agencies_for_scraping(db: DatabaseHandler, target_states: List[str]) -> List[Agency]:
+def get_agencies_for_scraping(db, target_states: List[str]) -> List[Agency]:
     """Pulls verified agencies from the DB for the Scraping pipeline."""
     df = db.get_all_agencies()
     if df.empty: return []
@@ -90,53 +91,25 @@ def get_agencies_for_scraping(db: DatabaseHandler, target_states: List[str]) -> 
 
     agencies = []
     for _, row in df.iterrows():
-        # Handle NaN/None safely
-        homepage_url = row.get('url')
-        if pd.isna(homepage_url): homepage_url = None
-        else: homepage_url = str(homepage_url)
+        if not row.get('url'): continue
 
-        procurement_url = row.get('procurement_url')
-        if pd.isna(procurement_url): procurement_url = None
-        else: procurement_url = str(procurement_url)
-
-        # Fallback logic
-        target_url = procurement_url or homepage_url
-
-        if not target_url:
-            continue
-
-        # Ensure strict typing for Pydantic
-        # If homepage is missing but we have procurement, use procurement as homepage to satisfy model
-        final_homepage = homepage_url if homepage_url else target_url
-
-        # Handle other fields
-        name = row.get('organization_name', 'Unknown')
-        if pd.isna(name): name = 'Unknown'
-
-        state = row.get('state_name', 'Unknown')
-        if pd.isna(state): state = 'Unknown'
-
-        jtype = row.get('jurisdiction_type', 'state_agency')
-        if pd.isna(jtype): jtype = 'state_agency'
+        # Use procurement_url if available, fallback to the standard url
+        start_url = row.get('procurement_url') or row['url']
 
         agencies.append(Agency(
-            name=name,
-            state=state,
-            type=jtype,
-            homepage_url=final_homepage,
-            procurement_url=target_url # We assume the URL in the DB is the starting point
+            name=row.get('organization_name', 'Unknown'),
+            state=row.get('state_name', 'Unknown'),
+            type=row.get('jurisdiction_type', 'state_agency'),
+            homepage_url=row['url'],
+            procurement_url=start_url
         ))
     return agencies
 
-def get_jurisdictions_for_discovery(db: DatabaseHandler, target_states: List[str], domain_patterns: List[Dict]) -> List[Agency]:
+def get_jurisdictions_for_discovery(db, target_states: List[str], domain_patterns: List[Dict]) -> List[Agency]:
     """Pulls local jurisdictions from the DB and guesses their URLs for the Discovery pipeline."""
-    # 1. Get states to map names to abbreviations and IDs
     states_df = db.get_all_states()
-    if states_df.empty: return []
-
-    # 2. Get local jurisdictions
     juris_df = db.get_local_jurisdictions()
-    if juris_df.empty: return []
+    if states_df.empty or juris_df.empty: return []
 
     agencies = []
     for target in target_states:
@@ -144,16 +117,13 @@ def get_jurisdictions_for_discovery(db: DatabaseHandler, target_states: List[str
         if state_row.empty: continue
 
         state_id = state_row.iloc[0]['id']
-        state_abbr = STATE_TO_ABBR.get(target, target[:2].upper())
+        state_abbr = get_state_abbreviation(target)
+        if not state_abbr: continue
 
-        # Filter jurisdictions for this state
         state_juris = juris_df[juris_df['state_id'] == state_id]
-
         for _, row in state_juris.iterrows():
             name = row['name']
             j_type = row['type']
-
-            # Generate the guessed homepage URL using the JSON patterns
             guessed_url = generate_homepage_url(name, state_abbr, j_type, domain_patterns)
 
             agencies.append(Agency(
@@ -163,7 +133,6 @@ def get_jurisdictions_for_discovery(db: DatabaseHandler, target_states: List[str
                 homepage_url=guessed_url,
                 procurement_url=None
             ))
-
     return agencies
 
 def parse_state_agencies(data: Dict[str, Any], target_states: List[str] = None) -> List[Agency]:
@@ -291,16 +260,11 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
             base_url="https://api.deepseek.com"
         )
 
-    # Database Setup
     db = DatabaseHandler()
-
-    # Load URL Patterns from JSON
     local_data = load_json("cities_towns_dictionary.json")
     domain_patterns = local_data.get("domain_patterns", [])
 
     if manager: manager.add_log(job_id, f"Fetching jurisdictions from DB for {len(target_states)} states...")
-
-    # Pull from Database
     all_agencies = get_jurisdictions_for_discovery(db, target_states, domain_patterns)
 
     msg = f"Loaded {len(all_agencies)} local jurisdictions for discovery."
@@ -369,12 +333,9 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
             base_url="https://api.deepseek.com"
         )
 
-    # Database Setup
     db = DatabaseHandler()
 
     if manager: manager.add_log(job_id, f"Fetching verified agencies from DB for {len(target_states)} states...")
-
-    # Pull from Database
     all_agencies = get_agencies_for_scraping(db, target_states)
 
     msg = f"Loaded {len(all_agencies)} target agencies for scraping."

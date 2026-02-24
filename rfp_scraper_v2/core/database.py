@@ -102,7 +102,7 @@ class DatabaseHandler:
                 state_id INTEGER,
                 organization_name TEXT,
                 url TEXT,
-                procurement_url TEXT,
+                procurement_url TEXT, -- NEW: Store the AI-discovered portal
                 verified INTEGER DEFAULT 0,
                 created_at TEXT,
                 category TEXT DEFAULT 'state_agency',
@@ -182,7 +182,7 @@ class DatabaseHandler:
                 state_id INTEGER REFERENCES states(id),
                 organization_name TEXT,
                 url TEXT,
-                procurement_url TEXT,
+                procurement_url TEXT, -- NEW: Store the AI-discovered portal
                 verified INTEGER DEFAULT 0,
                 created_at TIMESTAMP,
                 category TEXT DEFAULT 'state_agency',
@@ -672,48 +672,24 @@ class DatabaseHandler:
         finally:
             conn.close()
 
-    def update_agency_procurement_url(self, name: str, state: str, url: str):
+    def update_agency_procurement_url(self, name: str, state: str, procurement_url: str):
+        """Saves the AI-discovered procurement portal URL to the agency record."""
+        query = """
+            UPDATE agencies
+            SET procurement_url = ?
+            WHERE organization_name = ?
         """
-        Update the discovered procurement URL for an agency (V2).
-        Resolves state ID and UPSERTS into agencies table.
-        """
-        state_id = self._get_state_id(state)
-        if not state_id:
-            print(f"Warning: State '{state}' not found in DB. Creating it.")
-            self.add_state(ABBR_TO_STATE.get(state.upper(), state))
-            state_id = self._get_state_id(state)
-            if not state_id:
-                print(f"Error: Could not resolve state ID for {state} even after add.")
-                return
+        if self.is_postgres:
+            query = query.replace("?", "%s")
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        now = datetime.datetime.now().isoformat()
-
-        try:
-            if self.is_postgres:
-                # UPSERT based on UNIQUE(state_id, organization_name)
-                cursor.execute("""
-                    INSERT INTO agencies (state_id, organization_name, procurement_url, last_checked, created_at, category, verified)
-                    VALUES (%s, %s, %s, %s, %s, 'state_agency', 1)
-                    ON CONFLICT (state_id, organization_name) DO UPDATE SET
-                        procurement_url = EXCLUDED.procurement_url,
-                        last_checked = EXCLUDED.last_checked
-                """, (state_id, name, url, now, now))
-            else:
-                # UPSERT for SQLite
-                cursor.execute("""
-                    INSERT INTO agencies (state_id, organization_name, procurement_url, last_checked, created_at, category, verified)
-                    VALUES (?, ?, ?, ?, ?, 'state_agency', 1)
-                    ON CONFLICT(state_id, organization_name) DO UPDATE SET
-                        procurement_url=excluded.procurement_url,
-                        last_checked=excluded.last_checked
-                """, (state_id, name, url, now, now))
-            conn.commit()
-        except Exception as e:
-            print(f"Error updating agency {name}: {e}")
-        finally:
-            conn.close()
+        params = (procurement_url, name)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute(query, params)
+                conn.commit()
+            except Exception as e:
+                print(f"Database Error updating procurement URL for {name}: {e}")
 
     def url_already_scraped(self, url: str) -> bool:
         """Checks if a URL source (link in v2) has already been processed."""
