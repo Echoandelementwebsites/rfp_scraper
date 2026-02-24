@@ -253,6 +253,11 @@ async def process_agency(agency: Agency, db):
 
         # Step 3 & 4: Detail & Classification
         for bid in bids:
+            # CRITICAL GUARD: Do not re-download PDFs or re-run AI classification on existing bids
+            if db.url_already_scraped(bid.link):
+                print(f"  [Skip] Already scraped: {bid.link}")
+                continue
+
             full_text = await fetch_bid_detail(crawler, bid.link)
             if full_text:
                 await classify_and_save(db, bid, full_text, agency.state)
