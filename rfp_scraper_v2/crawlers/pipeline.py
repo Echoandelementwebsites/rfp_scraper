@@ -1,245 +1,254 @@
-import json
 import asyncio
+import json
+import os
 import requests
 import io
 import PyPDF2
 from typing import List, Optional
-from pydantic import BaseModel, Field
-
 from crawl4ai import AsyncWebCrawler
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
+from openai import AsyncOpenAI
+from pydantic import ValidationError
 
-from rfp_scraper_v2.core.models import Agency, Bid
-from rfp_scraper_v2.core.database import DatabaseHandler
-from rfp_scraper_v2.crawlers.engine import engine
+from rfp_scraper_v2.core.models import (
+    DiscoverySchema,
+    BidExtractionSchema,
+    ClassificationSchema,
+    Bid,
+    Agency,
+    AgencySchema
+)
+from rfp_scraper_v2.crawlers.prompts import (
+    DISCOVERY_SYSTEM_PROMPT,
+    EXTRACTION_INSTRUCTION,
+    CLASSIFICATION_SYSTEM_PROMPT
+)
 
-# Semaphore to control concurrent browser instances for detail fetching
-SEM_BIDS = asyncio.Semaphore(3)
+# Initialize DeepSeek Client (for direct calls)
+# Assuming DEEPSEEK_API_KEY is in environment
+client = AsyncOpenAI(
+    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    base_url="https://api.deepseek.com"
+)
 
-# --- Step 1 Schema ---
-class ProcurementLink(BaseModel):
-    url: str = Field(..., description="The single absolute URL pointing to the agency's procurement/bids portal.")
-
-# --- Step 2 Schema ---
-class BidItem(BaseModel):
-    title: str
-    clientName: str
-    deadline: str
-    description: str
-    link: str
-
-# --- Pipeline Functions ---
-
-async def discover_procurement_link(agency: Agency) -> Optional[str]:
+async def discover_portal(crawler: AsyncWebCrawler, agency_url: str) -> Optional[str]:
     """
-    Step 1: AI-Driven Discovery (The Pathfinder)
-    Fetches homepage, uses DeepSeek to find the procurement URL.
+    Step 1: Discover the procurement portal URL.
     """
-    if not agency.homepage_url:
-        print(f"Skipping Discovery: No homepage for {agency.name}")
-        return None
-
-    print(f"[{agency.name}] Step 1: Discovery on {agency.homepage_url}")
-
-    # Configure LLM Strategy for Discovery
-    strategy = LLMExtractionStrategy(
-        llm_config=engine.get_llm_config(),
-        schema=ProcurementLink.model_json_schema(),
-        extraction_type="schema",
-        instruction=(
-            "Analyze the homepage content and return the single absolute URL that points to the "
-            "agency's procurement, bids, or purchasing portal. Look for 'Bids', 'RFP', 'Purchasing', 'Business'. "
-            "If not found, return null."
-        )
-    )
-
-    config = engine.get_run_config(strategy=strategy)
-
     try:
-        async with AsyncWebCrawler(config=engine.get_browser_config()) as crawler:
-            result = await crawler.arun(url=agency.homepage_url, config=config)
-
-            if result.success and result.extracted_content:
-                data = json.loads(result.extracted_content)
-                # Handle list or dict return
-                if isinstance(data, list) and data:
-                    return data[0].get("url")
-                elif isinstance(data, dict):
-                    return data.get("url")
-
-            print(f"[{agency.name}] Discovery Failed (No URL found).")
+        print(f"  [Discovery] Crawling {agency_url}...")
+        result = await crawler.arun(url=agency_url)
+        if not result.success:
+            print(f"  [Discovery] Failed to crawl {agency_url}: {result.error_message}")
             return None
+
+        markdown = result.markdown
+        # Truncate markdown to fit context window if necessary (e.g. 50k chars)
+        truncated_markdown = markdown[:50000]
+
+        response = await client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": DISCOVERY_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Analyze this homepage markdown:\n\n{truncated_markdown}"}
+            ],
+            temperature=0.0
+        )
+
+        content = response.choices[0].message.content
+        # Heuristic clean up if DeepSeek is chatty (though prompt says ONLY absolute URL)
+        # We try to extract URL.
+        # DeepSeek might return just the URL or a sentence.
+        # We can try to parse it or just take the content.
+        # Prompt says "Return ONLY the absolute URL".
+
+        url = content.strip()
+        if "null" in url.lower() or not url.startswith("http"):
+             # Fallback: sometimes LLM wraps in quotes or code blocks
+             clean_url = url.replace('"', '').replace("'", "").replace("`", "")
+             if clean_url.startswith("http"):
+                 return clean_url
+             return None
+
+        return url
+
     except Exception as e:
-        print(f"[{agency.name}] Discovery Error: {e}")
+        print(f"  [Discovery] Error: {e}")
         return None
 
-async def extract_bids(procurement_url: str) -> List[Bid]:
+async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExtractionSchema]:
     """
-    Step 2: List Extraction (The Harvester)
-    Uses Crawl4AI + DeepSeek to extract a list of bids.
+    Step 2: Extract bids using LLMExtractionStrategy.
     """
-    print(f"Step 2: Harvesting from {procurement_url}")
-
-    strategy = LLMExtractionStrategy(
-        llm_config=engine.get_llm_config(),
-        schema=BidItem.model_json_schema(),
-        extraction_type="schema",
-        instruction=(
-            "Extract a list of all active Bids/RFPs. "
-            "Filter for Construction, Infrastructure, Engineering, and Maintenance projects. "
-            "Ignore Janitorial, Security, or Software. "
-            "Return a JSON array of objects with title, clientName, deadline (YYYY-MM-DD), "
-            "description, and link (absolute URL)."
-        )
-    )
-
-    # Enable magic and iframe processing
-    config = engine.get_run_config(strategy=strategy, process_iframes=True, wait_until="networkidle")
-
-    extracted_bids = []
-
     try:
-        async with AsyncWebCrawler(config=engine.get_browser_config()) as crawler:
-            result = await crawler.arun(url=procurement_url, config=config)
+        print(f"  [Extraction] Extracting from {portal_url}...")
 
-            if result.success and result.extracted_content:
-                data = json.loads(result.extracted_content)
-                items = []
-                if isinstance(data, list):
-                    items = data
-                elif isinstance(data, dict) and "items" in data:
-                    items = data["items"]
-                elif isinstance(data, dict):
-                    items = [data] # Single item
+        # Configure Strategy
+        # Note: provider string for DeepSeek via litellm/crawl4ai might need adjustment
+        # usually "openai/deepseek-chat" or just passing base_url via extra_args
+        # We assume standard setup or environment configuration.
+        # If crawl4ai uses LiteLLM, we can pass api_base.
 
-                for item in items:
-                    # Validate minimum fields
-                    if item.get("title") and item.get("link"):
-                        extracted_bids.append(Bid(
-                            title=item.get("title"),
-                            clientName=item.get("clientName") or "Unknown",
-                            deadline=item.get("deadline"),
-                            description=item.get("description"),
-                            link=item.get("link")
-                        ))
-            else:
-                print(f"Step 2: No content extracted from {procurement_url}")
+        strategy = LLMExtractionStrategy(
+            provider="deepseek/deepseek-chat",
+            api_token=os.getenv("DEEPSEEK_API_KEY"),
+            instruction=EXTRACTION_INSTRUCTION,
+            schema=BidExtractionSchema.model_json_schema(), # Pass schema as dict/json
+            extraction_type="schema",
+            chunk_token_threshold=4000,
+            overlap_rate=0.1,
+            apply_chunking=True,
+            input_format="markdown",
+            extra_args={"temperature": 0.0}
+        )
+
+        result = await crawler.arun(
+            url=portal_url,
+            process_iframes=True,
+            extraction_strategy=strategy,
+            magic=True # Enhance extraction
+        )
+
+        if not result.success:
+            print(f"  [Extraction] Failed to crawl {portal_url}: {result.error_message}")
+            return []
+
+        extracted_data = json.loads(result.extracted_content)
+
+        bids = []
+        for item in extracted_data:
+            try:
+                bid = BidExtractionSchema(**item)
+                bids.append(bid)
+            except ValidationError as ve:
+                print(f"  [Extraction] Validation Error: {ve}")
+
+        return bids
 
     except Exception as e:
-        print(f"Step 2 Error: {e}")
+        print(f"  [Extraction] Error: {e}")
         return []
 
-    return extracted_bids
-
-async def fetch_details(bid: Bid) -> Bid:
+async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
     """
-    Step 3: Detail Fetching (The Deep Dive)
-    Downloads PDF or scrapes HTML detail page.
+    Step 3: Fetch full text from HTML or PDF.
     """
-    # print(f"Step 3: Deep Dive for '{bid.title}'")
+    try:
+        # Check if PDF
+        if bid_link.lower().endswith(".pdf"):
+            print(f"  [Detail] Fetching PDF: {bid_link}")
+            try:
+                response = requests.get(bid_link, timeout=(10, 20))
+                response.raise_for_status()
 
-    if not bid.link:
-        return bid
-
-    # Check for PDF
-    if bid.link.lower().endswith(".pdf"):
-        try:
-            # print(f"Downloading PDF: {bid.link}")
-            response = requests.get(bid.link, timeout=(10, 20))
-            if response.status_code == 200:
-                # Extract text with PyPDF2 (First 10 pages)
                 with io.BytesIO(response.content) as f:
-                    try:
-                        reader = PyPDF2.PdfReader(f)
-                        text = ""
-                        for i, page in enumerate(reader.pages):
-                            if i >= 10: break
-                            text += page.extract_text() + "\n"
-                        bid.full_text = text[:100000] # Limit size
-                    except Exception:
-                        print(f"PDF Read Error: {bid.link}")
+                    pdf = PyPDF2.PdfReader(f)
+                    text = ""
+                    # Extract up to 10 pages
+                    for i in range(min(len(pdf.pages), 10)):
+                        text += pdf.pages[i].extract_text() + "\n"
+                    return text
+            except Exception as e:
+                print(f"  [Detail] PDF Error: {e}")
+                return ""
+        else:
+            # HTML
+            print(f"  [Detail] Fetching HTML: {bid_link}")
+            result = await crawler.arun(url=bid_link)
+            if result.success:
+                return result.markdown
             else:
-                print(f"Failed to download PDF: {response.status_code}")
-        except Exception as e:
-            print(f"PDF Error: {e}")
-    else:
-        # HTML Extraction (Markdown)
-        # Use Crawl4AI without LLM strategy, just pure markdown
-        config = engine.get_run_config(strategy=None, wait_until="commit") # Fast commit
+                print(f"  [Detail] Failed: {result.error_message}")
+                return ""
 
-        try:
-            async with AsyncWebCrawler(config=engine.get_browser_config()) as crawler:
-                result = await crawler.arun(url=bid.link, config=config)
-                if result.success:
-                    bid.full_text = result.markdown
-                else:
-                    print(f"HTML Detail Error: {result.error_message}")
-        except Exception as e:
-            print(f"HTML Detail Exception: {e}")
+    except Exception as e:
+        print(f"  [Detail] Error: {e}")
+        return ""
 
-    return bid
-
-async def classify_and_save(bid: Bid, db: DatabaseHandler, state: str):
+async def classify_and_save(db, bid_obj: BidExtractionSchema, full_text: str, state: str):
     """
-    Step 4: Classification & Storage (The Brain)
+    Step 4: Classify and Save if construction related.
     """
-    if not bid.full_text:
-        # print(f"Skipping Classification: No text for '{bid.title}'")
-        return
+    try:
+        # Truncate full_text for classification context
+        truncated_text = full_text[:20000]
 
-    # print(f"Step 4: Classifying '{bid.title}'")
+        response = await client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": CLASSIFICATION_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Classify this bid scope:\nTitle: {bid_obj.title}\nDescription: {bid_obj.description}\n\nFull Text Snippet:\n{truncated_text}"}
+            ],
+            temperature=0.0,
+            response_format={ "type": "json_object" } # DeepSeek supports JSON mode
+        )
 
-    # Combine title, description, and full_text for context
-    context = f"Title: {bid.title}\nDescription: {bid.description}\n\nFull Text:\n{bid.full_text or ''}"
+        content = response.choices[0].message.content
+        data = json.loads(content)
 
-    # Classify
-    divisions = await engine.classify_text(context)
-    bid.csi_divisions = divisions
+        classification = ClassificationSchema(**data)
 
-    if not divisions:
-        # print(f"Discarding '{bid.title}' - No construction divisions found.")
-        return
+        if classification.is_construction_related:
+            print(f"  [Classification] SAVING BID: {bid_obj.title}")
 
-    # Generate Slug (Simple deterministic hash)
-    import hashlib
-    slug_str = f"{bid.title}|{bid.client_name}|{bid.link}".lower()
-    bid.slug = hashlib.md5(slug_str.encode()).hexdigest()
+            # Map to DB Bid model
+            db_bid = Bid(
+                title=bid_obj.title,
+                clientName=bid_obj.clientName,
+                deadline=bid_obj.deadline,
+                description=bid_obj.description,
+                link=bid_obj.link,
+                full_text=full_text,
+                csi_divisions=classification.csi_divisions,
+                slug=f"{bid_obj.clientName}-{bid_obj.title}"[:100].replace(" ", "-").lower() # Simple slug gen
+            )
 
-    # Save
-    print(f" + SAVED: {bid.title} [{', '.join(divisions)}]")
-    db.save_bid(bid, state)
+            db.save_bid(db_bid, state)
+        else:
+            print(f"  [Classification] Skipped (Not Construction): {bid_obj.title}")
 
-async def process_agency(agency: Agency, db: DatabaseHandler):
+    except Exception as e:
+        print(f"  [Classification] Error: {e}")
+
+async def process_agency(agency: Agency, db):
     """
     Orchestrates the pipeline for a single agency.
     """
-    # Step 1
-    procurement_url = await discover_procurement_link(agency)
+    print(f"Processing Agency: {agency.name} ({agency.state})")
 
-    if not procurement_url:
-        print(f"[{agency.name}] No procurement URL found. Stopping.")
-        return
+    async with AsyncWebCrawler() as crawler:
+        # Step 1: Discovery
+        # If agency has a procurement_url (from JSON), use it?
+        # But prompt says "URL Discovery Responsibility: ... For local-level discovery, the orchestrator must dynamically use the patterns...".
+        # And "Function 1 - discover_portal... uses DISCOVERY_SYSTEM_PROMPT to return the procurement_url".
+        # This implies we should run discovery on the homepage.
 
-    print(f"[{agency.name}] Found Procurement URL: {procurement_url}")
-    # Update Agency Record
-    # Note: DatabaseHandler.update_agency_procurement_url expects (name, state, url)
-    # We might need to ensure 'name' matches what's in DB or just use what we have.
-    # The Orchestrator will insert the agency first?
-    # Actually, let's just update.
-    # db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+        procurement_url = agency.procurement_url
+        if not procurement_url:
+            if agency.homepage_url:
+                procurement_url = await discover_portal(crawler, agency.homepage_url)
+                if procurement_url:
+                    print(f"  Found Portal: {procurement_url}")
+                    # Update DB/Agency object if needed? db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+                    # We can assume we should update it.
+                    try:
+                         db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+                    except:
+                        pass
+            else:
+                print(f"  No homepage URL for {agency.name}")
+                return
 
-    # Step 2
-    bids = await extract_bids(procurement_url)
-    print(f"[{agency.name}] Found {len(bids)} candidate bids.")
+        if not procurement_url:
+            print(f"  No procurement portal found for {agency.name}")
+            return
 
-    if not bids:
-        return
+        # Step 2: Extraction
+        bids = await extract_bids(crawler, procurement_url)
+        print(f"  Found {len(bids)} potential bids.")
 
-    # Step 3 & 4 (Concurrent for speed, limited by semaphore)
-    async def process_single_bid(b: Bid):
-        async with SEM_BIDS:
-            b = await fetch_details(b)
-            await classify_and_save(b, db, agency.state)
-
-    tasks = [process_single_bid(bid) for bid in bids]
-    await asyncio.gather(*tasks)
+        # Step 3 & 4: Detail & Classification
+        for bid in bids:
+            full_text = await fetch_bid_detail(crawler, bid.link)
+            if full_text:
+                await classify_and_save(db, bid, full_text, agency.state)
