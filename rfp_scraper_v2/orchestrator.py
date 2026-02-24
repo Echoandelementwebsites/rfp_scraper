@@ -93,8 +93,10 @@ def get_agencies_for_scraping(db, target_states: List[str]) -> List[Agency]:
     for _, row in df.iterrows():
         if not row.get('url'): continue
 
-        # Use procurement_url if available, fallback to the standard url
-        start_url = row.get('procurement_url') or row['url']
+        # Handle procurement_url: Ensure it is None if missing/NaN so discovery runs
+        p_url = row.get('procurement_url')
+        if pd.isna(p_url) or p_url == "":
+            p_url = None
 
         agencies.append(Agency(
             # The 'or' guarantees that if the DB returns None, it falls back to a string
@@ -102,7 +104,7 @@ def get_agencies_for_scraping(db, target_states: List[str]) -> List[Agency]:
             state=row.get('state_name') or 'Unknown',
             type=row.get('jurisdiction_type') or 'state_agency',
             homepage_url=row.get('url') or '',
-            procurement_url=start_url
+            procurement_url=p_url
         ))
     return agencies
 
@@ -266,10 +268,19 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
     local_data = load_json("cities_towns_dictionary.json")
     domain_patterns = local_data.get("domain_patterns", [])
 
-    if manager: manager.add_log(job_id, f"Fetching jurisdictions from DB for {len(target_states)} states...")
-    all_agencies = get_jurisdictions_for_discovery(db, target_states, domain_patterns)
+    if manager: manager.add_log(job_id, f"Fetching targets from DB for {len(target_states)} states...")
 
-    msg = f"Loaded {len(all_agencies)} local jurisdictions for discovery."
+    # 1. Pull local jurisdictions (Cities/Counties)
+    local_agencies = get_jurisdictions_for_discovery(db, target_states, domain_patterns)
+
+    # 2. Pull state agencies (CISA Registry) and filter for those needing discovery
+    state_agencies = get_agencies_for_scraping(db, target_states)
+    state_agencies_needing_discovery = [a for a in state_agencies if not a.procurement_url]
+
+    # 3. Combine both lists
+    all_agencies = local_agencies + state_agencies_needing_discovery
+
+    msg = f"Loaded {len(all_agencies)} total agencies/jurisdictions for discovery."
     if manager: manager.add_log(job_id, msg)
 
     if not all_agencies:
