@@ -1,81 +1,74 @@
-# National Construction RFP Scraper (DeepSeek AI Powered)
+# ConstructionBidHub RFP Scraper (v2 Async Engine)
 
-A specialized tool to scrape, filter, and aggregate "Request for Proposal" (RFP) data for construction projects from state and local government sources across the US.
+A high-performance, asynchronous web scraping pipeline designed to extract, classify, and store government construction and infrastructure RFPs (Requests for Proposals).
 
-## Features
+Version 2 completely removes legacy imperative web automation (Playwright manual loops) in favor of a declarative, LLM-driven extraction pipeline powered by **Crawl4AI** and **DeepSeek v3.2**.
 
-*   **National Coverage**: Modular architecture supports scraping across all 50 states.
-*   **AI-Driven Discovery**:
-    *   **State Agencies**: Automatically finds official procurement sites for agencies and universities.
-    *   **Local Governments**: Identifies counties, cities, and towns and discovers their specific department pages (e.g., "City of Hartford Public Works").
-*   **Strict Filtering**:
-    *   **Relevance Check**: Uses DeepSeek AI to analyze bid titles and content, ensuring only Construction/Architecture/Engineering bids are saved.
-    *   **Link Verification**: Physically visits every deep link to ensure accessibility (no 404s/403s) before listing.
-    *   **Deadlines**: Automatically filters out opportunities due within **4 days** to ensure actionability.
-*   **Data Persistence**: Uses SQLite to store discovery data and scraped bids.
-*   **Deep Scan**: Recursively scans agency websites to find opportunities not listed on main portals.
-*   **Interactive Dashboard**: A Streamlit interface for managing discovery, viewing data, and running scrapers.
+## 🏗️ Architecture: The 4-Step "Golden Path"
 
-## Prerequisites
+The `orchestrator.py` script manages a strict, highly concurrent pipeline for every government agency:
 
-*   Python 3.9+
-*   `DEEPSEEK_API_KEY` (Required for AI features and strict filtering)
+1. **Discovery (The Pathfinder):** Uses Crawl4AI to read an agency's homepage and DeepSeek to identify the exact URL of their purchasing/bids portal.
+2. **Extraction (The Harvester):** Uses Crawl4AI (`magic=True`, `process_iframes=True`) to flatten complex government portals (like Bonfire/OpenGov) and extracts a structured JSON list of active bids using an LLM Extraction Strategy.
+3. **Detail Fetching (The Deep Dive):** Asynchronously fetches the unabridged Scope of Work.
+   * **HTML:** Pure DOM-to-Markdown conversion via Crawl4AI.
+   * **PDF:** Native background extraction via `requests` and `PyPDF2`.
+4. **Classification (The Brain):** DeepSeek evaluates the full text, verifies it is a construction/infrastructure project, and tags it with the appropriate **CSI MasterFormat Divisions**.
 
-## Installation
+## ⚙️ Prerequisites & Setup
 
-1.  Clone the repository:
-    ```bash
-    git clone <repo_url>
-    cd rfp_scraper
-    ```
+Ensure you have Python 3.12+ installed.
 
-2.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+1. **Create and activate your virtual environment:**
+   `python3 -m venv venv`
+   `source venv/bin/activate`
 
-3.  Install Playwright browsers:
-    ```bash
-    playwright install chromium
-    ```
+2. **Install dependencies:**
+   `pip install --upgrade pip`
+   `pip install -r requirements.txt`
 
-4.  Set up Environment:
-    Create a `.env` file in the root directory:
-    ```
-    DEEPSEEK_API_KEY=your_key_here
-    ```
+3. **Install Playwright Browsers:**
+   *(Required by Crawl4AI's underlying asynchronous engine)*
+   `playwright install`
 
-## Usage
+4. **Environment Variables:**
+   Create a `.env` file in the root directory:
+   ```env
+   DEEPSEEK_API_KEY="your_deepseek_api_key"
 
-Start the dashboard:
+   # Optional: Include this to use Neon Postgres.
+   # If omitted, the system falls back to a local SQLite database (rfp_scraper.db).
+   DATABASE_URL="postgresql://user:password@ep-cool-db.us-east-2.aws.neon.tech/dbname"
+   ```
 
-```bash
-streamlit run rfp_scraper/app.py
+## 🚀 Usage
+
+The Streamlit UI is now bridged to the asynchronous engine.
+
+1.  Run the dashboard:
+    `streamlit run rfp_scraper/app.py`
+
+2.  Navigate to the **RFP Scraper** tab.
+
+3.  Click **Start Scraping (Background)** to spin up the asyncio event loop and execute the v2 engine across your selected states.
+
+## Concurrency
+
+The orchestrator is governed by an `asyncio.Semaphore` (default limit: 5 concurrent agencies) to prevent memory exhaustion and API rate-limiting while maintaining high throughput.
+
+## 📂 Project Structure
+
 ```
-
-### Workflow
-
-1.  **States Tab**: Generate the master list of US States.
-2.  **Local Governments Tab**: Use AI to identify counties, cities, and towns for your target state.
-3.  **State Agencies Tab**: Run "URL Discovery" to find official websites for state agencies and local departments (e.g., "Public Works").
-4.  **RFP Scraper Tab**:
-    *   Select a state or "Scrape All".
-    *   Click **Start Scraping**.
-    *   The scraper will visit portals, verify links, and use AI to filter results.
-    *   **Download**:
-        *   **CSV**: Summary view (clean table).
-        *   **JSON**: Full data dump including full text descriptions (`rfp_description`).
-
-## Export Formats
-
-*   **CSV**: Contains `slug`, `client_name`, `title`, `deadline`, `scraped_at`, `source_url`, `state`.
-*   **JSON**: Contains all CSV fields plus `rfp_description` (full page text extracted from the bid link).
-
-## Deployment
-
-### Streamlit Cloud
-
-1.  Push code to GitHub.
-2.  Connect repository to Streamlit Cloud.
-3.  Add `DEEPSEEK_API_KEY` to Streamlit Secrets.
-4.  The `requirements.txt` and `packages.txt` (if applicable) handle dependencies.
+├── rfp_scraper_v2/
+│   ├── core/
+│   │   ├── database.py       # Dual SQLite/Neon Postgres handler
+│   │   └── models.py         # Strict Pydantic schemas for data validation
+│   ├── crawlers/
+│   │   ├── pipeline.py       # Core execution logic for the 4-step pipeline
+│   │   └── prompts.py        # Highly tuned DeepSeek negative-constraint prompts
+│   └── orchestrator.py       # Main async entry point and Streamlit Bridge
+├── rfp_scraper/
+│   └── app.py                # Main Streamlit Dashboard UI
+├── state_agency_dictionary.json  # Target dictionary for state-level portals
+└── cities_towns_dictionary.json  # Target dictionary for local/municipal portals
+```

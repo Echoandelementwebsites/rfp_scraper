@@ -21,14 +21,16 @@ if project_root not in sys.path:
 
 from rfp_scraper.factory import ScraperFactory
 from rfp_scraper.scrapers.hierarchical import HierarchicalScraper
-from rfp_scraper.db import DatabaseHandler
+# Use the new v2 database and the new v2 bridge task
+from rfp_scraper_v2.core.database import DatabaseHandler
+from rfp_scraper_v2.orchestrator import run_v2_scraping_task
 from rfp_scraper.ai_parser import DeepSeekClient
 from rfp_scraper.utils import validate_url, check_url_reachability, get_state_abbreviation
 from rfp_scraper.discovery import DiscoveryEngine, discover_agency_url, is_better_url, find_special_district_domain
 from rfp_scraper.config_loader import load_agency_template, extract_search_scope, get_local_search_scope, get_domain_patterns, SPECIAL_CATEGORIES
 from rfp_scraper.cisa_manager import CisaManager
 from rfp_scraper.job_manager import JobManager
-from rfp_scraper.tasks import run_scraping_task, run_discovery_task
+from rfp_scraper.tasks import run_scraping_task, run_discovery_task # Keep legacy discovery for now if needed
 
 st.set_page_config(page_title="National Construction RFP Dashboard", layout="wide")
 
@@ -393,7 +395,8 @@ with tab_scraper:
             st.error("Deep Scan requires a DeepSeek API Key. Please provide it in the sidebar.")
         else:
             # Start Background Job
-            job_id = job_manager.start_job(run_scraping_task, args=(target_states, api_key), name="Scraping Task")
+            # Trigger the v2 Async Bridge instead of the legacy synchronous scraper
+            job_id = job_manager.start_job(run_v2_scraping_task, args=(target_states, api_key), name="V2 Async Scraping Task")
             st.success(f"Scraping started! Job ID: {job_id}")
             st.info("You can monitor progress in the sidebar. The results will appear in the table below automatically as they are saved to the database.")
             time.sleep(1)
