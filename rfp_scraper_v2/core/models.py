@@ -21,11 +21,14 @@ class BidExtractionSchema(BaseModel):
     link: str = Field(description="The absolute URL pointing to the bid details or PDF document. Critical: Must be absolute.")
 
 class ClassificationSchema(BaseModel):
+    reasoning: str = Field(
+        description="Think step-by-step. Briefly analyze the scope of work, determine if it involves physical construction/heavy infrastructure, and explicitly justify your CSI division choices before classifying."
+    )
     is_construction_related: bool = Field(
         description="True if the RFP involves construction, infrastructure, maintenance, or engineering. False if it is software, janitorial, staffing, etc."
     )
     csi_divisions: List[str] = Field(
-        description="A list of relevant CSI MasterFormat divisions (e.g., 'Division 03 Concrete'). Empty list if none."
+        description="A list of relevant CSI MasterFormat divisions exactly as they appear in the provided reference list (e.g., 'Division 03 - Concrete'). Empty list if none."
     )
     confidence_score: int = Field(
         description="A score from 1-100 indicating confidence in the classification."
