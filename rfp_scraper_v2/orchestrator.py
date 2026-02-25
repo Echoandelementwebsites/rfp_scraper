@@ -364,20 +364,6 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
 
     db = DatabaseHandler()
 
-    # --- NEW: Implicit CISA Synchronization ---
-    if manager: manager.add_log(job_id, f"Synchronizing {len(target_states)} states with CISA Registry...")
-    cisa_manager = CisaManager()
-    states_df = db.get_all_states()
-
-    for target in target_states:
-        state_row = states_df[states_df['name'] == target]
-        if not state_row.empty:
-            state_id = int(state_row.iloc[0]['id'])
-            state_abbr = get_state_abbreviation(target)
-            if state_abbr:
-                cisa_manager.sync_state_database(db, state_id, state_abbr)
-    # ------------------------------------------
-
     if manager: manager.add_log(job_id, f"Fetching verified agencies from DB for {len(target_states)} states...")
     all_agencies = get_agencies_for_scraping(db, target_states)
 
