@@ -26,7 +26,7 @@ class TestBasics(unittest.TestCase):
             slug="123"
         )
         self.assertEqual(b.title, "Road Work")
-        self.assertEqual(b.client_name, "Dept of Public Works")
+        self.assertEqual(b.clientName, "Dept of Public Works")
 
     def test_database_sqlite(self):
         # Use in-memory DB or temp file

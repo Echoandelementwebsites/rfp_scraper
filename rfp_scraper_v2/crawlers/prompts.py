@@ -21,6 +21,8 @@ NEGATIVE CONSTRAINTS:
 LINK RULES:
 - The `link` MUST be the specific absolute URL pointing to that exact bid's detail page or PDF document.
 - If no specific link exists, use the page URL.
+OUTPUT RULES:
+- You must return the extracted bids as a valid JSON array of objects strictly matching the provided schema.
 """
 
 # --- STEP 4: CLASSIFICATION PROMPT ---
