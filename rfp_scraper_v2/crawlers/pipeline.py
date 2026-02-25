@@ -80,7 +80,7 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str) -> Optional
         print(f"  [Discovery] Error: {e}")
         return None
 
-async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExtractionSchema]:
+async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExtractionSchema]:
     """
     Step 2: Extract bids using LLMExtractionStrategy.
     """
@@ -142,6 +142,49 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExt
     except Exception as e:
         print(f"  [Extraction] Error: {e}")
         return []
+
+async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, platform: str) -> List[BidExtractionSchema]:
+    """
+    Executes standard CSS/XPath extraction for known platforms.
+    (Developer: Please implement standard Crawl4AI CSS extraction strategies here
+    for the specific platforms using standard table/list selectors).
+    """
+    print(f"  [Extraction] Running fast CSS extractor for {platform}...")
+    # NOTE TO DEV: Implement basic CSS extractors for these platforms using Crawl4AI's
+    # JsonCssExtractionStrategy or equivalent DOM parsing. If it fails or finds 0, return [].
+    return []
+
+async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExtractionSchema]:
+    """
+    The Hybrid Router. Routes known domains to fast CSS extractors.
+    Automatically falls back to DeepSeek AI if the domain is unknown or CSS yields 0 bids.
+    """
+    url_lower = portal_url.lower()
+    bids = []
+
+    # 1. Deterministic Fast-Path
+    if "bonfirehub.com" in url_lower:
+        bids = await extract_deterministic(crawler, portal_url, "Bonfire")
+    elif "ionwave.net" in url_lower:
+        bids = await extract_deterministic(crawler, portal_url, "IonWave")
+    elif "planetbids.com" in url_lower:
+        bids = await extract_deterministic(crawler, portal_url, "PlanetBids")
+    elif "opengov.com" in url_lower or "procurenow.com" in url_lower:
+        bids = await extract_deterministic(crawler, portal_url, "OpenGov")
+    elif "bidnetdirect.com" in url_lower:
+        bids = await extract_deterministic(crawler, portal_url, "BidNet")
+
+    # 2. The AI Safety Net (Fallback)
+    if not bids:
+        if any(x in url_lower for x in ["bonfirehub", "ionwave", "planetbids", "opengov", "procurenow", "bidnetdirect"]):
+            print(f"  [Router] Fast CSS extractor yielded 0 bids. Falling back to DeepSeek AI.")
+        else:
+            print(f"  [Router] Custom domain detected. Routing directly to DeepSeek AI.")
+
+        # Route to the renamed AI function
+        bids = await extract_bids_ai(crawler, portal_url)
+
+    return bids
 
 async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
     """
