@@ -5,7 +5,7 @@ import requests
 import io
 import PyPDF2
 from typing import List, Optional
-from crawl4ai import AsyncWebCrawler
+from crawl4ai import AsyncWebCrawler, LLMConfig
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
 from openai import AsyncOpenAI
 from pydantic import ValidationError
@@ -87,23 +87,20 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExt
     try:
         print(f"  [Extraction] Extracting from {portal_url}...")
 
-        # Configure Strategy
-        # Note: provider string for DeepSeek via litellm/crawl4ai might need adjustment
-        # usually "openai/deepseek-chat" or just passing base_url via extra_args
-        # We assume standard setup or environment configuration.
-        # If crawl4ai uses LiteLLM, we can pass api_base.
-
+        # Configure Strategy using the new LLMConfig object
         strategy = LLMExtractionStrategy(
-            provider="deepseek/deepseek-chat",
-            api_token=os.getenv("DEEPSEEK_API_KEY"),
+            llm_config=LLMConfig(
+                provider="deepseek/deepseek-chat",
+                api_token=os.getenv("DEEPSEEK_API_KEY"),
+                temperature=0.0
+            ),
             instruction=EXTRACTION_INSTRUCTION,
-            schema=BidExtractionSchema.model_json_schema(), # Pass schema as dict/json
+            schema=BidExtractionSchema.model_json_schema(),
             extraction_type="schema",
             chunk_token_threshold=4000,
             overlap_rate=0.1,
             apply_chunking=True,
-            input_format="markdown",
-            extra_args={"temperature": 0.0}
+            input_format="markdown"
         )
 
         result = await crawler.arun(
