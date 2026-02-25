@@ -48,7 +48,7 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str) -> Optional
 
         markdown = result.markdown
         # Truncate markdown to fit context window if necessary (e.g. 50k chars)
-        truncated_markdown = markdown[:50000]
+        truncated_markdown = markdown[:20000]
 
         response = await client.chat.completions.create(
             model="deepseek-chat",
@@ -87,7 +87,7 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExt
     try:
         print(f"  [Extraction] Extracting from {portal_url}...")
 
-        # Configure Strategy using the new LLMConfig object
+        # Configure Strategy: Chunking OFF (DeepSeek has large context), Fit Markdown ON
         strategy = LLMExtractionStrategy(
             llm_config=LLMConfig(
                 provider="openai/deepseek-chat",
@@ -98,10 +98,8 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExt
             instruction=EXTRACTION_INSTRUCTION,
             schema=BidExtractionSchema.model_json_schema(),
             extraction_type="schema",
-            chunk_token_threshold=4000,
-            overlap_rate=0.1,
-            apply_chunking=True,
-            input_format="markdown"
+            apply_chunking=False,
+            input_format="fit_markdown"
         )
 
         result = await crawler.arun(
@@ -220,29 +218,29 @@ async def process_agency(agency: Agency, db):
 
     async with AsyncWebCrawler() as crawler:
         # Step 1: Discovery
-        # If agency has a procurement_url (from JSON), use it?
-        # But prompt says "URL Discovery Responsibility: ... For local-level discovery, the orchestrator must dynamically use the patterns...".
-        # And "Function 1 - discover_portal... uses DISCOVERY_SYSTEM_PROMPT to return the procurement_url".
-        # This implies we should run discovery on the homepage.
-
         procurement_url = agency.procurement_url
+
+        if procurement_url == "NOT_FOUND":
+            print(f"  [Skip] Previously flagged as NO PORTAL for {agency.name}")
+            return
+
         if not procurement_url:
             if agency.homepage_url:
                 procurement_url = await discover_portal(crawler, agency.homepage_url)
                 if procurement_url:
                     print(f"  Found Portal: {procurement_url}")
-                    # Update DB/Agency object if needed? db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
-                    # We can assume we should update it.
-                    try:
-                         db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
-                    except:
-                        pass
+                    try: db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+                    except: pass
+                else:
+                    print(f"  No procurement portal found. Flagging as NOT_FOUND.")
+                    try: db.update_agency_procurement_url(agency.name, agency.state, "NOT_FOUND")
+                    except: pass
+                    return
             else:
                 print(f"  No homepage URL for {agency.name}")
                 return
 
-        if not procurement_url:
-            print(f"  No procurement portal found for {agency.name}")
+        if not procurement_url or procurement_url == "NOT_FOUND":
             return
 
         # Step 2: Extraction
