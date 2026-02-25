@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import asyncio
 import sys
 import os
+import pytest
 
 # Add project root to path. Assuming test is in rfp_scraper_v2/tests/
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -10,9 +11,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 from rfp_scraper_v2.crawlers import pipeline
 from rfp_scraper_v2.core.models import BidExtractionSchema
 
-class TestRouter: # Not inheriting from unittest.TestCase for manual async run simplicity
-    def setUp(self):
+@pytest.mark.asyncio
+class TestRouter:
+    @pytest.fixture(autouse=True)
+    def setup(self):
         self.crawler = MagicMock()
+        self.api_key = "dummy_key"
 
     async def test_router_deterministic_bonfire(self):
         # Setup mock return for deterministic
@@ -23,7 +27,7 @@ class TestRouter: # Not inheriting from unittest.TestCase for manual async run s
             mock_det.return_value = mock_bids
 
             # Call router with Bonfire URL
-            bids = await pipeline.extract_bids(self.crawler, "https://example.bonfirehub.com/opportunities")
+            bids = await pipeline.extract_bids(self.crawler, "https://example.bonfirehub.com/opportunities", self.api_key)
 
             # Verify deterministic was called
             mock_det.assert_called_once_with(self.crawler, "https://example.bonfirehub.com/opportunities", "Bonfire")
@@ -39,10 +43,10 @@ class TestRouter: # Not inheriting from unittest.TestCase for manual async run s
             mock_ai.return_value = mock_bids
 
             # Call router with unknown URL
-            bids = await pipeline.extract_bids(self.crawler, "https://unknown.com/bids")
+            bids = await pipeline.extract_bids(self.crawler, "https://unknown.com/bids", self.api_key)
 
             # Verify AI was called
-            mock_ai.assert_called_once_with(self.crawler, "https://unknown.com/bids")
+            mock_ai.assert_called_once_with(self.crawler, "https://unknown.com/bids", self.api_key)
             assert bids == mock_bids
             print("  [PASS] AI Fallback (Unknown Domain) Test")
 
@@ -56,21 +60,20 @@ class TestRouter: # Not inheriting from unittest.TestCase for manual async run s
             mock_ai.return_value = mock_bids
 
             # Call router with Bonfire URL
-            bids = await pipeline.extract_bids(self.crawler, "https://example.bonfirehub.com/opportunities")
+            bids = await pipeline.extract_bids(self.crawler, "https://example.bonfirehub.com/opportunities", self.api_key)
 
             # Verify deterministic called first, then AI
             mock_det.assert_called_once()
-            mock_ai.assert_called_once_with(self.crawler, "https://example.bonfirehub.com/opportunities")
+            mock_ai.assert_called_once_with(self.crawler, "https://example.bonfirehub.com/opportunities", self.api_key)
             assert bids == mock_bids
             print("  [PASS] AI Fallback (Empty Deterministic) Test")
 
-async def main():
-    t = TestRouter()
-    t.setUp()
-    await t.test_router_deterministic_bonfire()
-    await t.test_router_fallback_ai_unknown_domain()
-    await t.test_router_fallback_ai_deterministic_empty()
-    print("\nALL ROUTER TESTS PASSED.")
-
 if __name__ == '__main__':
-    asyncio.run(main())
+    # Manual run fallback
+    t = TestRouter()
+    loop = asyncio.new_event_loop()
+    t.setup()
+    loop.run_until_complete(t.test_router_deterministic_bonfire())
+    loop.run_until_complete(t.test_router_fallback_ai_unknown_domain())
+    loop.run_until_complete(t.test_router_fallback_ai_deterministic_empty())
+    print("\nALL ROUTER TESTS PASSED.")
