@@ -14,11 +14,12 @@ class DiscoverySchema(BaseModel):
     )
 
 class BidExtractionSchema(BaseModel):
+    reasoning: str = Field(description="Briefly explain why this active bid is being extracted and how you resolved its link.")
     title: str = Field(description="The official title or name of the project/RFP.")
     clientName: str = Field(description="The name of the agency issuing the bid.")
     deadline: str = Field(description="The due date of the bid in YYYY-MM-DD format. Return empty string if unknown.")
     description: str = Field(description="A brief 1-3 sentence summary of the work required.")
-    link: str = Field(description="The absolute URL pointing to the bid details or PDF document. Critical: Must be absolute.")
+    link: str = Field(description="The absolute URL pointing to the bid details or PDF document. Critical: Must be an absolute URL.")
 
 class ClassificationSchema(BaseModel):
     reasoning: str = Field(

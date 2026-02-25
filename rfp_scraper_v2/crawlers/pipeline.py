@@ -95,7 +95,8 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str) -> List[Bid
                 base_url="https://api.deepseek.com",
                 temperature=0.0
             ),
-            instruction=EXTRACTION_INSTRUCTION,
+            # Dynamically inject the base URL so the AI can resolve relative links!
+            instruction=EXTRACTION_INSTRUCTION + f"\n\nBASE URL FOR RELATIVE LINKS: {portal_url}",
             schema=BidExtractionSchema.model_json_schema(),
             extraction_type="schema",
             apply_chunking=False,
