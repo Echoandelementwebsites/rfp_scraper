@@ -13,14 +13,18 @@ RULES:
 # --- STEP 2: EXTRACTION INSTRUCTION ---
 EXTRACTION_INSTRUCTION = """
 Analyze this markdown text representing a government purchasing portal.
-Extract ALL active bids, solicitations, or RFPs related to Construction, Infrastructure, Public Works, Engineering, or Facilities Maintenance.
+Extract ALL ACTIVE bids, solicitations, or RFPs related to Construction, Infrastructure, Public Works, Engineering, or Facilities Maintenance.
+
 NEGATIVE CONSTRAINTS:
 - DO NOT extract Janitorial, Cleaning, or Pest Control bids.
 - DO NOT extract Software, IT, or Telecommunications bids.
 - DO NOT extract Staffing, Consulting, or Administrative bids.
+
 LINK RULES:
 - The `link` MUST be the specific absolute URL pointing to that exact bid's detail page or PDF document.
+- If a link is relative (e.g. /Home/Components/RFP/240), you MUST prepend it with the Base URL provided at the end of this prompt.
 - If no specific link exists, use the page URL.
+
 OUTPUT RULES:
 - You must return the extracted bids as a valid JSON array of objects strictly matching the provided schema.
 """
