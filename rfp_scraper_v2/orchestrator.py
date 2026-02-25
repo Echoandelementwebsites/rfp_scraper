@@ -16,7 +16,7 @@ from rfp_scraper.utils import get_state_abbreviation
 from rfp_scraper.cisa_manager import CisaManager
 
 # Concurrency Limit for Agencies
-SEM_AGENCIES = asyncio.Semaphore(5)
+# SEM_AGENCIES removed to prevent event loop binding issues
 
 # Invert ABBR_TO_STATE for lookup
 STATE_TO_ABBR = {v: k for k, v in ABBR_TO_STATE.items()}
@@ -312,8 +312,10 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
         return
 
     # Process Loop
+    sem_agencies = asyncio.Semaphore(5)
+
     async def bounded_process(a):
-        async with SEM_AGENCIES:
+        async with sem_agencies:
             try:
                 await discover_agency_only(a, db, manager, job_id)
             except Exception as e:
@@ -384,8 +386,10 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
         return
 
     # Process Loop
+    sem_agencies = asyncio.Semaphore(5)
+
     async def bounded_process(a):
-        async with SEM_AGENCIES:
+        async with sem_agencies:
             try:
                 if manager: manager.add_log(job_id, f"🚀 Starting async extraction for {a.name}...")
                 await process_agency(a, db)
