@@ -228,6 +228,12 @@ async def discover_agency_only(agency: Agency, db, manager=None, job_id=None):
     """
     async with AsyncWebCrawler() as crawler:
         procurement_url = agency.procurement_url
+
+        if procurement_url == "NOT_FOUND":
+            if manager: manager.add_log(job_id, f"ℹ️ Skipping (Previously flagged as NO PORTAL): {agency.name}")
+            else: print(f"ℹ️ Skipping (Previously flagged as NO PORTAL): {agency.name}")
+            return
+
         if not procurement_url:
             if agency.homepage_url:
                 if manager: manager.add_log(job_id, f"🔍 Discovering portal for {agency.name}...")
@@ -240,13 +246,15 @@ async def discover_agency_only(agency: Agency, db, manager=None, job_id=None):
                     else: print(f"✅ Found: {procurement_url}")
                     db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
                 else:
-                    if manager: manager.add_log(job_id, f"⚠️ No portal found for {agency.name}")
-                    else: print(f"⚠️ No portal found for {agency.name}")
+                    if manager: manager.add_log(job_id, f"⚠️ No portal found for {agency.name}. Flagging as NOT_FOUND.")
+                    else: print(f"⚠️ No portal found for {agency.name}. Flagging as NOT_FOUND.")
+                    db.update_agency_procurement_url(agency.name, agency.state, "NOT_FOUND")
             else:
                  if manager: manager.add_log(job_id, f"⚠️ No homepage URL for {agency.name}")
+                 else: print(f"⚠️ No homepage URL for {agency.name}")
         else:
              if manager: manager.add_log(job_id, f"ℹ️ Already has portal: {procurement_url}")
-             # Ensure it is saved/verified
+             else: print(f"ℹ️ Already has portal: {procurement_url}")
              db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
 
 async def run_discovery_orchestrator(target_states: List[str], manager=None, job_id: str = None, api_key: str = None):
