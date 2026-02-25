@@ -5,6 +5,8 @@ import json
 import pandas as pd
 import urllib.parse
 import hashlib
+import time
+from functools import wraps
 from typing import Optional, List, Dict, Any, Tuple
 from .models import Bid
 
@@ -30,6 +32,32 @@ ABBR_TO_STATE = {
     "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming",
     "DC": "District of Columbia"
 }
+
+def retry_on_locked(max_retries=5, delay=1.0):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Check if using Postgres, in which case we might not need this retry logic
+            # but it doesn't hurt to catch OperationalError anyway if it happens there too?
+            # Usually this is for SQLite 'database is locked'.
+            last_err = None
+            for i in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except sqlite3.OperationalError as e:
+                    if "locked" in str(e).lower():
+                        last_err = e
+                        time.sleep(delay)
+                        continue
+                    raise e
+                except Exception as e:
+                    # Re-raise other exceptions immediately
+                    raise e
+            if last_err:
+                print(f"Database locked after {max_retries} retries: {last_err}")
+                raise last_err
+        return wrapper
+    return decorator
 
 class DatabaseHandler:
     def __init__(self, db_url: Optional[str] = None):
@@ -297,6 +325,7 @@ class DatabaseHandler:
 
     # --- Legacy Methods (States) ---
 
+    @retry_on_locked()
     def add_state(self, name: str):
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -322,6 +351,7 @@ class DatabaseHandler:
 
     # --- Legacy Methods (Local Jurisdictions) ---
 
+    @retry_on_locked()
     def append_local_jurisdiction(self, state_id: int, name: str, jurisdiction_type: str) -> int:
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -392,6 +422,7 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    @retry_on_locked()
     def add_agency(self, state_id: int, name: str, url: Optional[str] = None, verified: bool = False, category: str = 'state_agency', local_jurisdiction_id: Optional[int] = None):
         if url: url = url.strip()
 
@@ -496,6 +527,7 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    @retry_on_locked()
     def update_agency_url(self, agency_id: int, new_url: str):
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -506,6 +538,7 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    @retry_on_locked()
     def update_agency_name(self, agency_id: int, new_name: str):
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -516,6 +549,7 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    @retry_on_locked()
     def delete_agency(self, agency_id: int):
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -528,6 +562,7 @@ class DatabaseHandler:
 
     # --- Legacy Methods (Discovery Log) ---
 
+    @retry_on_locked()
     def add_discovered_url(self, url: str, state: str):
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -551,6 +586,7 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    @retry_on_locked()
     def mark_url_processed(self, url: str, status: str = 'processed'):
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -564,6 +600,7 @@ class DatabaseHandler:
 
     # --- V2 Methods (Bids) ---
 
+    @retry_on_locked()
     def save_bid(self, bid: Bid, state: str):
         """Save a processed bid to the database (V2)."""
         conn = self._get_connection()
@@ -673,6 +710,7 @@ class DatabaseHandler:
         finally:
             conn.close()
 
+    @retry_on_locked()
     def update_agency_procurement_url(self, name: str, state: str, procurement_url: str):
         """Saves the AI-discovered procurement portal URL to the agency record."""
         query = """

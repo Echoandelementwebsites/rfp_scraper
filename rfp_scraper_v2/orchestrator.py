@@ -222,7 +222,7 @@ def parse_local_agencies(data: Dict[str, Any], target_states: List[str] = None) 
 
     return agencies
 
-async def discover_agency_only(agency: Agency, db, manager=None, job_id=None):
+async def discover_agency_only(agency: Agency, db, manager=None, job_id=None, api_key: str = None):
     """
     Step 1 Only: Finds the portal URL and updates the DB without extraction.
     """
@@ -230,8 +230,8 @@ async def discover_agency_only(agency: Agency, db, manager=None, job_id=None):
         procurement_url = agency.procurement_url
 
         if procurement_url == "NOT_FOUND":
-            if manager: manager.add_log(job_id, f"ℹ️ Skipping (Previously flagged as NO PORTAL): {agency.name}")
-            else: print(f"ℹ️ Skipping (Previously flagged as NO PORTAL): {agency.name}")
+            if manager: manager.add_log(job_id, f"ℹ️ Skipping (Previously flagged as NO PORTAL for {agency.name})")
+            else: print(f"ℹ️ Skipping (Previously flagged as NO PORTAL for {agency.name})")
             return
 
         if not procurement_url:
@@ -239,7 +239,7 @@ async def discover_agency_only(agency: Agency, db, manager=None, job_id=None):
                 if manager: manager.add_log(job_id, f"🔍 Discovering portal for {agency.name}...")
                 else: print(f"🔍 Discovering portal for {agency.name}...")
 
-                procurement_url = await discover_portal(crawler, agency.homepage_url)
+                procurement_url = await discover_portal(crawler, agency.homepage_url, api_key)
 
                 if procurement_url:
                     if manager: manager.add_log(job_id, f"✅ Found: {procurement_url}")
@@ -263,15 +263,6 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
     """
     if manager:
         manager.add_log(job_id, "🚀 Starting V2 Discovery Orchestrator...")
-
-    # Inject API Key if provided
-    if api_key:
-        os.environ["DEEPSEEK_API_KEY"] = api_key
-        # Reload client to pick up new key
-        pipeline.client = AsyncOpenAI(
-            api_key=api_key,
-            base_url="https://api.deepseek.com"
-        )
 
     db = DatabaseHandler()
 
@@ -317,7 +308,7 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
     async def bounded_process(a):
         async with sem_agencies:
             try:
-                await discover_agency_only(a, db, manager, job_id)
+                await discover_agency_only(a, db, manager, job_id, api_key)
             except Exception as e:
                 err_msg = f"❌ Failed {a.name}: {e}"
                 if manager: manager.add_log(job_id, err_msg)
@@ -363,15 +354,6 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
     else:
         print("🚀 Starting Orchestrator V2...")
 
-    # Inject API Key if provided
-    if api_key:
-        os.environ["DEEPSEEK_API_KEY"] = api_key
-        # Reload client to pick up new key
-        pipeline.client = AsyncOpenAI(
-            api_key=api_key,
-            base_url="https://api.deepseek.com"
-        )
-
     db = DatabaseHandler()
 
     if manager: manager.add_log(job_id, f"Fetching verified agencies from DB for {len(target_states)} states...")
@@ -392,7 +374,7 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
         async with sem_agencies:
             try:
                 if manager: manager.add_log(job_id, f"🚀 Starting async extraction for {a.name}...")
-                await process_agency(a, db)
+                await process_agency(a, db, api_key)
                 if manager: manager.add_log(job_id, f"✅ Finished {a.name}")
             except Exception as e:
                 err_msg = f"❌ Failed {a.name}: {e}"

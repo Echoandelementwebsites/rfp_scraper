@@ -34,11 +34,12 @@ st.title("🏗️ National Construction RFP Scraper")
 # Initialize Helpers
 db = DatabaseHandler()
 
-# Initialize Job Manager (Session State)
-if 'job_manager' not in st.session_state:
-    st.session_state.job_manager = JobManager()
+# Initialize Job Manager (Global Resource)
+@st.cache_resource
+def get_job_manager():
+    return JobManager()
 
-job_manager = st.session_state.job_manager
+job_manager = get_job_manager()
 
 # Get available states from DB for scraper
 available_states_df = db.get_all_states()

@@ -2,52 +2,56 @@ import pandas as pd
 import requests
 import io
 import re
+import threading
 from typing import Optional, Dict, Tuple
 from rfp_scraper_v2.core.database import DatabaseHandler
 
 class CisaManager:
     CISA_CSV_URL = "https://raw.githubusercontent.com/cisagov/dotgov-data/main/current-full.csv"
     _shared_df = None
+    _shared_lock = threading.Lock() # Static lock for shared resource
 
     def __init__(self):
         self._df: Optional[pd.DataFrame] = None
 
     def _load_data(self):
         """Downloads and caches the CISA registry CSV."""
-        if CisaManager._shared_df is not None:
-            self._df = CisaManager._shared_df
-            return
+        # Use the static lock because _shared_df is static
+        with CisaManager._shared_lock:
+            if CisaManager._shared_df is not None:
+                self._df = CisaManager._shared_df
+                return
 
-        if self._df is not None:
-            return
+            if self._df is not None:
+                return
 
-        try:
-            print("Downloading CISA Registry...")
-            response = requests.get(self.CISA_CSV_URL, timeout=10)
-            response.raise_for_status()
+            try:
+                print("Downloading CISA Registry...")
+                response = requests.get(self.CISA_CSV_URL, timeout=10)
+                response.raise_for_status()
 
-            # Read CSV
-            df = pd.read_csv(io.StringIO(response.text))
+                # Read CSV
+                df = pd.read_csv(io.StringIO(response.text))
 
-            # Normalize columns
-            # Standardize State to uppercase
-            if 'State' in df.columns:
-                df['State'] = df['State'].str.upper().str.strip()
+                # Normalize columns
+                # Standardize State to uppercase
+                if 'State' in df.columns:
+                    df['State'] = df['State'].str.upper().str.strip()
 
-            # Fill NaNs with empty strings for easier processing
-            df = df.fillna("")
+                # Fill NaNs with empty strings for easier processing
+                df = df.fillna("")
 
-            self._df = df
-            CisaManager._shared_df = df
-            print(f"Loaded {len(df)} records from CISA Registry.")
+                self._df = df
+                CisaManager._shared_df = df
+                print(f"Loaded {len(df)} records from CISA Registry.")
 
-        except Exception as e:
-            print(f"Error loading CISA data: {e}")
-            # Initialize empty DF to avoid crashes
-            self._df = pd.DataFrame(columns=[
-                "Domain name", "Domain type", "Organization name",
-                "Suborganization name", "City", "State"
-            ])
+            except Exception as e:
+                print(f"Error loading CISA data: {e}")
+                # Initialize empty DF to avoid crashes
+                self._df = pd.DataFrame(columns=[
+                    "Domain name", "Domain type", "Organization name",
+                    "Suborganization name", "City", "State"
+                ])
 
     def get_agency_url(self, name: str, state_abbr: str) -> Optional[str]:
         """

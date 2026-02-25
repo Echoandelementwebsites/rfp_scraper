@@ -29,7 +29,7 @@ class CrawlerEngine:
             verbose=False
         )
 
-    def get_run_config(self, strategy=None, process_iframes: bool = True, wait_until: str = "networkidle") -> CrawlerRunConfig:
+    def get_run_config(self, strategy=None, process_iframes: bool = True, wait_until: str = "domcontentloaded") -> CrawlerRunConfig:
         return CrawlerRunConfig(
             extraction_strategy=strategy,
             cache_mode=CacheMode.BYPASS,
@@ -38,7 +38,7 @@ class CrawlerEngine:
             magic=True,
             wait_until=wait_until,
             page_timeout=60000,
-            delay_before_return_html=2.0
+            delay_before_return_html=8.0
         )
 
     async def classify_text(self, text: str) -> List[str]:

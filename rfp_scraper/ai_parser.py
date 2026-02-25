@@ -43,7 +43,7 @@ class DeepSeekClient:
         # Fallback: Regex extraction if there's conversational text
         # Look for { ... } or [ ... ]
         if not (content.startswith("{") or content.startswith("[")):
-             match = re.search(r'(\{.*\}|\[.*\])', content, re.DOTALL)
+             match = re.search(r'(\{.*?\}|\[.*?\])', content, re.DOTALL)
              if match:
                  content = match.group(0)
 
