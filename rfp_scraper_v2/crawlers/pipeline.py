@@ -87,7 +87,7 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExt
     try:
         print(f"  [Extraction] Extracting from {portal_url}...")
 
-        # Configure Strategy: Chunking OFF (DeepSeek has large context), Fit Markdown ON
+        # Configure Strategy: Chunking OFF, Standard Markdown ON
         strategy = LLMExtractionStrategy(
             llm_config=LLMConfig(
                 provider="openai/deepseek-chat",
@@ -99,7 +99,7 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExt
             schema=BidExtractionSchema.model_json_schema(),
             extraction_type="schema",
             apply_chunking=False,
-            input_format="fit_markdown"
+            input_format="markdown"
         )
 
         result = await crawler.arun(
@@ -113,9 +113,23 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str) -> List[BidExt
             print(f"  [Extraction] Failed to crawl {portal_url}: {result.error_message}")
             return []
 
-        extracted_data = json.loads(result.extracted_content)
+        # SAFETY GUARD: Ensure the AI actually returned content before parsing
+        if not result.extracted_content:
+            print(f"  [Extraction] AI returned no content for {portal_url}.")
+            return []
+
+        try:
+            extracted_data = json.loads(result.extracted_content)
+        except json.JSONDecodeError as e:
+            print(f"  [Extraction] JSON Parse Error: {e}. Raw content: {result.extracted_content[:200]}...")
+            return []
 
         bids = []
+        # Ensure extracted_data is actually a list before looping
+        if not isinstance(extracted_data, list):
+            print(f"  [Extraction] Warning: Expected a list of bids, got {type(extracted_data)}.")
+            return []
+
         for item in extracted_data:
             try:
                 bid = BidExtractionSchema(**item)
