@@ -400,8 +400,21 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
     if tasks:
         await asyncio.gather(*tasks)
 
-    if manager: manager.add_log(job_id, "✅ Orchestration Complete.")
-    else: print("✅ Orchestration Complete.")
+    # --- Graceful Termination Sequence ---
+    termination_msg = (
+        f"✅ SESSION TERMINATED GRACEFULLY.\n"
+        f"All {len(all_agencies)} agency targets across {len(target_states)} states have been processed. "
+        f"Background task shutting down cleanly."
+    )
+
+    if manager:
+        manager.add_log(job_id, "━" * 40)
+        manager.add_log(job_id, termination_msg)
+        manager.add_log(job_id, "━" * 40)
+    else:
+        print("\n" + "━" * 40)
+        print(termination_msg)
+        print("━" * 40 + "\n")
 
 def run_v2_scraping_task(job_id: str, manager, target_states: list, api_key: str):
     """
