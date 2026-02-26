@@ -11,3 +11,937 @@ Traceback (most recent call last):
 ZeroDivisionError: division by zero
 2026-02-26 19:16:45,443 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
 2026-02-26 19:16:45,444 - INFO - [pipeline.py:242] -   [Router] Fast CSS extractor yielded 0 bids. Falling back to DeepSeek AI.
+2026-02-26 22:21:47,057 - INFO - [orchestrator.py:457] - 🚀 Initializing v2 Async Engine for 1 states...
+2026-02-26 22:21:47,062 - INFO - [orchestrator.py:383] - 🚀 Starting Orchestrator V2...
+2026-02-26 22:21:55,261 - INFO - [orchestrator.py:391] - Fetching verified agencies from DB for 1 states...
+2026-02-26 22:21:58,521 - INFO - [orchestrator.py:397] - Loaded 202 target agencies for scraping.
+2026-02-26 22:21:58,523 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for 25th Judicial Circuit of Alabama...
+2026-02-26 22:21:58,524 - INFO - [pipeline.py:356] - Processing Agency: 25th Judicial Circuit of Alabama (Alabama)
+2026-02-26 22:21:58,577 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for AOC...
+2026-02-26 22:21:58,577 - INFO - [pipeline.py:356] - Processing Agency: AOC (Alabama)
+2026-02-26 22:21:58,635 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Administrative Office of Courts...
+2026-02-26 22:21:58,636 - INFO - [pipeline.py:356] - Processing Agency: Administrative Office of Courts (Alabama)
+2026-02-26 22:21:58,689 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama 9-1-1 Board...
+2026-02-26 22:21:58,689 - INFO - [pipeline.py:356] - Processing Agency: Alabama 9-1-1 Board (Alabama)
+2026-02-26 22:21:58,736 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama ABLE Savings Plan...
+2026-02-26 22:21:58,736 - INFO - [pipeline.py:356] - Processing Agency: Alabama ABLE Savings Plan (Alabama)
+2026-02-26 22:22:00,504 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for 25th Judicial Circuit of Alabama
+2026-02-26 22:22:00,767 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama 9-1-1 Board
+2026-02-26 22:22:00,852 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama ABLE Savings Plan
+2026-02-26 22:22:00,930 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for AOC
+2026-02-26 22:22:01,048 - INFO - [orchestrator.py:419] - ✅ Finished 25th Judicial Circuit of Alabama
+2026-02-26 22:22:01,051 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Alcoholic Beverage Control Board...
+2026-02-26 22:22:01,051 - INFO - [pipeline.py:356] - Processing Agency: Alabama Alcoholic Beverage Control Board (Alabama)
+2026-02-26 22:22:01,207 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Administrative Office of Courts
+2026-02-26 22:22:01,224 - INFO - [orchestrator.py:419] - ✅ Finished AOC
+2026-02-26 22:22:01,224 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Board of Medical Examiners...
+2026-02-26 22:22:01,224 - INFO - [pipeline.py:356] - Processing Agency: Alabama Board of Medical Examiners (Alabama)
+2026-02-26 22:22:01,344 - INFO - [orchestrator.py:419] - ✅ Finished Alabama 9-1-1 Board
+2026-02-26 22:22:01,344 - INFO - [orchestrator.py:419] - ✅ Finished Alabama ABLE Savings Plan
+2026-02-26 22:22:01,345 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Department of Examiners of Public Accounts...
+2026-02-26 22:22:01,345 - INFO - [pipeline.py:356] - Processing Agency: Alabama Department of Examiners of Public Accounts (Alabama)
+2026-02-26 22:22:01,484 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Department of Insurance...
+2026-02-26 22:22:01,485 - INFO - [pipeline.py:356] - Processing Agency: Alabama Department of Insurance (Alabama)
+2026-02-26 22:22:01,802 - INFO - [orchestrator.py:419] - ✅ Finished Administrative Office of Courts
+2026-02-26 22:22:01,803 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Department of Public Health...
+2026-02-26 22:22:01,804 - INFO - [pipeline.py:356] - Processing Agency: Alabama Department of Public Health (Alabama)
+2026-02-26 22:22:03,955 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Alcoholic Beverage Control Board
+2026-02-26 22:22:04,147 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Board of Medical Examiners
+2026-02-26 22:22:04,153 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Department of Examiners of Public Accounts
+2026-02-26 22:22:04,324 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Department of Public Health
+2026-02-26 22:22:04,334 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Alcoholic Beverage Control Board
+2026-02-26 22:22:04,335 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Department of Revenue Sales Tax...
+2026-02-26 22:22:04,335 - INFO - [pipeline.py:356] - Processing Agency: Alabama Department of Revenue Sales Tax (Alabama)
+2026-02-26 22:22:04,446 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Board of Medical Examiners
+2026-02-26 22:22:04,447 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Department of Senior Services...
+2026-02-26 22:22:04,449 - INFO - [pipeline.py:356] - Processing Agency: Alabama Department of Senior Services (Alabama)
+2026-02-26 22:22:04,582 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Department of Public Health
+2026-02-26 22:22:04,582 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Department of Transportation...
+2026-02-26 22:22:04,582 - INFO - [pipeline.py:356] - Processing Agency: Alabama Department of Transportation (Alabama)
+2026-02-26 22:22:04,674 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Department of Insurance
+2026-02-26 22:22:04,680 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Department of Examiners of Public Accounts
+2026-02-26 22:22:04,680 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama District Attorneys Association...
+2026-02-26 22:22:04,681 - INFO - [pipeline.py:356] - Processing Agency: Alabama District Attorneys Association (Alabama)
+2026-02-26 22:22:04,863 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Department of Insurance
+2026-02-26 22:22:04,864 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Law Enforcement Agency...
+2026-02-26 22:22:04,864 - INFO - [pipeline.py:356] - Processing Agency: Alabama Law Enforcement Agency (Alabama)
+2026-02-26 22:22:06,193 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Department of Senior Services
+2026-02-26 22:22:06,404 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Department of Senior Services
+2026-02-26 22:22:06,405 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Legislature...
+2026-02-26 22:22:06,405 - INFO - [pipeline.py:356] - Processing Agency: Alabama Legislature (Alabama)
+2026-02-26 22:22:06,596 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Department of Revenue Sales Tax
+2026-02-26 22:22:06,807 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Department of Revenue Sales Tax
+2026-02-26 22:22:06,808 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Office of the Attorney General...
+2026-02-26 22:22:06,808 - INFO - [pipeline.py:356] - Processing Agency: Alabama Office of the Attorney General (Alabama)
+2026-02-26 22:22:07,029 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Department of Transportation
+2026-02-26 22:22:07,036 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama District Attorneys Association
+2026-02-26 22:22:07,225 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Department of Transportation
+2026-02-26 22:22:07,226 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Pardons and Paroles...
+2026-02-26 22:22:07,227 - INFO - [pipeline.py:356] - Processing Agency: Alabama Pardons and Paroles (Alabama)
+2026-02-26 22:22:07,341 - INFO - [orchestrator.py:419] - ✅ Finished Alabama District Attorneys Association
+2026-02-26 22:22:07,342 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Search and Rescue...
+2026-02-26 22:22:07,342 - INFO - [pipeline.py:356] - Processing Agency: Alabama Search and Rescue (Alabama)
+2026-02-26 22:22:07,469 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:07,469 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.alea.gov/RFP (AI Mode)...
+2026-02-26 22:22:08,822 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Office of the Attorney General
+2026-02-26 22:22:09,033 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Office of the Attorney General
+2026-02-26 22:22:09,035 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Secretary of State...
+2026-02-26 22:22:09,036 - INFO - [pipeline.py:356] - Processing Agency: Alabama Secretary of State (Alabama)
+2026-02-26 22:22:09,383 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Legislature
+2026-02-26 22:22:09,599 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Pardons and Paroles
+2026-02-26 22:22:09,700 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Legislature
+2026-02-26 22:22:09,702 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Soil & Water Conservation Committee...
+2026-02-26 22:22:09,702 - INFO - [pipeline.py:356] - Processing Agency: Alabama Soil & Water Conservation Committee (Alabama)
+2026-02-26 22:22:09,937 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Pardons and Paroles
+2026-02-26 22:22:09,943 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Alabama Soil and Water Conservation Committee...
+2026-02-26 22:22:09,943 - INFO - [pipeline.py:356] - Processing Agency: Alabama Soil and Water Conservation Committee (Alabama)
+2026-02-26 22:22:10,037 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Search and Rescue
+2026-02-26 22:22:10,165 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Search and Rescue
+2026-02-26 22:22:10,166 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Baldwin County Commission...
+2026-02-26 22:22:10,166 - INFO - [pipeline.py:356] - Processing Agency: Baldwin County Commission (Alabama)
+2026-02-26 22:22:11,698 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Secretary of State
+2026-02-26 22:22:11,834 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Soil & Water Conservation Committee
+2026-02-26 22:22:11,912 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Secretary of State
+2026-02-26 22:22:11,915 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Barbour County Commission...
+2026-02-26 22:22:11,916 - INFO - [pipeline.py:356] - Processing Agency: Barbour County Commission (Alabama)
+2026-02-26 22:22:12,250 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Soil & Water Conservation Committee
+2026-02-26 22:22:12,253 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Birmingham Emergency Communication District...
+2026-02-26 22:22:12,253 - INFO - [pipeline.py:356] - Processing Agency: Birmingham Emergency Communication District (Alabama)
+2026-02-26 22:22:12,371 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Baldwin County Commission
+2026-02-26 22:22:12,377 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Alabama Soil and Water Conservation Committee
+2026-02-26 22:22:12,594 - INFO - [orchestrator.py:419] - ✅ Finished Baldwin County Commission
+2026-02-26 22:22:12,594 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Blount County Commission...
+2026-02-26 22:22:12,594 - INFO - [pipeline.py:356] - Processing Agency: Blount County Commission (Alabama)
+2026-02-26 22:22:12,689 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Soil and Water Conservation Committee
+2026-02-26 22:22:12,689 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Bullock County Commission...
+2026-02-26 22:22:12,689 - INFO - [pipeline.py:356] - Processing Agency: Bullock County Commission (Alabama)
+2026-02-26 22:22:13,393 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.alea.gov/RFP.
+2026-02-26 22:22:13,395 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:13,648 - INFO - [orchestrator.py:419] - ✅ Finished Alabama Law Enforcement Agency
+2026-02-26 22:22:13,649 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for CITY OF NEW HOPE...
+2026-02-26 22:22:13,649 - INFO - [pipeline.py:356] - Processing Agency: CITY OF NEW HOPE (Alabama)
+2026-02-26 22:22:14,330 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Barbour County Commission
+2026-02-26 22:22:14,507 - INFO - [orchestrator.py:419] - ✅ Finished Barbour County Commission
+2026-02-26 22:22:14,507 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Calhoun County Commission...
+2026-02-26 22:22:14,508 - INFO - [pipeline.py:356] - Processing Agency: Calhoun County Commission (Alabama)
+2026-02-26 22:22:14,678 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:14,678 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.birminghamal.gov/work/bidding-opportunities (AI Mode)...
+2026-02-26 22:22:14,836 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:14,836 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://blountcountyal.gov/government/bid-postings/ (AI Mode)...
+2026-02-26 22:22:15,636 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Bullock County Commission
+2026-02-26 22:22:15,800 - INFO - [orchestrator.py:419] - ✅ Finished Bullock County Commission
+2026-02-26 22:22:15,800 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Calhoun County Sheriff’s Office...
+2026-02-26 22:22:15,803 - INFO - [pipeline.py:356] - Processing Agency: Calhoun County Sheriff’s Office (Alabama)
+2026-02-26 22:22:16,048 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for CITY OF NEW HOPE
+2026-02-26 22:22:16,194 - INFO - [orchestrator.py:419] - ✅ Finished CITY OF NEW HOPE
+2026-02-26 22:22:16,194 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Center for Advanced Public Safety - University of Alabama...
+2026-02-26 22:22:16,194 - INFO - [pipeline.py:356] - Processing Agency: Center for Advanced Public Safety - University of Alabama (Alabama)
+2026-02-26 22:22:16,564 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:16,565 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://calhouncountyal.gov/admin/index.html#bid (AI Mode)...
+2026-02-26 22:22:17,652 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Calhoun County Sheriff’s Office
+2026-02-26 22:22:18,026 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Center for Advanced Public Safety - University of Alabama
+2026-02-26 22:22:18,116 - INFO - [orchestrator.py:419] - ✅ Finished Calhoun County Sheriff’s Office
+2026-02-26 22:22:18,116 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Central Alabama Water...
+2026-02-26 22:22:18,117 - INFO - [pipeline.py:356] - Processing Agency: Central Alabama Water (Alabama)
+2026-02-26 22:22:18,319 - INFO - [orchestrator.py:419] - ✅ Finished Center for Advanced Public Safety - University of Alabama
+2026-02-26 22:22:18,320 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Chambers County Commission...
+2026-02-26 22:22:18,320 - INFO - [pipeline.py:356] - Processing Agency: Chambers County Commission (Alabama)
+2026-02-26 22:22:18,697 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://calhouncountyal.gov/admin/index.html#bid.
+2026-02-26 22:22:18,700 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:19,233 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.birminghamal.gov/work/bidding-opportunities.
+2026-02-26 22:22:19,233 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:19,236 - INFO - [orchestrator.py:419] - ✅ Finished Calhoun County Commission
+2026-02-26 22:22:19,236 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Cherokee County Commission...
+2026-02-26 22:22:19,236 - INFO - [pipeline.py:356] - Processing Agency: Cherokee County Commission (Alabama)
+2026-02-26 22:22:19,598 - INFO - [orchestrator.py:419] - ✅ Finished Birmingham Emergency Communication District
+2026-02-26 22:22:19,599 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Chilton County Sheriff's Office...
+2026-02-26 22:22:19,600 - INFO - [pipeline.py:356] - Processing Agency: Chilton County Sheriff's Office (Alabama)
+2026-02-26 22:22:20,190 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://blountcountyal.gov/government/bid-postings/.
+2026-02-26 22:22:20,191 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:20,435 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Central Alabama Water
+2026-02-26 22:22:20,508 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:20,508 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://chamberscountyal.gov/government/bid-information (AI Mode)...
+2026-02-26 22:22:20,619 - INFO - [orchestrator.py:419] - ✅ Finished Central Alabama Water
+2026-02-26 22:22:20,619 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City Of Hueytown...
+2026-02-26 22:22:20,619 - INFO - [pipeline.py:356] - Processing Agency: City Of Hueytown (Alabama)
+2026-02-26 22:22:20,705 - INFO - [orchestrator.py:419] - ✅ Finished Blount County Commission
+2026-02-26 22:22:20,705 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City Of Irondale...
+2026-02-26 22:22:20,706 - INFO - [pipeline.py:356] - Processing Agency: City Of Irondale (Alabama)
+2026-02-26 22:22:21,453 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:21,454 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://cherokeecounty-al.gov/current-bids/ (AI Mode)...
+2026-02-26 22:22:21,709 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Chilton County Sheriff's Office
+2026-02-26 22:22:21,915 - INFO - [orchestrator.py:419] - ✅ Finished Chilton County Sheriff's Office
+2026-02-26 22:22:21,915 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City Of Stevenson...
+2026-02-26 22:22:21,916 - INFO - [pipeline.py:356] - Processing Agency: City Of Stevenson (Alabama)
+2026-02-26 22:22:22,380 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:22,380 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://cityofirondaleal.gov/bid-listings/ (AI Mode)...
+2026-02-26 22:22:22,612 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City Of Hueytown
+2026-02-26 22:22:22,769 - INFO - [orchestrator.py:419] - ✅ Finished City Of Hueytown
+2026-02-26 22:22:22,769 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Adamsville...
+2026-02-26 22:22:22,770 - INFO - [pipeline.py:356] - Processing Agency: City of Adamsville (Alabama)
+2026-02-26 22:22:23,515 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City Of Stevenson
+2026-02-26 22:22:23,748 - INFO - [orchestrator.py:419] - ✅ Finished City Of Stevenson
+2026-02-26 22:22:23,749 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Albertville...
+2026-02-26 22:22:23,749 - INFO - [pipeline.py:356] - Processing Agency: City of Albertville (Alabama)
+2026-02-26 22:22:25,407 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Adamsville
+2026-02-26 22:22:25,812 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://chamberscountyal.gov/government/bid-information.
+2026-02-26 22:22:25,813 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:25,929 - INFO - [orchestrator.py:419] - ✅ Finished City of Adamsville
+2026-02-26 22:22:25,929 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Alexander City...
+2026-02-26 22:22:25,929 - INFO - [pipeline.py:356] - Processing Agency: City of Alexander City (Alabama)
+2026-02-26 22:22:26,164 - INFO - [orchestrator.py:419] - ✅ Finished Chambers County Commission
+2026-02-26 22:22:26,164 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Andalusia...
+2026-02-26 22:22:26,165 - INFO - [pipeline.py:356] - Processing Agency: City of Andalusia (Alabama)
+2026-02-26 22:22:26,767 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Albertville
+2026-02-26 22:22:26,920 - INFO - [orchestrator.py:419] - ✅ Finished City of Albertville
+2026-02-26 22:22:26,921 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Anniston, Alabama...
+2026-02-26 22:22:26,921 - INFO - [pipeline.py:356] - Processing Agency: City of Anniston, Alabama (Alabama)
+2026-02-26 22:22:28,379 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:28,379 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.alexandercityal.gov/rfps (AI Mode)...
+2026-02-26 22:22:28,800 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:28,800 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://andalusiaal.gov/government/open-bid-invitation.html (AI Mode)...
+2026-02-26 22:22:29,501 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:29,502 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://annistonal.gov/bid-openings/ (AI Mode)...
+2026-02-26 22:22:33,583 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://cityofirondaleal.gov/bid-listings/.
+2026-02-26 22:22:33,583 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:34,367 - INFO - [orchestrator.py:419] - ✅ Finished City Of Irondale
+2026-02-26 22:22:34,373 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Atmore...
+2026-02-26 22:22:34,374 - INFO - [pipeline.py:356] - Processing Agency: City of Atmore (Alabama)
+2026-02-26 22:22:34,670 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.alexandercityal.gov/rfps.
+2026-02-26 22:22:34,670 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:35,037 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://andalusiaal.gov/government/open-bid-invitation.html.
+2026-02-26 22:22:35,095 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:35,126 - INFO - [orchestrator.py:419] - ✅ Finished City of Alexander City
+2026-02-26 22:22:35,126 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Auburn, AL...
+2026-02-26 22:22:35,127 - INFO - [pipeline.py:356] - Processing Agency: City of Auburn, AL (Alabama)
+2026-02-26 22:22:35,504 - INFO - [orchestrator.py:419] - ✅ Finished City of Andalusia
+2026-02-26 22:22:35,517 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Bay Minette...
+2026-02-26 22:22:35,518 - INFO - [pipeline.py:356] - Processing Agency: City of Bay Minette (Alabama)
+2026-02-26 22:22:37,307 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://annistonal.gov/bid-openings/.
+2026-02-26 22:22:37,307 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:37,313 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Atmore
+2026-02-26 22:22:37,609 - INFO - [orchestrator.py:419] - ✅ Finished City of Atmore
+2026-02-26 22:22:37,610 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Brookwood...
+2026-02-26 22:22:37,610 - INFO - [pipeline.py:356] - Processing Agency: City of Brookwood (Alabama)
+2026-02-26 22:22:37,751 - INFO - [orchestrator.py:419] - ✅ Finished City of Anniston, Alabama
+2026-02-26 22:22:37,751 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Brundidge...
+2026-02-26 22:22:37,751 - INFO - [pipeline.py:356] - Processing Agency: City of Brundidge (Alabama)
+2026-02-26 22:22:37,860 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:37,861 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.auburnal.gov/bids/ (AI Mode)...
+2026-02-26 22:22:38,182 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Bay Minette
+2026-02-26 22:22:38,759 - INFO - [orchestrator.py:419] - ✅ Finished City of Bay Minette
+2026-02-26 22:22:38,759 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Centre...
+2026-02-26 22:22:38,760 - INFO - [pipeline.py:356] - Processing Agency: City of Centre (Alabama)
+2026-02-26 22:22:39,091 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://cherokeecounty-al.gov/current-bids/.
+2026-02-26 22:22:39,091 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:39,320 - INFO - [orchestrator.py:419] - ✅ Finished Cherokee County Commission
+2026-02-26 22:22:39,321 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Clanton...
+2026-02-26 22:22:39,322 - INFO - [pipeline.py:356] - Processing Agency: City of Clanton (Alabama)
+2026-02-26 22:22:39,714 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Brookwood
+2026-02-26 22:22:39,845 - INFO - [orchestrator.py:419] - ✅ Finished City of Brookwood
+2026-02-26 22:22:39,845 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Cowarts...
+2026-02-26 22:22:39,845 - INFO - [pipeline.py:356] - Processing Agency: City of Cowarts (Alabama)
+2026-02-26 22:22:40,234 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Brundidge
+2026-02-26 22:22:40,412 - INFO - [orchestrator.py:419] - ✅ Finished City of Brundidge
+2026-02-26 22:22:40,414 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Cullman...
+2026-02-26 22:22:40,434 - INFO - [pipeline.py:356] - Processing Agency: City of Cullman (Alabama)
+2026-02-26 22:22:41,289 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Centre
+2026-02-26 22:22:41,582 - INFO - [orchestrator.py:419] - ✅ Finished City of Centre
+2026-02-26 22:22:41,586 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Decatur...
+2026-02-26 22:22:41,587 - INFO - [pipeline.py:356] - Processing Agency: City of Decatur (Alabama)
+2026-02-26 22:22:41,996 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Clanton
+2026-02-26 22:22:42,350 - INFO - [orchestrator.py:419] - ✅ Finished City of Clanton
+2026-02-26 22:22:42,350 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Demopolis...
+2026-02-26 22:22:42,351 - INFO - [pipeline.py:356] - Processing Agency: City of Demopolis (Alabama)
+2026-02-26 22:22:42,750 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Cowarts
+2026-02-26 22:22:43,023 - INFO - [orchestrator.py:419] - ✅ Finished City of Cowarts
+2026-02-26 22:22:43,025 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Elba, Alabama...
+2026-02-26 22:22:43,026 - INFO - [pipeline.py:356] - Processing Agency: City of Elba, Alabama (Alabama)
+2026-02-26 22:22:43,753 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.auburnal.gov/bids/.
+2026-02-26 22:22:43,753 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:44,059 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Cullman
+2026-02-26 22:22:44,386 - INFO - [orchestrator.py:419] - ✅ Finished City of Cullman
+2026-02-26 22:22:44,386 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Enterprise...
+2026-02-26 22:22:44,386 - INFO - [pipeline.py:356] - Processing Agency: City of Enterprise (Alabama)
+2026-02-26 22:22:44,544 - INFO - [orchestrator.py:419] - ✅ Finished City of Auburn, AL
+2026-02-26 22:22:44,544 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Eutaw...
+2026-02-26 22:22:44,544 - INFO - [pipeline.py:356] - Processing Agency: City of Eutaw (Alabama)
+2026-02-26 22:22:45,097 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Decatur
+2026-02-26 22:22:45,472 - INFO - [orchestrator.py:419] - ✅ Finished City of Decatur
+2026-02-26 22:22:45,472 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Evergreen...
+2026-02-26 22:22:45,472 - INFO - [pipeline.py:356] - Processing Agency: City of Evergreen (Alabama)
+2026-02-26 22:22:46,119 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Demopolis
+2026-02-26 22:22:46,304 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Elba, Alabama
+2026-02-26 22:22:46,468 - INFO - [orchestrator.py:419] - ✅ Finished City of Elba, Alabama
+2026-02-26 22:22:46,469 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Fairhope...
+2026-02-26 22:22:46,469 - INFO - [pipeline.py:356] - Processing Agency: City of Fairhope (Alabama)
+2026-02-26 22:22:46,568 - INFO - [orchestrator.py:419] - ✅ Finished City of Demopolis
+2026-02-26 22:22:46,570 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Foley...
+2026-02-26 22:22:46,571 - INFO - [pipeline.py:356] - Processing Agency: City of Foley (Alabama)
+2026-02-26 22:22:47,270 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Enterprise
+2026-02-26 22:22:47,487 - INFO - [orchestrator.py:419] - ✅ Finished City of Enterprise
+2026-02-26 22:22:47,545 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Fultondale...
+2026-02-26 22:22:47,546 - INFO - [pipeline.py:356] - Processing Agency: City of Fultondale (Alabama)
+2026-02-26 22:22:47,833 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:47,833 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://eutawal.gov/vendors/ (AI Mode)...
+2026-02-26 22:22:48,616 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Evergreen
+2026-02-26 22:22:48,788 - INFO - [orchestrator.py:419] - ✅ Finished City of Evergreen
+2026-02-26 22:22:48,788 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Gardendale...
+2026-02-26 22:22:48,789 - INFO - [pipeline.py:356] - Processing Agency: City of Gardendale (Alabama)
+2026-02-26 22:22:49,137 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Foley
+2026-02-26 22:22:49,517 - INFO - [orchestrator.py:419] - ✅ Finished City of Foley
+2026-02-26 22:22:49,517 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Geneva...
+2026-02-26 22:22:49,517 - INFO - [pipeline.py:356] - Processing Agency: City of Geneva (Alabama)
+2026-02-26 22:22:49,769 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:49,771 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.fairhopeal.gov/departments/purchasing/bids (AI Mode)...
+2026-02-26 22:22:50,484 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Fultondale
+2026-02-26 22:22:50,913 - INFO - [orchestrator.py:419] - ✅ Finished City of Fultondale
+2026-02-26 22:22:50,914 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Greenville, AL...
+2026-02-26 22:22:50,915 - INFO - [pipeline.py:356] - Processing Agency: City of Greenville, AL (Alabama)
+2026-02-26 22:22:52,168 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:52,168 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.gardendale.gov/rfps (AI Mode)...
+2026-02-26 22:22:53,883 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://eutawal.gov/vendors/.
+2026-02-26 22:22:53,884 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:53,892 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Geneva
+2026-02-26 22:22:54,187 - INFO - [orchestrator.py:419] - ✅ Finished City of Geneva
+2026-02-26 22:22:54,187 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Gulf Shores...
+2026-02-26 22:22:54,188 - INFO - [pipeline.py:356] - Processing Agency: City of Gulf Shores (Alabama)
+2026-02-26 22:22:54,307 - INFO - [orchestrator.py:419] - ✅ Finished City of Eutaw
+2026-02-26 22:22:54,307 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Guntersville...
+2026-02-26 22:22:54,308 - INFO - [pipeline.py:356] - Processing Agency: City of Guntersville (Alabama)
+2026-02-26 22:22:54,811 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:54,814 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://greenvilleal.gov/Bids.aspx (AI Mode)...
+2026-02-26 22:22:56,104 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.fairhopeal.gov/departments/purchasing/bids.
+2026-02-26 22:22:56,104 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:56,303 - INFO - [orchestrator.py:419] - ✅ Finished City of Fairhope
+2026-02-26 22:22:56,303 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Hoover...
+2026-02-26 22:22:56,303 - INFO - [pipeline.py:356] - Processing Agency: City of Hoover (Alabama)
+2026-02-26 22:22:56,565 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Guntersville
+2026-02-26 22:22:56,606 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:22:56,607 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.gulfshoresal.gov/1871/Bids-and-Proposals (AI Mode)...
+2026-02-26 22:22:56,984 - INFO - [orchestrator.py:419] - ✅ Finished City of Guntersville
+2026-02-26 22:22:56,984 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Huntsville...
+2026-02-26 22:22:56,985 - INFO - [pipeline.py:356] - Processing Agency: City of Huntsville (Alabama)
+2026-02-26 22:22:58,047 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.gardendale.gov/rfps.
+2026-02-26 22:22:58,047 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:22:58,459 - INFO - [orchestrator.py:419] - ✅ Finished City of Gardendale
+2026-02-26 22:22:58,459 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Jacksonville Alabama...
+2026-02-26 22:22:58,460 - INFO - [pipeline.py:356] - Processing Agency: City of Jacksonville Alabama (Alabama)
+2026-02-26 22:22:59,631 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Hoover
+2026-02-26 22:22:59,929 - INFO - [orchestrator.py:419] - ✅ Finished City of Hoover
+2026-02-26 22:22:59,929 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Kimberly, Alabama...
+2026-02-26 22:22:59,929 - INFO - [pipeline.py:356] - Processing Agency: City of Kimberly, Alabama (Alabama)
+2026-02-26 22:23:00,101 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:00,101 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.huntsvilleal.gov/business/bid-a-project/ (AI Mode)...
+2026-02-26 22:23:00,900 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Jacksonville Alabama
+2026-02-26 22:23:01,032 - INFO - [orchestrator.py:419] - ✅ Finished City of Jacksonville Alabama
+2026-02-26 22:23:01,032 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Leeds...
+2026-02-26 22:23:01,033 - INFO - [pipeline.py:356] - Processing Agency: City of Leeds (Alabama)
+2026-02-26 22:23:01,984 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Kimberly, Alabama
+2026-02-26 22:23:02,165 - INFO - [orchestrator.py:419] - ✅ Finished City of Kimberly, Alabama
+2026-02-26 22:23:02,166 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Luverne...
+2026-02-26 22:23:02,167 - INFO - [pipeline.py:356] - Processing Agency: City of Luverne (Alabama)
+2026-02-26 22:23:04,052 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Leeds
+2026-02-26 22:23:04,320 - INFO - [orchestrator.py:419] - ✅ Finished City of Leeds
+2026-02-26 22:23:04,321 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Madison...
+2026-02-26 22:23:04,324 - INFO - [pipeline.py:356] - Processing Agency: City of Madison (Alabama)
+2026-02-26 22:23:05,030 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Luverne
+2026-02-26 22:23:05,180 - INFO - [orchestrator.py:419] - ✅ Finished City of Luverne
+2026-02-26 22:23:05,180 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Margaret...
+2026-02-26 22:23:05,181 - INFO - [pipeline.py:356] - Processing Agency: City of Margaret (Alabama)
+2026-02-26 22:23:05,797 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://greenvilleal.gov/Bids.aspx.
+2026-02-26 22:23:05,797 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:06,248 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.huntsvilleal.gov/business/bid-a-project/.
+2026-02-26 22:23:06,249 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:06,252 - INFO - [orchestrator.py:419] - ✅ Finished City of Greenville, AL
+2026-02-26 22:23:06,253 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Millbrook Alabama...
+2026-02-26 22:23:06,253 - INFO - [pipeline.py:356] - Processing Agency: City of Millbrook Alabama (Alabama)
+2026-02-26 22:23:06,643 - INFO - [orchestrator.py:419] - ✅ Finished City of Huntsville
+2026-02-26 22:23:06,644 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Mobile...
+2026-02-26 22:23:06,644 - INFO - [pipeline.py:356] - Processing Agency: City of Mobile (Alabama)
+2026-02-26 22:23:06,901 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:06,902 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://madisonal.procureware.com/Bids (AI Mode)...
+2026-02-26 22:23:07,552 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:07,553 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://margaretal.gov/ordinances/ (AI Mode)...
+2026-02-26 22:23:08,123 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Millbrook Alabama
+2026-02-26 22:23:08,215 - INFO - [orchestrator.py:419] - ✅ Finished City of Millbrook Alabama
+2026-02-26 22:23:08,216 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Monroeville...
+2026-02-26 22:23:08,216 - INFO - [pipeline.py:356] - Processing Agency: City of Monroeville (Alabama)
+2026-02-26 22:23:08,514 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Mobile
+2026-02-26 22:23:08,738 - INFO - [orchestrator.py:419] - ✅ Finished City of Mobile
+2026-02-26 22:23:08,739 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Montgomery...
+2026-02-26 22:23:08,742 - INFO - [pipeline.py:356] - Processing Agency: City of Montgomery (Alabama)
+2026-02-26 22:23:09,650 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Monroeville
+2026-02-26 22:23:09,738 - INFO - [orchestrator.py:419] - ✅ Finished City of Monroeville
+2026-02-26 22:23:09,739 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Moody...
+2026-02-26 22:23:09,739 - INFO - [pipeline.py:356] - Processing Agency: City of Moody (Alabama)
+2026-02-26 22:23:10,234 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:10,234 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.montgomeryal.gov/business/partner-with-the-city/bids-and-rfps (AI Mode)...
+2026-02-26 22:23:11,079 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Moody
+2026-02-26 22:23:11,164 - INFO - [orchestrator.py:419] - ✅ Finished City of Moody
+2026-02-26 22:23:11,165 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Moulton...
+2026-02-26 22:23:11,165 - INFO - [pipeline.py:356] - Processing Agency: City of Moulton (Alabama)
+2026-02-26 22:23:12,209 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Moulton
+2026-02-26 22:23:12,287 - INFO - [orchestrator.py:419] - ✅ Finished City of Moulton
+2026-02-26 22:23:12,287 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Northport...
+2026-02-26 22:23:12,287 - INFO - [pipeline.py:356] - Processing Agency: City of Northport (Alabama)
+2026-02-26 22:23:13,367 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:13,367 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://northportal.gov/Bids.aspx (AI Mode)...
+2026-02-26 22:23:16,867 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.montgomeryal.gov/business/partner-with-the-city/bids-and-rfps.
+2026-02-26 22:23:16,867 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:16,969 - INFO - [orchestrator.py:419] - ✅ Finished City of Montgomery
+2026-02-26 22:23:16,969 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Odenville...
+2026-02-26 22:23:16,969 - INFO - [pipeline.py:356] - Processing Agency: City of Odenville (Alabama)
+2026-02-26 22:23:17,885 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Odenville
+2026-02-26 22:23:17,967 - INFO - [orchestrator.py:419] - ✅ Finished City of Odenville
+2026-02-26 22:23:17,967 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Opelika...
+2026-02-26 22:23:17,967 - INFO - [pipeline.py:356] - Processing Agency: City of Opelika (Alabama)
+2026-02-26 22:23:18,997 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:18,999 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.opelika-al.gov/bids.aspx (AI Mode)...
+2026-02-26 22:23:19,536 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://northportal.gov/Bids.aspx.
+2026-02-26 22:23:19,537 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:19,756 - INFO - [orchestrator.py:419] - ✅ Finished City of Northport
+2026-02-26 22:23:19,757 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Orange Beach...
+2026-02-26 22:23:19,757 - INFO - [pipeline.py:356] - Processing Agency: City of Orange Beach (Alabama)
+2026-02-26 22:23:20,031 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://madisonal.procureware.com/Bids.
+2026-02-26 22:23:20,031 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:20,271 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.gulfshoresal.gov/1871/Bids-and-Proposals.
+2026-02-26 22:23:20,271 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:20,331 - INFO - [orchestrator.py:419] - ✅ Finished City of Madison
+2026-02-26 22:23:20,331 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Owens Cross Roads...
+2026-02-26 22:23:20,332 - INFO - [pipeline.py:356] - Processing Agency: City of Owens Cross Roads (Alabama)
+2026-02-26 22:23:20,595 - INFO - [orchestrator.py:419] - ✅ Finished City of Gulf Shores
+2026-02-26 22:23:20,595 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Oxford, AL...
+2026-02-26 22:23:20,596 - INFO - [pipeline.py:356] - Processing Agency: City of Oxford, AL (Alabama)
+2026-02-26 22:23:21,316 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Orange Beach
+2026-02-26 22:23:21,499 - INFO - [orchestrator.py:419] - ✅ Finished City of Orange Beach
+2026-02-26 22:23:21,500 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Ozark...
+2026-02-26 22:23:21,500 - INFO - [pipeline.py:356] - Processing Agency: City of Ozark (Alabama)
+2026-02-26 22:23:21,969 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Owens Cross Roads
+2026-02-26 22:23:22,171 - INFO - [orchestrator.py:419] - ✅ Finished City of Owens Cross Roads
+2026-02-26 22:23:22,171 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Pelham...
+2026-02-26 22:23:22,172 - INFO - [pipeline.py:356] - Processing Agency: City of Pelham (Alabama)
+2026-02-26 22:23:22,444 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Oxford, AL
+2026-02-26 22:23:22,581 - INFO - [orchestrator.py:419] - ✅ Finished City of Oxford, AL
+2026-02-26 22:23:22,582 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Pell City...
+2026-02-26 22:23:22,583 - INFO - [pipeline.py:356] - Processing Agency: City of Pell City (Alabama)
+2026-02-26 22:23:23,530 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Ozark
+2026-02-26 22:23:23,691 - INFO - [orchestrator.py:419] - ✅ Finished City of Ozark
+2026-02-26 22:23:23,694 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Phenix City, AL...
+2026-02-26 22:23:23,694 - INFO - [pipeline.py:356] - Processing Agency: City of Phenix City, AL (Alabama)
+2026-02-26 22:23:23,966 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Pelham
+2026-02-26 22:23:24,182 - INFO - [orchestrator.py:419] - ✅ Finished City of Pelham
+2026-02-26 22:23:24,183 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Pinson, Al....
+2026-02-26 22:23:24,183 - INFO - [pipeline.py:356] - Processing Agency: City of Pinson, Al. (Alabama)
+2026-02-26 22:23:24,867 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:24,877 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://pellcity.gov/open-bids-solicitations (AI Mode)...
+2026-02-26 22:23:26,005 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Phenix City, AL
+2026-02-26 22:23:26,201 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://margaretal.gov/ordinances/.
+2026-02-26 22:23:26,202 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:26,278 - INFO - [orchestrator.py:419] - ✅ Finished City of Phenix City, AL
+2026-02-26 22:23:26,279 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Prattville...
+2026-02-26 22:23:26,279 - INFO - [pipeline.py:356] - Processing Agency: City of Prattville (Alabama)
+2026-02-26 22:23:26,526 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:26,527 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://pinsonal.gov/bid-openings/ (AI Mode)...
+2026-02-26 22:23:26,621 - INFO - [orchestrator.py:419] - ✅ Finished City of Margaret
+2026-02-26 22:23:26,621 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Red Bay...
+2026-02-26 22:23:26,621 - INFO - [pipeline.py:356] - Processing Agency: City of Red Bay (Alabama)
+2026-02-26 22:23:28,281 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:28,285 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://vrapp.vendorregistry.com/Bids/View/BidsList?BuyerId=4163eeb1-5bda-4f9d-8d47-4182b2cb3a07 (AI Mode)...
+2026-02-26 22:23:28,594 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.opelika-al.gov/bids.aspx.
+2026-02-26 22:23:28,594 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:28,599 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Red Bay
+2026-02-26 22:23:29,025 - INFO - [orchestrator.py:419] - ✅ Finished City of Red Bay
+2026-02-26 22:23:29,025 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Saraland...
+2026-02-26 22:23:29,025 - INFO - [pipeline.py:356] - Processing Agency: City of Saraland (Alabama)
+2026-02-26 22:23:29,149 - INFO - [orchestrator.py:419] - ✅ Finished City of Opelika
+2026-02-26 22:23:29,150 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Scottsboro...
+2026-02-26 22:23:29,150 - INFO - [pipeline.py:356] - Processing Agency: City of Scottsboro (Alabama)
+2026-02-26 22:23:29,695 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://pellcity.gov/open-bids-solicitations.
+2026-02-26 22:23:29,698 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:29,907 - INFO - [orchestrator.py:419] - ✅ Finished City of Pell City
+2026-02-26 22:23:29,907 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Selma...
+2026-02-26 22:23:29,907 - INFO - [pipeline.py:356] - Processing Agency: City of Selma (Alabama)
+2026-02-26 22:23:30,584 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Saraland
+2026-02-26 22:23:30,770 - INFO - [orchestrator.py:419] - ✅ Finished City of Saraland
+2026-02-26 22:23:30,770 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Semmes...
+2026-02-26 22:23:30,771 - INFO - [pipeline.py:356] - Processing Agency: City of Semmes (Alabama)
+2026-02-26 22:23:30,913 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Scottsboro
+2026-02-26 22:23:31,065 - INFO - [orchestrator.py:419] - ✅ Finished City of Scottsboro
+2026-02-26 22:23:31,065 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Sheffield, Alabama...
+2026-02-26 22:23:31,066 - INFO - [pipeline.py:356] - Processing Agency: City of Sheffield, Alabama (Alabama)
+2026-02-26 22:23:31,892 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:31,892 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://selma-al.gov/bid-openings/ (AI Mode)...
+2026-02-26 22:23:32,671 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://pinsonal.gov/bid-openings/.
+2026-02-26 22:23:32,671 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:32,849 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Semmes
+2026-02-26 22:23:33,053 - INFO - [orchestrator.py:419] - ✅ Finished City of Semmes
+2026-02-26 22:23:33,053 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Smiths Station AL...
+2026-02-26 22:23:33,054 - INFO - [pipeline.py:356] - Processing Agency: City of Smiths Station AL (Alabama)
+2026-02-26 22:23:33,229 - INFO - [orchestrator.py:419] - ✅ Finished City of Pinson, Al.
+2026-02-26 22:23:33,229 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Spanish Fort...
+2026-02-26 22:23:33,229 - INFO - [pipeline.py:356] - Processing Agency: City of Spanish Fort (Alabama)
+2026-02-26 22:23:33,385 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Sheffield, Alabama
+2026-02-26 22:23:33,647 - INFO - [orchestrator.py:419] - ✅ Finished City of Sheffield, Alabama
+2026-02-26 22:23:33,649 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Sumiton...
+2026-02-26 22:23:33,650 - INFO - [pipeline.py:356] - Processing Agency: City of Sumiton (Alabama)
+2026-02-26 22:23:35,015 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://vrapp.vendorregistry.com/Bids/View/BidsList?BuyerId=4163eeb1-5bda-4f9d-8d47-4182b2cb3a07.
+2026-02-26 22:23:35,015 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:35,664 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Spanish Fort
+2026-02-26 22:23:35,710 - INFO - [orchestrator.py:419] - ✅ Finished City of Prattville
+2026-02-26 22:23:35,711 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Sylacauga...
+2026-02-26 22:23:35,711 - INFO - [pipeline.py:356] - Processing Agency: City of Sylacauga (Alabama)
+2026-02-26 22:23:35,946 - INFO - [orchestrator.py:419] - ✅ Finished City of Spanish Fort
+2026-02-26 22:23:35,946 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Tarrant...
+2026-02-26 22:23:35,947 - INFO - [pipeline.py:356] - Processing Agency: City of Tarrant (Alabama)
+2026-02-26 22:23:36,368 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Smiths Station AL
+2026-02-26 22:23:36,553 - INFO - [orchestrator.py:419] - ✅ Finished City of Smiths Station AL
+2026-02-26 22:23:36,554 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Troy...
+2026-02-26 22:23:36,554 - INFO - [pipeline.py:356] - Processing Agency: City of Troy (Alabama)
+2026-02-26 22:23:36,786 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Sumiton
+2026-02-26 22:23:37,002 - INFO - [orchestrator.py:419] - ✅ Finished City of Sumiton
+2026-02-26 22:23:37,005 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Tuscaloosa, AL...
+2026-02-26 22:23:37,005 - INFO - [pipeline.py:356] - Processing Agency: City of Tuscaloosa, AL (Alabama)
+2026-02-26 22:23:38,582 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://selma-al.gov/bid-openings/.
+2026-02-26 22:23:38,582 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:38,585 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Sylacauga
+2026-02-26 22:23:38,589 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Tarrant
+2026-02-26 22:23:38,849 - INFO - [orchestrator.py:419] - ✅ Finished City of Sylacauga
+2026-02-26 22:23:38,849 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Tuskegee...
+2026-02-26 22:23:38,849 - INFO - [pipeline.py:356] - Processing Agency: City of Tuskegee (Alabama)
+2026-02-26 22:23:38,996 - INFO - [orchestrator.py:419] - ✅ Finished City of Tarrant
+2026-02-26 22:23:38,996 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Union Springs...
+2026-02-26 22:23:38,996 - INFO - [pipeline.py:356] - Processing Agency: City of Union Springs (Alabama)
+2026-02-26 22:23:39,165 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Troy
+2026-02-26 22:23:39,179 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:39,179 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.tuscaloosa.com/bids (AI Mode)...
+2026-02-26 22:23:39,267 - INFO - [orchestrator.py:419] - ✅ Finished City of Selma
+2026-02-26 22:23:39,267 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Warrior...
+2026-02-26 22:23:39,268 - INFO - [pipeline.py:356] - Processing Agency: City of Warrior (Alabama)
+2026-02-26 22:23:39,380 - INFO - [orchestrator.py:419] - ✅ Finished City of Troy
+2026-02-26 22:23:39,385 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Weaver...
+2026-02-26 22:23:39,385 - INFO - [pipeline.py:356] - Processing Agency: City of Weaver (Alabama)
+2026-02-26 22:23:40,771 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Tuskegee
+2026-02-26 22:23:41,055 - INFO - [orchestrator.py:419] - ✅ Finished City of Tuskegee
+2026-02-26 22:23:41,055 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Westover Alabama...
+2026-02-26 22:23:41,055 - INFO - [pipeline.py:356] - Processing Agency: City of Westover Alabama (Alabama)
+2026-02-26 22:23:41,343 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Union Springs
+2026-02-26 22:23:41,354 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Warrior
+2026-02-26 22:23:41,431 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Weaver
+2026-02-26 22:23:41,557 - INFO - [orchestrator.py:419] - ✅ Finished City of Warrior
+2026-02-26 22:23:41,558 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for City of Wetumpka...
+2026-02-26 22:23:41,558 - INFO - [pipeline.py:356] - Processing Agency: City of Wetumpka (Alabama)
+2026-02-26 22:23:41,657 - INFO - [orchestrator.py:419] - ✅ Finished City of Union Springs
+2026-02-26 22:23:41,658 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Clarke County Commission...
+2026-02-26 22:23:41,658 - INFO - [pipeline.py:356] - Processing Agency: Clarke County Commission (Alabama)
+2026-02-26 22:23:41,748 - INFO - [orchestrator.py:419] - ✅ Finished City of Weaver
+2026-02-26 22:23:41,751 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Coosa County Commission...
+2026-02-26 22:23:41,752 - INFO - [pipeline.py:356] - Processing Agency: Coosa County Commission (Alabama)
+2026-02-26 22:23:43,689 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Westover Alabama
+2026-02-26 22:23:43,813 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for City of Wetumpka
+2026-02-26 22:23:43,971 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Clarke County Commission
+2026-02-26 22:23:44,098 - INFO - [orchestrator.py:419] - ✅ Finished City of Westover Alabama
+2026-02-26 22:23:44,098 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Coosada 911 Communications District...
+2026-02-26 22:23:44,098 - INFO - [pipeline.py:356] - Processing Agency: Coosada 911 Communications District (Alabama)
+2026-02-26 22:23:44,447 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Coosa County Commission
+2026-02-26 22:23:44,472 - INFO - [orchestrator.py:419] - ✅ Finished City of Wetumpka
+2026-02-26 22:23:44,472 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Covington County Commission...
+2026-02-26 22:23:44,472 - INFO - [pipeline.py:356] - Processing Agency: Covington County Commission (Alabama)
+2026-02-26 22:23:44,632 - INFO - [orchestrator.py:419] - ✅ Finished Clarke County Commission
+2026-02-26 22:23:44,633 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Crenshaw County Emergency Management...
+2026-02-26 22:23:44,633 - INFO - [pipeline.py:356] - Processing Agency: Crenshaw County Emergency Management (Alabama)
+2026-02-26 22:23:44,788 - INFO - [orchestrator.py:419] - ✅ Finished Coosa County Commission
+2026-02-26 22:23:44,788 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Dale County...
+2026-02-26 22:23:44,788 - INFO - [pipeline.py:356] - Processing Agency: Dale County (Alabama)
+2026-02-26 22:23:46,505 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Coosada 911 Communications District
+2026-02-26 22:23:46,639 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:46,639 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.covingtoncountyal.gov/Bids.aspx (AI Mode)...
+2026-02-26 22:23:46,778 - INFO - [orchestrator.py:419] - ✅ Finished Coosada 911 Communications District
+2026-02-26 22:23:46,778 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Dale County Sheriff’s Office...
+2026-02-26 22:23:46,778 - INFO - [pipeline.py:356] - Processing Agency: Dale County Sheriff’s Office (Alabama)
+2026-02-26 22:23:47,456 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Dale County
+2026-02-26 22:23:47,863 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.tuscaloosa.com/bids.
+2026-02-26 22:23:47,863 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:47,869 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Crenshaw County Emergency Management
+2026-02-26 22:23:47,934 - INFO - [orchestrator.py:419] - ✅ Finished Dale County
+2026-02-26 22:23:47,934 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Dallas County Water & Sewer Authority...
+2026-02-26 22:23:47,934 - INFO - [pipeline.py:356] - Processing Agency: Dallas County Water & Sewer Authority (Alabama)
+2026-02-26 22:23:48,062 - INFO - [orchestrator.py:419] - ✅ Finished Crenshaw County Emergency Management
+2026-02-26 22:23:48,062 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for DeKalb County E-911...
+2026-02-26 22:23:48,062 - INFO - [pipeline.py:356] - Processing Agency: DeKalb County E-911 (Alabama)
+2026-02-26 22:23:48,359 - INFO - [orchestrator.py:419] - ✅ Finished City of Tuscaloosa, AL
+2026-02-26 22:23:48,360 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Escambia County Commission of Alabama...
+2026-02-26 22:23:48,361 - INFO - [pipeline.py:356] - Processing Agency: Escambia County Commission of Alabama (Alabama)
+2026-02-26 22:23:49,041 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Dale County Sheriff’s Office
+2026-02-26 22:23:49,230 - INFO - [orchestrator.py:419] - ✅ Finished Dale County Sheriff’s Office
+2026-02-26 22:23:49,231 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Fort Deposit...
+2026-02-26 22:23:49,233 - INFO - [pipeline.py:356] - Processing Agency: Fort Deposit (Alabama)
+2026-02-26 22:23:50,224 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for DeKalb County E-911
+2026-02-26 22:23:50,417 - INFO - [orchestrator.py:419] - ✅ Finished DeKalb County E-911
+2026-02-26 22:23:50,417 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Franklin County Commission...
+2026-02-26 22:23:50,418 - INFO - [pipeline.py:356] - Processing Agency: Franklin County Commission (Alabama)
+2026-02-26 22:23:50,646 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Dallas County Water & Sewer Authority
+2026-02-26 22:23:50,651 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Escambia County Commission of Alabama
+2026-02-26 22:23:50,980 - INFO - [orchestrator.py:419] - ✅ Finished Escambia County Commission of Alabama
+2026-02-26 22:23:50,981 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Geneva County Probate Judge...
+2026-02-26 22:23:50,981 - INFO - [pipeline.py:356] - Processing Agency: Geneva County Probate Judge (Alabama)
+2026-02-26 22:23:51,195 - INFO - [orchestrator.py:419] - ✅ Finished Dallas County Water & Sewer Authority
+2026-02-26 22:23:51,195 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Governor's Office of Volunteer Services...
+2026-02-26 22:23:51,196 - INFO - [pipeline.py:356] - Processing Agency: Governor's Office of Volunteer Services (Alabama)
+2026-02-26 22:23:51,638 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Fort Deposit
+2026-02-26 22:23:51,851 - INFO - [orchestrator.py:419] - ✅ Finished Fort Deposit
+2026-02-26 22:23:51,854 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for HALE COUNTY SHERIFFS OFFICE SUITE 18...
+2026-02-26 22:23:51,855 - INFO - [pipeline.py:356] - Processing Agency: HALE COUNTY SHERIFFS OFFICE SUITE 18 (Alabama)
+2026-02-26 22:23:52,974 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Franklin County Commission
+2026-02-26 22:23:53,170 - INFO - [orchestrator.py:419] - ✅ Finished Franklin County Commission
+2026-02-26 22:23:53,170 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Hale County Commission...
+2026-02-26 22:23:53,171 - INFO - [pipeline.py:356] - Processing Agency: Hale County Commission (Alabama)
+2026-02-26 22:23:53,890 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Geneva County Probate Judge
+2026-02-26 22:23:53,902 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Governor's Office of Volunteer Services
+2026-02-26 22:23:54,077 - INFO - [orchestrator.py:419] - ✅ Finished Geneva County Probate Judge
+2026-02-26 22:23:54,078 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Hanceville Water & Sewer Board...
+2026-02-26 22:23:54,078 - INFO - [pipeline.py:356] - Processing Agency: Hanceville Water & Sewer Board (Alabama)
+2026-02-26 22:23:54,196 - INFO - [orchestrator.py:419] - ✅ Finished Governor's Office of Volunteer Services
+2026-02-26 22:23:54,197 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Headland Police Department...
+2026-02-26 22:23:54,197 - INFO - [pipeline.py:356] - Processing Agency: Headland Police Department (Alabama)
+2026-02-26 22:23:54,582 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for HALE COUNTY SHERIFFS OFFICE SUITE 18
+2026-02-26 22:23:54,844 - INFO - [orchestrator.py:419] - ✅ Finished HALE COUNTY SHERIFFS OFFICE SUITE 18
+2026-02-26 22:23:54,845 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Henry County Commission...
+2026-02-26 22:23:54,847 - INFO - [pipeline.py:356] - Processing Agency: Henry County Commission (Alabama)
+2026-02-26 22:23:55,527 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.covingtoncountyal.gov/Bids.aspx.
+2026-02-26 22:23:55,527 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:23:55,843 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:55,883 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.halecountyal.gov/bids-0 (AI Mode)...
+2026-02-26 22:23:56,204 - INFO - [orchestrator.py:419] - ✅ Finished Covington County Commission
+2026-02-26 22:23:56,204 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Henry County Sheriff's Office...
+2026-02-26 22:23:56,204 - INFO - [pipeline.py:356] - Processing Agency: Henry County Sheriff's Office (Alabama)
+2026-02-26 22:23:56,699 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Hanceville Water & Sewer Board
+2026-02-26 22:23:56,713 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Headland Police Department
+2026-02-26 22:23:56,891 - INFO - [orchestrator.py:419] - ✅ Finished Hanceville Water & Sewer Board
+2026-02-26 22:23:56,891 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Houston County Sheriff's Office...
+2026-02-26 22:23:56,891 - INFO - [pipeline.py:356] - Processing Agency: Houston County Sheriff's Office (Alabama)
+2026-02-26 22:23:56,972 - INFO - [orchestrator.py:419] - ✅ Finished Headland Police Department
+2026-02-26 22:23:56,972 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Huntsville-Madison County Emergency Management Agency...
+2026-02-26 22:23:56,973 - INFO - [pipeline.py:356] - Processing Agency: Huntsville-Madison County Emergency Management Agency (Alabama)
+2026-02-26 22:23:57,451 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Henry County Commission
+2026-02-26 22:23:57,579 - INFO - [orchestrator.py:419] - ✅ Finished Henry County Commission
+2026-02-26 22:23:57,580 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Jackson County Commission...
+2026-02-26 22:23:57,580 - INFO - [pipeline.py:356] - Processing Agency: Jackson County Commission (Alabama)
+2026-02-26 22:23:58,549 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Henry County Sheriff's Office
+2026-02-26 22:23:58,774 - INFO - [orchestrator.py:419] - ✅ Finished Henry County Sheriff's Office
+2026-02-26 22:23:58,776 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Lake View Alabama...
+2026-02-26 22:23:58,777 - INFO - [pipeline.py:356] - Processing Agency: Lake View Alabama (Alabama)
+2026-02-26 22:23:58,962 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:23:58,963 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://houstoncountyal.gov/bid_notices/ (AI Mode)...
+2026-02-26 22:23:59,353 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Huntsville-Madison County Emergency Management Agency
+2026-02-26 22:23:59,571 - INFO - [orchestrator.py:419] - ✅ Finished Huntsville-Madison County Emergency Management Agency
+2026-02-26 22:23:59,571 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Lamar County Commission...
+2026-02-26 22:23:59,571 - INFO - [pipeline.py:356] - Processing Agency: Lamar County Commission (Alabama)
+2026-02-26 22:24:00,013 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:00,013 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.jacksoncountyal.gov/Bids.aspx (AI Mode)...
+2026-02-26 22:24:00,969 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.halecountyal.gov/bids-0.
+2026-02-26 22:24:00,969 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:00,972 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Lake View Alabama
+2026-02-26 22:24:01,148 - INFO - [orchestrator.py:419] - ✅ Finished Lake View Alabama
+2026-02-26 22:24:01,148 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Lauderdale County Commission...
+2026-02-26 22:24:01,148 - INFO - [pipeline.py:356] - Processing Agency: Lauderdale County Commission (Alabama)
+2026-02-26 22:24:01,241 - INFO - [orchestrator.py:419] - ✅ Finished Hale County Commission
+2026-02-26 22:24:01,241 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Lawrence County Commission...
+2026-02-26 22:24:01,241 - INFO - [pipeline.py:356] - Processing Agency: Lawrence County Commission (Alabama)
+2026-02-26 22:24:01,763 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Lamar County Commission
+2026-02-26 22:24:01,961 - INFO - [orchestrator.py:419] - ✅ Finished Lamar County Commission
+2026-02-26 22:24:01,961 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Lee County Sheriff's Office...
+2026-02-26 22:24:01,961 - INFO - [pipeline.py:356] - Processing Agency: Lee County Sheriff's Office (Alabama)
+2026-02-26 22:24:03,179 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:03,179 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://lauderdalecountyal.gov/index.php/bid-assessments/ (AI Mode)...
+2026-02-26 22:24:03,313 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Lawrence County Commission
+2026-02-26 22:24:04,006 - INFO - [orchestrator.py:419] - ✅ Finished Lawrence County Commission
+2026-02-26 22:24:04,007 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Limestone County Commission...
+2026-02-26 22:24:04,011 - INFO - [pipeline.py:356] - Processing Agency: Limestone County Commission (Alabama)
+2026-02-26 22:24:05,714 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Lee County Sheriff's Office
+2026-02-26 22:24:06,070 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://houstoncountyal.gov/bid_notices/.
+2026-02-26 22:24:06,075 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:06,286 - INFO - [orchestrator.py:419] - ✅ Finished Lee County Sheriff's Office
+2026-02-26 22:24:06,290 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Lowndes County Commission...
+2026-02-26 22:24:06,290 - INFO - [pipeline.py:356] - Processing Agency: Lowndes County Commission (Alabama)
+2026-02-26 22:24:06,981 - INFO - [orchestrator.py:419] - ✅ Finished Houston County Sheriff's Office
+2026-02-26 22:24:06,982 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Marshall County Commission...
+2026-02-26 22:24:06,983 - INFO - [pipeline.py:356] - Processing Agency: Marshall County Commission (Alabama)
+2026-02-26 22:24:07,159 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Limestone County Commission
+2026-02-26 22:24:07,428 - INFO - [orchestrator.py:419] - ✅ Finished Limestone County Commission
+2026-02-26 22:24:07,429 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Marshall County Sherriff's Office...
+2026-02-26 22:24:07,430 - INFO - [pipeline.py:356] - Processing Agency: Marshall County Sherriff's Office (Alabama)
+2026-02-26 22:24:07,714 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://lauderdalecountyal.gov/index.php/bid-assessments/.
+2026-02-26 22:24:07,714 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:08,004 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.jacksoncountyal.gov/Bids.aspx.
+2026-02-26 22:24:08,004 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:08,060 - INFO - [orchestrator.py:419] - ✅ Finished Lauderdale County Commission
+2026-02-26 22:24:08,060 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for McAdory Area Fire District...
+2026-02-26 22:24:08,060 - INFO - [pipeline.py:356] - Processing Agency: McAdory Area Fire District (Alabama)
+2026-02-26 22:24:08,493 - INFO - [orchestrator.py:419] - ✅ Finished Jackson County Commission
+2026-02-26 22:24:08,494 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Mobile Community Corrections Center...
+2026-02-26 22:24:08,496 - INFO - [pipeline.py:356] - Processing Agency: Mobile Community Corrections Center (Alabama)
+2026-02-26 22:24:08,886 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Lowndes County Commission
+2026-02-26 22:24:09,143 - INFO - [orchestrator.py:419] - ✅ Finished Lowndes County Commission
+2026-02-26 22:24:09,144 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Mobile County Communications District...
+2026-02-26 22:24:09,144 - INFO - [pipeline.py:356] - Processing Agency: Mobile County Communications District (Alabama)
+2026-02-26 22:24:09,489 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:09,489 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://marshallal.gov/purchasing/bidsopen.html (AI Mode)...
+2026-02-26 22:24:10,229 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Marshall County Sherriff's Office
+2026-02-26 22:24:10,398 - INFO - [orchestrator.py:419] - ✅ Finished Marshall County Sherriff's Office
+2026-02-26 22:24:10,398 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Monroe County Commission...
+2026-02-26 22:24:10,511 - INFO - [pipeline.py:356] - Processing Agency: Monroe County Commission (Alabama)
+2026-02-26 22:24:10,755 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for McAdory Area Fire District
+2026-02-26 22:24:10,927 - INFO - [orchestrator.py:419] - ✅ Finished McAdory Area Fire District
+2026-02-26 22:24:10,928 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Montgomery County Commission...
+2026-02-26 22:24:10,928 - INFO - [pipeline.py:356] - Processing Agency: Montgomery County Commission (Alabama)
+2026-02-26 22:24:11,349 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Mobile Community Corrections Center
+2026-02-26 22:24:11,554 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Mobile County Communications District
+2026-02-26 22:24:11,561 - INFO - [orchestrator.py:419] - ✅ Finished Mobile Community Corrections Center
+2026-02-26 22:24:11,562 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Morgan County Commission...
+2026-02-26 22:24:11,562 - INFO - [pipeline.py:356] - Processing Agency: Morgan County Commission (Alabama)
+2026-02-26 22:24:11,720 - INFO - [orchestrator.py:419] - ✅ Finished Mobile County Communications District
+2026-02-26 22:24:11,721 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for National Aeronautics and Space Administration...
+2026-02-26 22:24:11,721 - INFO - [pipeline.py:356] - Processing Agency: National Aeronautics and Space Administration (Alabama)
+2026-02-26 22:24:12,575 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Monroe County Commission
+2026-02-26 22:24:12,722 - INFO - [orchestrator.py:419] - ✅ Finished Monroe County Commission
+2026-02-26 22:24:12,723 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Oneonta Police Department...
+2026-02-26 22:24:12,726 - INFO - [pipeline.py:356] - Processing Agency: Oneonta Police Department (Alabama)
+2026-02-26 22:24:13,099 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Montgomery County Commission
+2026-02-26 22:24:13,315 - INFO - [orchestrator.py:419] - ✅ Finished Montgomery County Commission
+2026-02-26 22:24:13,316 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Orange Beach Public Library...
+2026-02-26 22:24:13,316 - INFO - [pipeline.py:356] - Processing Agency: Orange Beach Public Library (Alabama)
+2026-02-26 22:24:13,649 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for National Aeronautics and Space Administration
+2026-02-26 22:24:13,765 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://marshallal.gov/purchasing/bidsopen.html.
+2026-02-26 22:24:13,768 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:13,948 - INFO - [orchestrator.py:419] - ✅ Finished National Aeronautics and Space Administration
+2026-02-26 22:24:13,948 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for PIQUA SHAWNEE TRIBE recognized by the Alabama Indian Affairs Commission (AIAC)...
+2026-02-26 22:24:13,948 - INFO - [pipeline.py:356] - Processing Agency: PIQUA SHAWNEE TRIBE recognized by the Alabama Indian Affairs Commission (AIAC) (Alabama)
+2026-02-26 22:24:14,164 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Morgan County Commission
+2026-02-26 22:24:14,207 - INFO - [orchestrator.py:419] - ✅ Finished Marshall County Commission
+2026-02-26 22:24:14,208 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Perry County Commission...
+2026-02-26 22:24:14,208 - INFO - [pipeline.py:356] - Processing Agency: Perry County Commission (Alabama)
+2026-02-26 22:24:14,399 - INFO - [orchestrator.py:419] - ✅ Finished Morgan County Commission
+2026-02-26 22:24:14,400 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Pike County Communications District...
+2026-02-26 22:24:14,400 - INFO - [pipeline.py:356] - Processing Agency: Pike County Communications District (Alabama)
+2026-02-26 22:24:15,249 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Oneonta Police Department
+2026-02-26 22:24:15,485 - INFO - [orchestrator.py:419] - ✅ Finished Oneonta Police Department
+2026-02-26 22:24:15,485 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Poarch Band of Creek Indians...
+2026-02-26 22:24:15,486 - INFO - [pipeline.py:356] - Processing Agency: Poarch Band of Creek Indians (Alabama)
+2026-02-26 22:24:15,705 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Orange Beach Public Library
+2026-02-26 22:24:15,900 - INFO - [orchestrator.py:419] - ✅ Finished Orange Beach Public Library
+2026-02-26 22:24:15,901 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Purchasing Division of the Department of Finance...
+2026-02-26 22:24:15,904 - INFO - [pipeline.py:356] - Processing Agency: Purchasing Division of the Department of Finance (Alabama)
+2026-02-26 22:24:16,189 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for PIQUA SHAWNEE TRIBE recognized by the Alabama Indian Affairs Commission (AIAC)
+2026-02-26 22:24:16,382 - INFO - [orchestrator.py:419] - ✅ Finished PIQUA SHAWNEE TRIBE recognized by the Alabama Indian Affairs Commission (AIAC)
+2026-02-26 22:24:16,383 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Randolph County Commission...
+2026-02-26 22:24:16,384 - INFO - [pipeline.py:356] - Processing Agency: Randolph County Commission (Alabama)
+2026-02-26 22:24:16,522 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Pike County Communications District
+2026-02-26 22:24:16,725 - INFO - [orchestrator.py:419] - ✅ Finished Pike County Communications District
+2026-02-26 22:24:16,726 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Retirement System of Alabama...
+2026-02-26 22:24:16,727 - INFO - [pipeline.py:356] - Processing Agency: Retirement System of Alabama (Alabama)
+2026-02-26 22:24:17,245 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:17,245 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://www.perrycountyal.gov/government/bid-postings (AI Mode)...
+2026-02-26 22:24:18,014 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Poarch Band of Creek Indians
+2026-02-26 22:24:18,231 - INFO - [orchestrator.py:419] - ✅ Finished Poarch Band of Creek Indians
+2026-02-26 22:24:18,232 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Russell County Commission...
+2026-02-26 22:24:18,232 - INFO - [pipeline.py:356] - Processing Agency: Russell County Commission (Alabama)
+2026-02-26 22:24:18,368 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:18,368 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://alabamabuys.gov/page.aspx/en/rfp/request_browse_public (AI Mode)...
+2026-02-26 22:24:19,193 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:19,199 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://randolphcountyal.gov/current-bids/ (AI Mode)...
+2026-02-26 22:24:19,506 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Retirement System of Alabama
+2026-02-26 22:24:19,669 - INFO - [orchestrator.py:419] - ✅ Finished Retirement System of Alabama
+2026-02-26 22:24:19,670 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Sardis City Alabama...
+2026-02-26 22:24:19,670 - INFO - [pipeline.py:356] - Processing Agency: Sardis City Alabama (Alabama)
+2026-02-26 22:24:20,219 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:20,219 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://russellcountyal.gov/services/bid_opportunities/index.php (AI Mode)...
+2026-02-26 22:24:21,643 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://www.perrycountyal.gov/government/bid-postings.
+2026-02-26 22:24:21,643 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:21,647 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Sardis City Alabama
+2026-02-26 22:24:21,821 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://randolphcountyal.gov/current-bids/.
+2026-02-26 22:24:21,821 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:21,848 - INFO - [orchestrator.py:419] - ✅ Finished Sardis City Alabama
+2026-02-26 22:24:21,848 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Smiths Station Fire Protection District...
+2026-02-26 22:24:21,849 - INFO - [pipeline.py:356] - Processing Agency: Smiths Station Fire Protection District (Alabama)
+2026-02-26 22:24:21,953 - INFO - [orchestrator.py:419] - ✅ Finished Perry County Commission
+2026-02-26 22:24:21,955 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for State of Alabama...
+2026-02-26 22:24:21,955 - INFO - [pipeline.py:356] - Processing Agency: State of Alabama (Alabama)
+2026-02-26 22:24:22,090 - INFO - [orchestrator.py:419] - ✅ Finished Randolph County Commission
+2026-02-26 22:24:22,090 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for State of Alabama - Legislative Computer Center...
+2026-02-26 22:24:22,091 - INFO - [pipeline.py:356] - Processing Agency: State of Alabama - Legislative Computer Center (Alabama)
+2026-02-26 22:24:23,669 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Smiths Station Fire Protection District
+2026-02-26 22:24:23,864 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for State of Alabama
+2026-02-26 22:24:23,959 - INFO - [orchestrator.py:419] - ✅ Finished Smiths Station Fire Protection District
+2026-02-26 22:24:23,959 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for State of Alabama - Unified Judicial System...
+2026-02-26 22:24:23,959 - INFO - [pipeline.py:356] - Processing Agency: State of Alabama - Unified Judicial System (Alabama)
+2026-02-26 22:24:24,123 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for State of Alabama - Legislative Computer Center
+2026-02-26 22:24:24,148 - INFO - [orchestrator.py:419] - ✅ Finished State of Alabama
+2026-02-26 22:24:24,148 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for State of Alabama Board of Medical Examiners...
+2026-02-26 22:24:24,148 - INFO - [pipeline.py:356] - Processing Agency: State of Alabama Board of Medical Examiners (Alabama)
+2026-02-26 22:24:24,536 - INFO - [orchestrator.py:419] - ✅ Finished State of Alabama - Legislative Computer Center
+2026-02-26 22:24:24,536 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for State of Alabama Finance...
+2026-02-26 22:24:24,537 - INFO - [pipeline.py:356] - Processing Agency: State of Alabama Finance (Alabama)
+2026-02-26 22:24:25,392 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://alabamabuys.gov/page.aspx/en/rfp/request_browse_public.
+2026-02-26 22:24:25,392 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:25,787 - INFO - [orchestrator.py:419] - ✅ Finished Purchasing Division of the Department of Finance
+2026-02-26 22:24:25,787 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for State of Alabama Supreme Court...
+2026-02-26 22:24:25,787 - INFO - [pipeline.py:356] - Processing Agency: State of Alabama Supreme Court (Alabama)
+2026-02-26 22:24:26,412 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for State of Alabama - Unified Judicial System
+2026-02-26 22:24:26,524 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for State of Alabama Board of Medical Examiners
+2026-02-26 22:24:26,683 - INFO - [orchestrator.py:419] - ✅ Finished State of Alabama - Unified Judicial System
+2026-02-26 22:24:26,684 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for The City of Opp, AL...
+2026-02-26 22:24:26,684 - INFO - [pipeline.py:356] - Processing Agency: The City of Opp, AL (Alabama)
+2026-02-26 22:24:26,827 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for State of Alabama Finance
+2026-02-26 22:24:26,891 - INFO - [orchestrator.py:419] - ✅ Finished State of Alabama Board of Medical Examiners
+2026-02-26 22:24:26,891 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Berlin...
+2026-02-26 22:24:26,891 - INFO - [pipeline.py:356] - Processing Agency: Town of Berlin (Alabama)
+2026-02-26 22:24:27,106 - INFO - [orchestrator.py:419] - ✅ Finished State of Alabama Finance
+2026-02-26 22:24:27,107 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Cleveland...
+2026-02-26 22:24:27,107 - INFO - [pipeline.py:356] - Processing Agency: Town of Cleveland (Alabama)
+2026-02-26 22:24:27,691 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://russellcountyal.gov/services/bid_opportunities/index.php.
+2026-02-26 22:24:27,695 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:27,943 - INFO - [orchestrator.py:419] - ✅ Finished Russell County Commission
+2026-02-26 22:24:27,946 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Coosada...
+2026-02-26 22:24:27,946 - INFO - [pipeline.py:356] - Processing Agency: Town of Coosada (Alabama)
+2026-02-26 22:24:28,598 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for State of Alabama Supreme Court
+2026-02-26 22:24:28,838 - INFO - [orchestrator.py:419] - ✅ Finished State of Alabama Supreme Court
+2026-02-26 22:24:28,841 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Eclectic...
+2026-02-26 22:24:28,843 - INFO - [pipeline.py:356] - Processing Agency: Town of Eclectic (Alabama)
+2026-02-26 22:24:29,129 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for The City of Opp, AL
+2026-02-26 22:24:29,378 - INFO - [orchestrator.py:419] - ✅ Finished The City of Opp, AL
+2026-02-26 22:24:29,378 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Elkmont...
+2026-02-26 22:24:29,379 - INFO - [pipeline.py:356] - Processing Agency: Town of Elkmont (Alabama)
+2026-02-26 22:24:29,546 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Berlin
+2026-02-26 22:24:29,774 - INFO - [orchestrator.py:419] - ✅ Finished Town of Berlin
+2026-02-26 22:24:29,775 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Franklin...
+2026-02-26 22:24:29,775 - INFO - [pipeline.py:356] - Processing Agency: Town of Franklin (Alabama)
+2026-02-26 22:24:30,030 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Cleveland
+2026-02-26 22:24:30,045 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Coosada
+2026-02-26 22:24:30,276 - INFO - [orchestrator.py:419] - ✅ Finished Town of Coosada
+2026-02-26 22:24:30,277 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Garden City, Alabama...
+2026-02-26 22:24:30,277 - INFO - [pipeline.py:356] - Processing Agency: Town of Garden City, Alabama (Alabama)
+2026-02-26 22:24:30,434 - INFO - [orchestrator.py:419] - ✅ Finished Town of Cleveland
+2026-02-26 22:24:30,434 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Haleburg...
+2026-02-26 22:24:30,434 - INFO - [pipeline.py:356] - Processing Agency: Town of Haleburg (Alabama)
+2026-02-26 22:24:31,549 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Eclectic
+2026-02-26 22:24:31,739 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Elkmont
+2026-02-26 22:24:31,782 - INFO - [orchestrator.py:419] - ✅ Finished Town of Eclectic
+2026-02-26 22:24:31,783 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Harpersville...
+2026-02-26 22:24:31,784 - INFO - [pipeline.py:356] - Processing Agency: Town of Harpersville (Alabama)
+2026-02-26 22:24:31,942 - INFO - [orchestrator.py:419] - ✅ Finished Town of Elkmont
+2026-02-26 22:24:31,942 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Hayden...
+2026-02-26 22:24:31,942 - INFO - [pipeline.py:356] - Processing Agency: Town of Hayden (Alabama)
+2026-02-26 22:24:32,323 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Franklin
+2026-02-26 22:24:32,524 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Haleburg
+2026-02-26 22:24:32,615 - INFO - [orchestrator.py:419] - ✅ Finished Town of Franklin
+2026-02-26 22:24:32,615 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Highland Lake...
+2026-02-26 22:24:32,615 - INFO - [pipeline.py:356] - Processing Agency: Town of Highland Lake (Alabama)
+2026-02-26 22:24:32,731 - INFO - [orchestrator.py:419] - ✅ Finished Town of Haleburg
+2026-02-26 22:24:32,732 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Louisville...
+2026-02-26 22:24:32,732 - INFO - [pipeline.py:356] - Processing Agency: Town of Louisville (Alabama)
+2026-02-26 22:24:33,256 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Garden City, Alabama
+2026-02-26 22:24:33,447 - INFO - [orchestrator.py:419] - ✅ Finished Town of Garden City, Alabama
+2026-02-26 22:24:33,448 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Lynn...
+2026-02-26 22:24:33,449 - INFO - [pipeline.py:356] - Processing Agency: Town of Lynn (Alabama)
+2026-02-26 22:24:34,553 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Harpersville
+2026-02-26 22:24:34,602 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Hayden
+2026-02-26 22:24:34,778 - INFO - [orchestrator.py:419] - ✅ Finished Town of Harpersville
+2026-02-26 22:24:34,779 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Magnolia Springs...
+2026-02-26 22:24:34,779 - INFO - [pipeline.py:356] - Processing Agency: Town of Magnolia Springs (Alabama)
+2026-02-26 22:24:34,975 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Highland Lake
+2026-02-26 22:24:34,999 - INFO - [orchestrator.py:419] - ✅ Finished Town of Hayden
+2026-02-26 22:24:34,999 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Maytown...
+2026-02-26 22:24:35,006 - INFO - [pipeline.py:356] - Processing Agency: Town of Maytown (Alabama)
+2026-02-26 22:24:35,237 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Louisville
+2026-02-26 22:24:35,331 - INFO - [orchestrator.py:419] - ✅ Finished Town of Highland Lake
+2026-02-26 22:24:35,332 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Mentone...
+2026-02-26 22:24:35,332 - INFO - [pipeline.py:356] - Processing Agency: Town of Mentone (Alabama)
+2026-02-26 22:24:35,497 - INFO - [orchestrator.py:419] - ✅ Finished Town of Louisville
+2026-02-26 22:24:35,498 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Nauvoo...
+2026-02-26 22:24:35,498 - INFO - [pipeline.py:356] - Processing Agency: Town of Nauvoo (Alabama)
+2026-02-26 22:24:35,746 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Lynn
+2026-02-26 22:24:35,987 - INFO - [orchestrator.py:419] - ✅ Finished Town of Lynn
+2026-02-26 22:24:35,989 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Pine Level, Alabama...
+2026-02-26 22:24:35,989 - INFO - [pipeline.py:356] - Processing Agency: Town of Pine Level, Alabama (Alabama)
+2026-02-26 22:24:36,958 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Magnolia Springs
+2026-02-26 22:24:37,143 - INFO - [orchestrator.py:419] - ✅ Finished Town of Magnolia Springs
+2026-02-26 22:24:37,144 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Rogersville...
+2026-02-26 22:24:37,144 - INFO - [pipeline.py:356] - Processing Agency: Town of Rogersville (Alabama)
+2026-02-26 22:24:37,445 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Maytown
+2026-02-26 22:24:37,653 - INFO - [orchestrator.py:419] - ✅ Finished Town of Maytown
+2026-02-26 22:24:37,653 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Shorter...
+2026-02-26 22:24:37,653 - INFO - [pipeline.py:356] - Processing Agency: Town of Shorter (Alabama)
+2026-02-26 22:24:37,934 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Mentone
+2026-02-26 22:24:38,078 - INFO - [orchestrator.py:419] - ✅ Finished Town of Mentone
+2026-02-26 22:24:38,080 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Sweet Water Alabama...
+2026-02-26 22:24:38,084 - INFO - [pipeline.py:356] - Processing Agency: Town of Sweet Water Alabama (Alabama)
+2026-02-26 22:24:38,239 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Nauvoo
+2026-02-26 22:24:38,349 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Pine Level, Alabama
+2026-02-26 22:24:38,552 - INFO - [orchestrator.py:419] - ✅ Finished Town of Nauvoo
+2026-02-26 22:24:38,554 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Trafford...
+2026-02-26 22:24:38,554 - INFO - [pipeline.py:356] - Processing Agency: Town of Trafford (Alabama)
+2026-02-26 22:24:38,678 - INFO - [orchestrator.py:419] - ✅ Finished Town of Pine Level, Alabama
+2026-02-26 22:24:38,678 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Triana...
+2026-02-26 22:24:38,678 - INFO - [pipeline.py:356] - Processing Agency: Town of Triana (Alabama)
+2026-02-26 22:24:39,698 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Rogersville
+2026-02-26 22:24:39,962 - INFO - [orchestrator.py:419] - ✅ Finished Town of Rogersville
+2026-02-26 22:24:39,962 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of Trinity Alabama...
+2026-02-26 22:24:39,962 - INFO - [pipeline.py:356] - Processing Agency: Town of Trinity Alabama (Alabama)
+2026-02-26 22:24:40,111 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:40,111 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://shorteral.gov/how-i-do/bid-openings/ (AI Mode)...
+2026-02-26 22:24:40,270 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Sweet Water Alabama
+2026-02-26 22:24:40,597 - INFO - [orchestrator.py:419] - ✅ Finished Town of Sweet Water Alabama
+2026-02-26 22:24:40,600 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Town of White Hall...
+2026-02-26 22:24:40,600 - INFO - [pipeline.py:356] - Processing Agency: Town of White Hall (Alabama)
+2026-02-26 22:24:41,072 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Triana
+2026-02-26 22:24:41,322 - INFO - [orchestrator.py:419] - ✅ Finished Town of Triana
+2026-02-26 22:24:41,322 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Trussville Gas and Water...
+2026-02-26 22:24:41,322 - INFO - [pipeline.py:356] - Processing Agency: Trussville Gas and Water (Alabama)
+2026-02-26 22:24:41,504 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Trafford
+2026-02-26 22:24:41,724 - INFO - [orchestrator.py:419] - ✅ Finished Town of Trafford
+2026-02-26 22:24:41,724 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Unified Judicial System - State of Alabama...
+2026-02-26 22:24:41,725 - INFO - [pipeline.py:356] - Processing Agency: Unified Judicial System - State of Alabama (Alabama)
+2026-02-26 22:24:43,031 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of Trinity Alabama
+2026-02-26 22:24:43,168 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Town of White Hall
+2026-02-26 22:24:43,377 - INFO - [orchestrator.py:419] - ✅ Finished Town of White Hall
+2026-02-26 22:24:43,377 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Uniontown Police Department...
+2026-02-26 22:24:43,378 - INFO - [pipeline.py:356] - Processing Agency: Uniontown Police Department (Alabama)
+2026-02-26 22:24:43,474 - INFO - [orchestrator.py:419] - ✅ Finished Town of Trinity Alabama
+2026-02-26 22:24:43,474 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Utilities Board for the City of Bayou la Batre...
+2026-02-26 22:24:43,475 - INFO - [pipeline.py:356] - Processing Agency: Utilities Board for the City of Bayou la Batre (Alabama)
+2026-02-26 22:24:44,127 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Unified Judicial System - State of Alabama
+2026-02-26 22:24:44,288 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 22:24:44,291 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://trussville.org/business/current-bidding-opportunities/ (AI Mode)...
+2026-02-26 22:24:44,510 - INFO - [orchestrator.py:419] - ✅ Finished Unified Judicial System - State of Alabama
+2026-02-26 22:24:44,517 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for WD Computer Solutions...
+2026-02-26 22:24:44,517 - INFO - [pipeline.py:356] - Processing Agency: WD Computer Solutions (Alabama)
+2026-02-26 22:24:46,407 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://shorteral.gov/how-i-do/bid-openings/.
+2026-02-26 22:24:46,408 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:46,412 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Utilities Board for the City of Bayou la Batre
+2026-02-26 22:24:46,670 - INFO - [orchestrator.py:419] - ✅ Finished Utilities Board for the City of Bayou la Batre
+2026-02-26 22:24:46,671 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for WILCOX COUNTY COMMISSION...
+2026-02-26 22:24:46,671 - INFO - [pipeline.py:356] - Processing Agency: WILCOX COUNTY COMMISSION (Alabama)
+2026-02-26 22:24:46,852 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Uniontown Police Department
+2026-02-26 22:24:46,959 - INFO - [orchestrator.py:419] - ✅ Finished Town of Shorter
+2026-02-26 22:24:46,959 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Wedowee Police Department...
+2026-02-26 22:24:46,959 - INFO - [pipeline.py:356] - Processing Agency: Wedowee Police Department (Alabama)
+2026-02-26 22:24:47,187 - INFO - [orchestrator.py:419] - ✅ Finished Uniontown Police Department
+2026-02-26 22:24:47,187 - INFO - [orchestrator.py:413] - 🚀 Starting async extraction for Winston County Commission...
+2026-02-26 22:24:47,187 - INFO - [pipeline.py:356] - Processing Agency: Winston County Commission (Alabama)
+2026-02-26 22:24:47,390 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for WD Computer Solutions
+2026-02-26 22:24:47,620 - INFO - [orchestrator.py:419] - ✅ Finished WD Computer Solutions
+2026-02-26 22:24:48,473 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for WILCOX COUNTY COMMISSION
+2026-02-26 22:24:48,622 - INFO - [orchestrator.py:419] - ✅ Finished WILCOX COUNTY COMMISSION
+2026-02-26 22:24:48,810 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Wedowee Police Department
+2026-02-26 22:24:48,943 - INFO - [orchestrator.py:419] - ✅ Finished Wedowee Police Department
+2026-02-26 22:24:49,033 - INFO - [pipeline.py:364] -   [Skip] Previously flagged as NO PORTAL for Winston County Commission
+2026-02-26 22:24:49,143 - INFO - [orchestrator.py:419] - ✅ Finished Winston County Commission
+2026-02-26 22:24:49,850 - WARNING - [pipeline.py:117] -   [Extraction] AI returned no content for https://trussville.org/business/current-bidding-opportunities/.
+2026-02-26 22:24:49,851 - INFO - [pipeline.py:390] -   Found 0 potential bids.
+2026-02-26 22:24:49,978 - INFO - [orchestrator.py:419] - ✅ Finished Trussville Gas and Water
+2026-02-26 22:24:49,979 - INFO - [orchestrator.py:437] - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-02-26 22:24:49,979 - INFO - [orchestrator.py:438] - ✅ SESSION TERMINATED GRACEFULLY.
+All 202 agency targets across 1 states have been processed. Background task shutting down cleanly.
+2026-02-26 22:24:49,979 - INFO - [orchestrator.py:439] - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-02-26 22:24:50,222 - INFO - [orchestrator.py:468] - ✅ V2 Async Engine completed successfully.
