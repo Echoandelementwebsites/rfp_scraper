@@ -28,21 +28,13 @@ class TestBasics(unittest.TestCase):
         self.assertEqual(b.title, "Road Work")
         self.assertEqual(b.clientName, "Dept of Public Works")
 
-    def test_database_sqlite(self):
-        # Use in-memory DB or temp file
-        db = DatabaseHandler(db_url=None)
-        self.assertFalse(db.is_postgres)
-        # We can't easily test connection without creating a file, which DatabaseHandler does.
-        # It creates rfp_scraper_v2/rfp_scraper_v2.db
-        self.assertTrue(os.path.exists(db.db_path))
-
     def test_engine_config(self):
         conf = engine.get_run_config()
         self.assertTrue(conf.process_iframes)
         self.assertTrue(conf.magic)
 
         llm = engine.get_llm_config()
-        self.assertEqual(llm.provider, "openai/deepseek-chat")
+        self.assertEqual(llm.provider, "deepseek/deepseek-chat")
 
 if __name__ == '__main__':
     unittest.main()

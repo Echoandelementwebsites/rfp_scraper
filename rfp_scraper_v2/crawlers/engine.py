@@ -18,7 +18,7 @@ class CrawlerEngine:
 
     def get_llm_config(self) -> LLMConfig:
         return LLMConfig(
-            provider="openai/deepseek-chat",
+            provider="deepseek/deepseek-chat",
             api_token=self.api_key,
             base_url=self.base_url
         )
