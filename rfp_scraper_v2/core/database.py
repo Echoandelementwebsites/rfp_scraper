@@ -10,6 +10,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import asyncpg
 from .models import Bid
+from rfp_scraper_v2.core.logger import logger
 
 # Static mapping for state abbreviation to full name
 ABBR_TO_STATE = {
@@ -126,28 +127,31 @@ class DatabaseHandler:
     async def connect_async(self):
         """Initializes the asyncpg connection pool."""
         if not self.async_pool:
-            print("Initializing asyncpg pool...")
+            logger.info("Initializing asyncpg pool...")
             self.async_pool = await asyncpg.create_pool(self.db_url)
 
     async def close_async(self):
         """Closes the asyncpg connection pool."""
         if self.async_pool:
-            print("Closing asyncpg pool...")
+            logger.info("Closing asyncpg pool...")
             await self.async_pool.close()
             self.async_pool = None
 
     async def async_save_bid(self, bid: Bid, state: str):
-        """Async version of save_bid."""
+        """Async version of save_bid with strict type mapping for asyncpg."""
         if not self.async_pool:
             await self.connect_async()
 
-        scraped_at = datetime.datetime.now().isoformat()
-        csi_json = json.dumps(bid.csi_divisions) if bid.csi_divisions else None
+        # 1. Native datetime object for TIMESTAMP
+        scraped_at = datetime.datetime.now()
 
-        # asyncpg uses $1, $2 placeholders
+        # 2. String representation for JSON, requires ::jsonb cast in SQL
+        csi_json = json.dumps(bid.csi_divisions) if bid.csi_divisions else "[]"
+
+        # Explicit ::jsonb cast added to $8
         query = """
             INSERT INTO bids (slug, client_name, title, deadline, description, link, full_text, csi_divisions, state, scraped_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
             ON CONFLICT (slug) DO UPDATE SET
                 deadline = EXCLUDED.deadline,
                 description = EXCLUDED.description,
@@ -156,12 +160,11 @@ class DatabaseHandler:
                 scraped_at = EXCLUDED.scraped_at
         """
 
-        deadline_val = bid.deadline
-        # Validate deadline format for Postgres DATE
-        if deadline_val:
+        # 3. Native date object for DATE
+        deadline_val = None
+        if bid.deadline:
             try:
-                # Basic check YYYY-MM-DD
-                datetime.datetime.strptime(deadline_val, "%Y-%m-%d")
+                deadline_val = datetime.datetime.strptime(bid.deadline, "%Y-%m-%d").date()
             except ValueError:
                 deadline_val = None
 
@@ -169,7 +172,7 @@ class DatabaseHandler:
              async with self.async_pool.acquire() as conn:
                 await conn.execute(query, bid.slug, bid.clientName, bid.title, deadline_val, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at)
         except Exception as e:
-            print(f"Error saving bid {bid.slug} (Async): {e}")
+            logger.error(f"Error saving bid {bid.slug} (Async): {e}", exc_info=True)
 
     async def async_url_already_scraped(self, url: str) -> bool:
         if not url: return False
@@ -184,7 +187,7 @@ class DatabaseHandler:
                 row = await conn.fetchrow(query, f"%{clean_url}%")
                 return row is not None
         except Exception as e:
-            print(f"Error checking url {url} (Async): {e}")
+            logger.error(f"Error checking url {url} (Async): {e}", exc_info=True)
             return False
 
     async def async_update_agency_procurement_url(self, name: str, state: str, procurement_url: str):
@@ -200,7 +203,7 @@ class DatabaseHandler:
             async with self.async_pool.acquire() as conn:
                 await conn.execute(query, procurement_url, name)
         except Exception as e:
-            print(f"Error updating procurement url for {name} (Async): {e}")
+            logger.error(f"Error updating procurement url for {name} (Async): {e}", exc_info=True)
 
     # --- Sync Methods (psycopg2) ---
 
@@ -365,7 +368,7 @@ class DatabaseHandler:
             """, (state_id, name, url, verified_int, created_at, category, local_jurisdiction_id))
             conn.commit()
         except Exception as e:
-            print(f"Error adding agency: {e}")
+            logger.error(f"Error adding agency: {e}", exc_info=True)
         finally:
             conn.close()
 
@@ -385,7 +388,7 @@ class DatabaseHandler:
             """
             df = pd.read_sql_query(query, conn)
         except Exception as e:
-             print(f"CRITICAL DB ERROR in get_all_agencies: {e}")
+             logger.error(f"CRITICAL DB ERROR in get_all_agencies: {e}", exc_info=True)
              df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'local_jurisdiction_id', 'state_name', 'jurisdiction_label'])
         finally:
             conn.close()
@@ -529,7 +532,7 @@ class DatabaseHandler:
             """, (bid.slug, bid.clientName, bid.title, deadline_val, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at))
             conn.commit()
         except Exception as e:
-            print(f"Error saving bid {bid.slug}: {e}")
+            logger.error(f"Error saving bid {bid.slug}: {e}", exc_info=True)
         finally:
             conn.close()
 
