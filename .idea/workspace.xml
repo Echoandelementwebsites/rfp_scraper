@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="Correct sanitizing script - v2">
+    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="Log upload">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -23,21 +23,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "/home/ShaunM/PycharmProjects/IndustrialAreaAutoParts",
-    "two.files.diff.last.used.file": "/home/ShaunM/Downloads/rfp_scraper/rfp_scraper/rfp_scraper/rfp_scraper.db"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/ShaunM/PycharmProjects/IndustrialAreaAutoParts&quot;,
+    &quot;two.files.diff.last.used.file&quot;: &quot;/home/ShaunM/Downloads/rfp_scraper/rfp_scraper/rfp_scraper/rfp_scraper.db&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/rfp_scraper" />
     </key>
+  </component>
+  <component name="RunAnythingCache">
+    <option name="myCommands">
+      <command value="pip install -r requirements.txt" />
+    </option>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
@@ -94,7 +99,23 @@
       <option name="project" value="LOCAL" />
       <updated>1770384234670</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="updated requirements.txt">
+      <option name="closed" value="true" />
+      <created>1771935176478</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1771935176478</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Log upload">
+      <option name="closed" value="true" />
+      <created>1772133983447</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1772133983447</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -103,6 +124,8 @@
     <MESSAGE value="Updated specific_pattern arrays for City, Town" />
     <MESSAGE value="Created an rfp data sanitizing script" />
     <MESSAGE value="Correct sanitizing script - v2" />
-    <option name="LAST_COMMIT_MESSAGE" value="Correct sanitizing script - v2" />
+    <MESSAGE value="updated requirements.txt" />
+    <MESSAGE value="Log upload" />
+    <option name="LAST_COMMIT_MESSAGE" value="Log upload" />
   </component>
 </project>
