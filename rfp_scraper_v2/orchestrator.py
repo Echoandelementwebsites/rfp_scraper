@@ -14,6 +14,7 @@ import rfp_scraper_v2.crawlers.pipeline as pipeline
 from openai import AsyncOpenAI
 from rfp_scraper.utils import get_state_abbreviation
 from rfp_scraper.cisa_manager import CisaManager
+from rfp_scraper_v2.core.logger import logger
 
 # Concurrency Limit for Agencies
 # SEM_AGENCIES removed to prevent event loop binding issues
@@ -39,10 +40,10 @@ def load_json(filename: str) -> Dict[str, Any]:
                 with open(path, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"Error reading {path}: {e}")
+                logger.error(f"Error reading {path}: {e}", exc_info=True)
                 return {}
 
-    print(f"Warning: {filename} not found in {paths}")
+    logger.warning(f"Warning: {filename} not found in {paths}")
     return {}
 
 def normalize_name(name: str) -> str:
@@ -230,46 +231,56 @@ async def discover_agency_only(agency: Agency, db, manager=None, job_id=None, ap
         procurement_url = agency.procurement_url
 
         if procurement_url == "NOT_FOUND":
-            if manager: manager.add_log(job_id, f"ℹ️ Skipping (Previously flagged as NO PORTAL for {agency.name})")
-            else: print(f"ℹ️ Skipping (Previously flagged as NO PORTAL for {agency.name})")
+            msg = f"ℹ️ Skipping (Previously flagged as NO PORTAL for {agency.name})"
+            if manager: manager.add_log(job_id, msg)
+            logger.info(msg)
             return
 
         if not procurement_url:
             if agency.homepage_url:
-                if manager: manager.add_log(job_id, f"🔍 Discovering portal for {agency.name}...")
-                else: print(f"🔍 Discovering portal for {agency.name}...")
+                msg = f"🔍 Discovering portal for {agency.name}..."
+                if manager: manager.add_log(job_id, msg)
+                logger.info(msg)
 
                 procurement_url = await discover_portal(crawler, agency.homepage_url, api_key)
 
                 if procurement_url:
-                    if manager: manager.add_log(job_id, f"✅ Found: {procurement_url}")
-                    else: print(f"✅ Found: {procurement_url}")
+                    msg = f"✅ Found: {procurement_url}"
+                    if manager: manager.add_log(job_id, msg)
+                    logger.info(msg)
                     await db.async_update_agency_procurement_url(agency.name, agency.state, procurement_url)
                 else:
-                    if manager: manager.add_log(job_id, f"⚠️ No portal found for {agency.name}. Flagging as NOT_FOUND.")
-                    else: print(f"⚠️ No portal found for {agency.name}. Flagging as NOT_FOUND.")
+                    msg = f"⚠️ No portal found for {agency.name}. Flagging as NOT_FOUND."
+                    if manager: manager.add_log(job_id, msg)
+                    logger.warning(msg)
                     await db.async_update_agency_procurement_url(agency.name, agency.state, "NOT_FOUND")
             else:
-                 if manager: manager.add_log(job_id, f"⚠️ No homepage URL for {agency.name}")
-                 else: print(f"⚠️ No homepage URL for {agency.name}")
+                 msg = f"⚠️ No homepage URL for {agency.name}"
+                 if manager: manager.add_log(job_id, msg)
+                 logger.warning(msg)
         else:
-             if manager: manager.add_log(job_id, f"ℹ️ Already has portal: {procurement_url}")
-             else: print(f"ℹ️ Already has portal: {procurement_url}")
+             msg = f"ℹ️ Already has portal: {procurement_url}"
+             if manager: manager.add_log(job_id, msg)
+             logger.info(msg)
              await db.async_update_agency_procurement_url(agency.name, agency.state, procurement_url)
 
 async def run_discovery_orchestrator(target_states: List[str], manager=None, job_id: str = None, api_key: str = None):
     """
     Discovery-Only Logic for Orchestrator V2.
     """
-    if manager:
-        manager.add_log(job_id, "🚀 Starting V2 Discovery Orchestrator...")
+    msg = "🚀 Starting V2 Discovery Orchestrator..."
+    if manager: manager.add_log(job_id, msg)
+    logger.info(msg)
 
     db = DatabaseHandler()
     await db.connect_async()
 
     try:
         # --- NEW: Implicit CISA Synchronization ---
-        if manager: manager.add_log(job_id, f"Synchronizing {len(target_states)} states with CISA Registry...")
+        msg = f"Synchronizing {len(target_states)} states with CISA Registry..."
+        if manager: manager.add_log(job_id, msg)
+        logger.info(msg)
+
         cisa_manager = CisaManager()
         states_df = db.get_all_states()
 
@@ -286,7 +297,9 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
         local_data = load_json("cities_towns_dictionary.json")
         domain_patterns = local_data.get("domain_patterns", [])
 
-        if manager: manager.add_log(job_id, f"Fetching targets from DB for {len(target_states)} states...")
+        msg = f"Fetching targets from DB for {len(target_states)} states..."
+        if manager: manager.add_log(job_id, msg)
+        logger.info(msg)
 
         # 1. Pull local jurisdictions (Cities/Counties)
         local_agencies = get_jurisdictions_for_discovery(db, target_states, domain_patterns)
@@ -300,9 +313,12 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
 
         msg = f"Loaded {len(all_agencies)} total agencies/jurisdictions for discovery."
         if manager: manager.add_log(job_id, msg)
+        logger.info(msg)
 
         if not all_agencies:
-            if manager: manager.add_log(job_id, "⚠️ No jurisdictions found in DB. Go to Tab 1A and identify them first.")
+            msg = "⚠️ No jurisdictions found in DB. Go to Tab 1A and identify them first."
+            if manager: manager.add_log(job_id, msg)
+            logger.warning(msg)
             return
 
         # Process Loop
@@ -315,14 +331,16 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
                 except Exception as e:
                     err_msg = f"❌ Failed {a.name}: {e}"
                     if manager: manager.add_log(job_id, err_msg)
-                    else: print(err_msg)
+                    logger.error(err_msg, exc_info=True)
 
         tasks = [bounded_process(a) for a in all_agencies]
 
         if tasks:
             await asyncio.gather(*tasks)
 
-        if manager: manager.add_log(job_id, "✅ Discovery Orchestration Complete.")
+        msg = "✅ Discovery Orchestration Complete."
+        if manager: manager.add_log(job_id, msg)
+        logger.info(msg)
     finally:
         await db.close_async()
 
@@ -332,7 +350,9 @@ def run_v2_discovery_task(job_id: str, manager, target_states: list, api_key: st
     Reads the local JSON dictionaries, discovers procurement portals
     using the v2 pipeline, and saves them to the database.
     """
-    manager.add_log(job_id, f"🔍 Starting V2 JSON Dictionary Discovery for {len(target_states)} states...")
+    msg = f"🔍 Starting V2 JSON Dictionary Discovery for {len(target_states)} states..."
+    manager.add_log(job_id, msg)
+    logger.info(msg)
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -340,9 +360,13 @@ def run_v2_discovery_task(job_id: str, manager, target_states: list, api_key: st
     try:
         loop.run_until_complete(run_discovery_orchestrator(target_states, manager, job_id, api_key))
 
-        manager.add_log(job_id, "✅ V2 Discovery completed successfully.")
+        msg = "✅ V2 Discovery completed successfully."
+        manager.add_log(job_id, msg)
+        logger.info(msg)
     except Exception as e:
-        manager.add_log(job_id, f"❌ Discovery Crash: {str(e)}")
+        msg = f"❌ Discovery Crash: {str(e)}"
+        manager.add_log(job_id, msg)
+        logger.error(msg, exc_info=True)
         raise e
     finally:
         pending = asyncio.all_tasks(loop)
@@ -354,24 +378,28 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
     """
     Main Logic Function for Orchestrator V2.
     """
-    if manager:
-        manager.add_log(job_id, "🚀 Starting Orchestrator V2...")
-    else:
-        print("🚀 Starting Orchestrator V2...")
+    msg = "🚀 Starting Orchestrator V2..."
+    if manager: manager.add_log(job_id, msg)
+    logger.info(msg)
 
     db = DatabaseHandler()
     await db.connect_async()
 
     try:
-        if manager: manager.add_log(job_id, f"Fetching verified agencies from DB for {len(target_states)} states...")
+        msg = f"Fetching verified agencies from DB for {len(target_states)} states..."
+        if manager: manager.add_log(job_id, msg)
+        logger.info(msg)
+
         all_agencies = get_agencies_for_scraping(db, target_states)
 
         msg = f"Loaded {len(all_agencies)} target agencies for scraping."
         if manager: manager.add_log(job_id, msg)
-        else: print(msg)
+        logger.info(msg)
 
         if not all_agencies:
-            if manager: manager.add_log(job_id, "⚠️ No agencies found in DB. Go to Tab 2 and run Discovery or CISA Repair first.")
+            msg = "⚠️ No agencies found in DB. Go to Tab 2 and run Discovery or CISA Repair first."
+            if manager: manager.add_log(job_id, msg)
+            logger.warning(msg)
             return
 
         # Process Loop
@@ -380,13 +408,19 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
         async def bounded_process(a):
             async with sem_agencies:
                 try:
-                    if manager: manager.add_log(job_id, f"🚀 Starting async extraction for {a.name}...")
+                    msg = f"🚀 Starting async extraction for {a.name}..."
+                    if manager: manager.add_log(job_id, msg)
+                    logger.info(msg)
+
                     await process_agency(a, db, api_key)
-                    if manager: manager.add_log(job_id, f"✅ Finished {a.name}")
+
+                    msg = f"✅ Finished {a.name}"
+                    if manager: manager.add_log(job_id, msg)
+                    logger.info(msg)
                 except Exception as e:
                     err_msg = f"❌ Failed {a.name}: {e}"
                     if manager: manager.add_log(job_id, err_msg)
-                    else: print(err_msg)
+                    logger.error(err_msg, exc_info=True)
 
         tasks = [bounded_process(a) for a in all_agencies]
 
@@ -400,14 +434,15 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
             f"Background task shutting down cleanly."
         )
 
+        logger.info("━" * 40)
+        logger.info(termination_msg)
+        logger.info("━" * 40)
+
         if manager:
             manager.add_log(job_id, "━" * 40)
             manager.add_log(job_id, termination_msg)
             manager.add_log(job_id, "━" * 40)
-        else:
-            print("\n" + "━" * 40)
-            print(termination_msg)
-            print("━" * 40 + "\n")
+
     finally:
         await db.close_async()
 
@@ -417,7 +452,9 @@ def run_v2_scraping_task(job_id: str, manager, target_states: list, api_key: str
     This function is called by the Streamlit threading JobManager. It spins up an
     isolated asyncio event loop inside the background thread to run the v2 engine.
     """
-    manager.add_log(job_id, f"🚀 Initializing v2 Async Engine for {len(target_states)} states...")
+    msg = f"🚀 Initializing v2 Async Engine for {len(target_states)} states..."
+    manager.add_log(job_id, msg)
+    logger.info(msg)
 
     # Create a fresh event loop for this background thread
     loop = asyncio.new_event_loop()
@@ -426,9 +463,13 @@ def run_v2_scraping_task(job_id: str, manager, target_states: list, api_key: str
     try:
         # Run the asynchronous orchestrator
         loop.run_until_complete(run_orchestrator(target_states=target_states, manager=manager, job_id=job_id, api_key=api_key))
-        manager.add_log(job_id, "✅ V2 Async Engine completed successfully.")
+        msg = "✅ V2 Async Engine completed successfully."
+        manager.add_log(job_id, msg)
+        logger.info(msg)
     except Exception as e:
-        manager.add_log(job_id, f"❌ Engine Crash: {str(e)}")
+        msg = f"❌ Engine Crash: {str(e)}"
+        manager.add_log(job_id, msg)
+        logger.error(msg, exc_info=True)
         raise e
     finally:
         # Clean up pending tasks to avoid LiteLLM/Playwright zombie warnings
