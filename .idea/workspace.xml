@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="Log upload">
+    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="Updated reset_portals script">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scraper_debug.log" beforeDir="false" afterPath="$PROJECT_DIR$/scraper_debug.log" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -115,7 +116,15 @@
       <option name="project" value="LOCAL" />
       <updated>1772133983447</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Updated reset_portals script">
+      <option name="closed" value="true" />
+      <created>1772135990301</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1772135990301</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -126,6 +135,7 @@
     <MESSAGE value="Correct sanitizing script - v2" />
     <MESSAGE value="updated requirements.txt" />
     <MESSAGE value="Log upload" />
-    <option name="LAST_COMMIT_MESSAGE" value="Log upload" />
+    <MESSAGE value="Updated reset_portals script" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updated reset_portals script" />
   </component>
 </project>
