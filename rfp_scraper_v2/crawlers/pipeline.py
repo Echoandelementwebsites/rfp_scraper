@@ -79,31 +79,15 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str, api_key: st
 
 async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: str) -> List[BidExtractionSchema]:
     """
-    Step 2: Extract bids using LLMExtractionStrategy (Document Hunter Mode).
+    Step 2: Extract bids using direct AsyncOpenAI call to bypass Crawl4AI's strict schema enforcement.
     """
     try:
         logger.info(f"  [Extraction] Extracting from {portal_url} (AI Mode)...")
 
-        # Configure Strategy
-        strategy = LLMExtractionStrategy(
-            llm_config=LLMConfig(
-                provider="deepseek/deepseek-chat",
-                api_token=api_key,
-                base_url="https://api.deepseek.com",
-                temperature=0.0
-            ),
-            # Dynamically inject the base URL
-            instruction=EXTRACTION_INSTRUCTION + f"\n\nBASE URL FOR RELATIVE LINKS: {portal_url}",
-            schema=BidExtractionSchema.model_json_schema(),
-            extraction_type="schema",
-            apply_chunking=False,
-            input_format="markdown"
-        )
-
+        # 1. Run basic crawl to get the Markdown
         result = await crawler.arun(
             url=portal_url,
             process_iframes=True,
-            extraction_strategy=strategy,
             magic=True,
             wait_until="domcontentloaded",
             delay_before_return_html=5.0
@@ -113,21 +97,41 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
             logger.warning(f"  [Extraction] Failed to crawl {portal_url}: {result.error_message}")
             return []
 
-        if not result.extracted_content:
-            logger.warning(f"  [Extraction] AI returned no content for {portal_url}.")
+        markdown = result.markdown
+        if not markdown:
+            logger.warning(f"  [Extraction] Crawler returned no markdown for {portal_url}.")
             return []
 
-        logger.debug(f"[Extraction AI RAW Output] from {portal_url}:\n{result.extracted_content}")
+        # 2. Prepare the LLM Call directly
+        client = AsyncOpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+        truncated_markdown = markdown[:40000]
 
-        # Robust Parsing Logic
-        content = result.extracted_content.strip()
+        logger.debug(f"[Extraction AI Input] Sending {len(truncated_markdown)} chars to LLM for {portal_url}")
 
-        # 1. Strip Markdown Code Blocks
+        instruction = EXTRACTION_INSTRUCTION + f"\n\nBASE URL FOR RELATIVE LINKS: {portal_url}\n\nIMPORTANT: You must return ONLY a raw JSON array of objects. Do not wrap it in a parent JSON object."
+
+        response = await client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": f"Extract active bids from this markdown:\n\n{truncated_markdown}"}
+            ],
+            temperature=0.0
+        )
+
+        content = response.choices[0].message.content
+        logger.debug(f"[Extraction AI RAW Output] from {portal_url}:\n{content}")
+
+        if not content:
+            logger.warning(f"  [Extraction] AI returned empty string.")
+            return []
+
+        # 3. Robust Parsing Logic (Keep Existing)
+        content = content.strip()
         if content.startswith("```"):
             content = re.sub(r"^```[a-z]*\s*", "", content)
             content = re.sub(r"\s*```$", "", content)
 
-        # 2. JSON Extraction Fallback (Non-Greedy Regex)
         extracted_data = []
         try:
             extracted_data = json.loads(content)
@@ -138,7 +142,7 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
                 try:
                     extracted_data = json.loads(match.group(1))
                 except json.JSONDecodeError as e2:
-                    logger.warning(f"  [Extraction] Regex Fallback Failed: {e2}. Content: {content[:200]}...")
+                    logger.warning(f"  [Extraction] Regex Fallback Failed: {e2}")
                     return []
             else:
                  logger.warning(f"  [Extraction] No JSON array found in content.")
@@ -146,15 +150,12 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
 
         bids = []
         if not isinstance(extracted_data, list):
-            logger.warning(f"  [Extraction] Warning: Expected a list of bids, got {type(extracted_data)}.")
             return []
 
         for item in extracted_data:
             try:
-                # Basic sanitation
                 if not item.get("title") and not item.get("link"):
                     continue
-
                 bid = BidExtractionSchema(**item)
                 bids.append(bid)
             except ValidationError as ve:
