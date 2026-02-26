@@ -4,7 +4,7 @@ import os
 import re
 import requests
 import tempfile
-import PyPDF2
+import pypdf
 from typing import List, Optional
 from urllib.parse import urljoin
 from crawl4ai import AsyncWebCrawler, LLMConfig
@@ -271,7 +271,7 @@ async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
 
                         # Read from temp file
                         temp_pdf.seek(0)
-                        pdf = PyPDF2.PdfReader(temp_pdf)
+                        pdf = pypdf.PdfReader(temp_pdf)
                         text = ""
                         # Extract up to 10 pages
                         for i in range(min(len(pdf.pages), 10)):

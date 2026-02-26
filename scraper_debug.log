@@ -5814,3 +5814,29 @@ PyPDF2.errors.DependencyError: PyCryptodome is required for AES algorithm
 All 202 agency targets across 1 states have been processed. Background task shutting down cleanly.
 2026-02-26 23:48:41,857 - INFO - [orchestrator.py:439] - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 2026-02-26 23:48:42,084 - INFO - [orchestrator.py:468] - ✅ V2 Async Engine completed successfully.
+2026-02-26 21:05:02,592 - ERROR - [database.py:175] - Error saving bid test-bid (Async): object MagicMock can't be used in 'await' expression
+Traceback (most recent call last):
+  File "/app/rfp_scraper_v2/core/database.py", line 173, in async_save_bid
+    await conn.execute(query, bid.slug, bid.clientName, bid.title, deadline_val, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at)
+TypeError: object MagicMock can't be used in 'await' expression
+2026-02-26 21:05:02,594 - ERROR - [database.py:175] - Error saving bid test-bid (Async): Forced DB Error
+Traceback (most recent call last):
+  File "/app/rfp_scraper_v2/core/database.py", line 173, in async_save_bid
+    await conn.execute(query, bid.slug, bid.clientName, bid.title, deadline_val, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: Forced DB Error
+2026-02-26 21:06:58,997 - ERROR - [database.py:175] - Error saving bid fail-bid (Async): DB Connection Lost
+Traceback (most recent call last):
+  File "/app/rfp_scraper_v2/core/database.py", line 173, in async_save_bid
+    await conn.execute(query, bid.slug, bid.clientName, bid.title, deadline_val, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at)
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/unittest/mock.py", line 2291, in _execute_mock_call
+    raise effect
+Exception: DB Connection Lost

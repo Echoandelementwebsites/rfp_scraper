@@ -12,6 +12,7 @@ pyvirtualdisplay
 crawl4ai>=0.4.0
 pydantic>=2.0.0
 requests
-PyPDF2>=3.0.0
+pypdf
+cryptography
 psycopg2-binary==2.9.9
 asyncpg
