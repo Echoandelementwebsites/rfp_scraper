@@ -3218,3 +3218,33 @@ Code context:
 All 202 agency targets across 1 states have been processed. Background task shutting down cleanly.
 2026-02-26 23:10:09,984 - INFO - [orchestrator.py:439] - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 2026-02-26 23:10:10,210 - INFO - [orchestrator.py:468] - ✅ V2 Async Engine completed successfully.
+2026-02-26 20:26:28,205 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://example.com (AI Mode)...
+2026-02-26 20:26:28,206 - WARNING - [pipeline.py:97] -   [Extraction] Failed to crawl https://example.com: Timeout
+2026-02-26 20:26:28,216 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://example.com (AI Mode)...
+2026-02-26 20:26:28,216 - DEBUG - [pipeline.py:109] - [Extraction AI Input] Sending 13 chars to LLM for https://example.com
+2026-02-26 20:26:28,216 - DEBUG - [pipeline.py:123] - [Extraction AI RAW Output] from https://example.com:
+
+        Here is the data you requested:
+        [
+            {
+                "title": "Messy Bid",
+                "link": "https://example.com/messy"
+            }
+        ]
+        Hope this helps!
+
+2026-02-26 20:26:28,217 - WARNING - [pipeline.py:139] -   [Extraction] JSON Decode Error. Attempting Regex Fallback.
+2026-02-26 20:26:28,221 - INFO - [pipeline.py:85] -   [Extraction] Extracting from https://example.com (AI Mode)...
+2026-02-26 20:26:28,221 - DEBUG - [pipeline.py:109] - [Extraction AI Input] Sending 50 chars to LLM for https://example.com
+2026-02-26 20:26:28,222 - DEBUG - [pipeline.py:123] - [Extraction AI RAW Output] from https://example.com:
+
+        ```json
+        [
+            {
+                "title": "Road Repair",
+                "link": "https://example.com/bid/123",
+                "clientName": "City of Example",
+                "description": "Repairing the main road."
+            }
+        ]
+        ```
