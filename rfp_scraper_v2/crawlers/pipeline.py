@@ -12,6 +12,7 @@ from crawl4ai.extraction_strategy import LLMExtractionStrategy, JsonCssExtractio
 from openai import AsyncOpenAI
 from pydantic import ValidationError
 
+from rfp_scraper_v2.core.logger import logger
 from rfp_scraper_v2.core.models import (
     DiscoverySchema,
     BidExtractionSchema,
@@ -39,15 +40,17 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str, api_key: st
     """
     client = AsyncOpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     try:
-        print(f"  [Discovery] Crawling {agency_url}...")
+        logger.info(f"  [Discovery] Crawling {agency_url}...")
         result = await crawler.arun(url=agency_url)
         if not result.success:
-            print(f"  [Discovery] Failed to crawl {agency_url}: {result.error_message}")
+            logger.warning(f"  [Discovery] Failed to crawl {agency_url}: {result.error_message}")
             return None
 
         markdown = result.markdown
         # Truncate markdown to fit context window if necessary (e.g. 50k chars)
         truncated_markdown = markdown[:20000]
+
+        logger.debug(f"[Discovery AI Input] Sending {len(truncated_markdown)} chars to LLM for {agency_url}")
 
         response = await client.chat.completions.create(
             model="deepseek-chat",
@@ -59,6 +62,8 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str, api_key: st
         )
 
         content = response.choices[0].message.content
+        logger.debug(f"[Discovery AI RAW Output] for {agency_url}: '{content}'")
+
         url = content.strip()
         if "null" in url.lower() or not url.startswith("http"):
              clean_url = url.replace('"', '').replace("'", "").replace("`", "")
@@ -69,7 +74,7 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str, api_key: st
         return url
 
     except Exception as e:
-        print(f"  [Discovery] Error: {e}")
+        logger.error(f"  [Discovery] Error: {e}", exc_info=True)
         return None
 
 async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: str) -> List[BidExtractionSchema]:
@@ -77,7 +82,7 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
     Step 2: Extract bids using LLMExtractionStrategy (Document Hunter Mode).
     """
     try:
-        print(f"  [Extraction] Extracting from {portal_url} (AI Mode)...")
+        logger.info(f"  [Extraction] Extracting from {portal_url} (AI Mode)...")
 
         # Configure Strategy
         strategy = LLMExtractionStrategy(
@@ -105,12 +110,14 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
         )
 
         if not result.success:
-            print(f"  [Extraction] Failed to crawl {portal_url}: {result.error_message}")
+            logger.warning(f"  [Extraction] Failed to crawl {portal_url}: {result.error_message}")
             return []
 
         if not result.extracted_content:
-            print(f"  [Extraction] AI returned no content for {portal_url}.")
+            logger.warning(f"  [Extraction] AI returned no content for {portal_url}.")
             return []
+
+        logger.debug(f"[Extraction AI RAW Output] from {portal_url}:\n{result.extracted_content}")
 
         # Robust Parsing Logic
         content = result.extracted_content.strip()
@@ -125,21 +132,21 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
         try:
             extracted_data = json.loads(content)
         except json.JSONDecodeError:
-            print(f"  [Extraction] JSON Decode Error. Attempting Regex Fallback.")
+            logger.warning(f"  [Extraction] JSON Decode Error. Attempting Regex Fallback.")
             match = re.search(r'(\[.*?\])', content, re.DOTALL)
             if match:
                 try:
                     extracted_data = json.loads(match.group(1))
                 except json.JSONDecodeError as e2:
-                    print(f"  [Extraction] Regex Fallback Failed: {e2}. Content: {content[:200]}...")
+                    logger.warning(f"  [Extraction] Regex Fallback Failed: {e2}. Content: {content[:200]}...")
                     return []
             else:
-                 print(f"  [Extraction] No JSON array found in content.")
+                 logger.warning(f"  [Extraction] No JSON array found in content.")
                  return []
 
         bids = []
         if not isinstance(extracted_data, list):
-            print(f"  [Extraction] Warning: Expected a list of bids, got {type(extracted_data)}.")
+            logger.warning(f"  [Extraction] Warning: Expected a list of bids, got {type(extracted_data)}.")
             return []
 
         for item in extracted_data:
@@ -151,19 +158,19 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
                 bid = BidExtractionSchema(**item)
                 bids.append(bid)
             except ValidationError as ve:
-                print(f"  [Extraction] Validation Error for item: {ve}")
+                logger.warning(f"  [Extraction] Validation Error for item: {ve}")
 
         return bids
 
     except Exception as e:
-        print(f"  [Extraction] Error: {e}")
+        logger.error(f"  [Extraction] Error: {e}", exc_info=True)
         return []
 
 async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, schema: dict) -> List[BidExtractionSchema]:
     """
     Executes standard CSS extraction for known platforms using Crawl4AI's JsonCssExtractionStrategy.
     """
-    print(f"  [Extraction] Running fast CSS extractor...")
+    logger.info(f"  [Extraction] Running fast CSS extractor...")
 
     try:
         strategy = JsonCssExtractionStrategy(schema)
@@ -175,7 +182,7 @@ async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, schem
         )
 
         if not result.success:
-            print(f"  [Extraction] CSS Extraction failed: {result.error_message}")
+            logger.warning(f"  [Extraction] CSS Extraction failed: {result.error_message}")
             return []
 
         content = result.extracted_content
@@ -206,7 +213,7 @@ async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, schem
         return bids
 
     except Exception as e:
-        print(f"  [Extraction] Deterministic Error: {e}")
+        logger.error(f"  [Extraction] Deterministic Error: {e}", exc_info=True)
         return []
 
 async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, api_key: str) -> List[BidExtractionSchema]:
@@ -232,9 +239,9 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, api_key: str) 
     # 2. The AI Safety Net (Fallback)
     if not bids:
         if any(x in url_lower for x in ["bonfirehub", "ionwave", "planetbids", "opengov", "procurenow", "bidnetdirect"]):
-            print(f"  [Router] Fast CSS extractor yielded 0 bids. Falling back to DeepSeek AI.")
+            logger.info(f"  [Router] Fast CSS extractor yielded 0 bids. Falling back to DeepSeek AI.")
         else:
-            print(f"  [Router] Custom domain detected. Routing directly to DeepSeek AI.")
+            logger.info(f"  [Router] Custom domain detected. Routing directly to DeepSeek AI.")
 
         # Route to the renamed AI function
         bids = await extract_bids_ai(crawler, portal_url, api_key)
@@ -249,7 +256,7 @@ async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
     try:
         # Check if PDF
         if bid_link.lower().endswith(".pdf"):
-            print(f"  [Detail] Fetching PDF: {bid_link}")
+            logger.info(f"  [Detail] Fetching PDF: {bid_link}")
             try:
                 # Use Stream to avoid loading large files into RAM
                 with requests.get(bid_link, stream=True, timeout=(10, 20)) as response:
@@ -271,7 +278,7 @@ async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
                         return text
 
             except Exception as e:
-                print(f"  [Detail] PDF Error: {e}")
+                logger.error(f"  [Detail] PDF Error: {e}", exc_info=True)
                 return ""
         else:
             # HTML
@@ -279,16 +286,16 @@ async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
             if bid_link.startswith("javascript:"):
                 return ""
 
-            print(f"  [Detail] Fetching HTML: {bid_link}")
+            logger.info(f"  [Detail] Fetching HTML: {bid_link}")
             result = await crawler.arun(url=bid_link)
             if result.success:
                 return result.markdown
             else:
-                print(f"  [Detail] Failed: {result.error_message}")
+                logger.warning(f"  [Detail] Failed: {result.error_message}")
                 return ""
 
     except Exception as e:
-        print(f"  [Detail] Error: {e}")
+        logger.error(f"  [Detail] Error: {e}", exc_info=True)
         return ""
 
 async def classify_and_save(db, bid_obj: BidExtractionSchema, full_text: str, state: str, api_key: str):
@@ -299,6 +306,8 @@ async def classify_and_save(db, bid_obj: BidExtractionSchema, full_text: str, st
     try:
         # Truncate full_text for classification context
         truncated_text = full_text[:20000]
+
+        logger.debug(f"[Classification AI Input] Analyzing Bid: '{bid_obj.title}'. Scope snippet length: {len(truncated_text)}")
 
         response = await client.chat.completions.create(
             model="deepseek-chat",
@@ -311,12 +320,14 @@ async def classify_and_save(db, bid_obj: BidExtractionSchema, full_text: str, st
         )
 
         content = response.choices[0].message.content
+        logger.debug(f"[Classification AI RAW Output] for '{bid_obj.title}':\n{content}")
+
         data = json.loads(content)
 
         classification = ClassificationSchema(**data)
 
         if classification.is_construction_related:
-            print(f"  [Classification] SAVING BID: {bid_obj.title}")
+            logger.info(f"  [Classification] SAVING BID: {bid_obj.title}")
 
             # Map to DB Bid model
             db_bid = Bid(
@@ -333,16 +344,16 @@ async def classify_and_save(db, bid_obj: BidExtractionSchema, full_text: str, st
             # Use Async DB Save
             await db.async_save_bid(db_bid, state)
         else:
-            print(f"  [Classification] Skipped (Not Construction): {bid_obj.title}")
+            logger.info(f"  [Classification] Skipped (Not Construction): {bid_obj.title}")
 
     except Exception as e:
-        print(f"  [Classification] Error: {e}")
+        logger.error(f"  [Classification] Error: {e}", exc_info=True)
 
 async def process_agency(agency: Agency, db, api_key: str):
     """
     Orchestrates the pipeline for a single agency.
     """
-    print(f"Processing Agency: {agency.name} ({agency.state})")
+    logger.info(f"Processing Agency: {agency.name} ({agency.state})")
 
     try:
         async with AsyncWebCrawler() as crawler:
@@ -350,25 +361,25 @@ async def process_agency(agency: Agency, db, api_key: str):
             procurement_url = agency.procurement_url
 
             if procurement_url == "NOT_FOUND":
-                print(f"  [Skip] Previously flagged as NO PORTAL for {agency.name}")
+                logger.info(f"  [Skip] Previously flagged as NO PORTAL for {agency.name}")
                 return
 
             if not procurement_url:
                 if agency.homepage_url:
                     procurement_url = await discover_portal(crawler, agency.homepage_url, api_key)
                     if procurement_url:
-                        print(f"  Found Portal: {procurement_url}")
+                        logger.info(f"  Found Portal: {procurement_url}")
                         try:
                             await db.async_update_agency_procurement_url(agency.name, agency.state, procurement_url)
                         except: pass
                     else:
-                        print(f"  No procurement portal found. Flagging as NOT_FOUND.")
+                        logger.info(f"  No procurement portal found. Flagging as NOT_FOUND.")
                         try:
                             await db.async_update_agency_procurement_url(agency.name, agency.state, "NOT_FOUND")
                         except: pass
                         return
                 else:
-                    print(f"  No homepage URL for {agency.name}")
+                    logger.info(f"  No homepage URL for {agency.name}")
                     return
 
             if not procurement_url or procurement_url == "NOT_FOUND":
@@ -376,20 +387,20 @@ async def process_agency(agency: Agency, db, api_key: str):
 
             # Step 2: Extraction
             bids = await extract_bids(crawler, procurement_url, api_key)
-            print(f"  Found {len(bids)} potential bids.")
+            logger.info(f"  Found {len(bids)} potential bids.")
 
             # Step 3 & 4: Detail & Classification
             for bid in bids:
                 # Check duplication using Async DB Method
                 if await db.async_url_already_scraped(bid.link):
-                    print(f"  [Skip] Already scraped: {bid.link}")
+                    logger.info(f"  [Skip] Already scraped: {bid.link}")
                     continue
 
                 full_text = await fetch_bid_detail(crawler, bid.link)
                 if full_text:
                     await classify_and_save(db, bid, full_text, agency.state, api_key)
     except asyncio.CancelledError:
-        print(f"  [Cancelled] Processing for {agency.name} was cancelled. Crawler cleaning up.")
+        logger.warning(f"  [Cancelled] Processing for {agency.name} was cancelled. Crawler cleaning up.")
         raise
     except Exception as e:
-        print(f"  [Error] Processing {agency.name} failed: {e}")
+        logger.error(f"  [Error] Processing {agency.name} failed: {e}", exc_info=True)

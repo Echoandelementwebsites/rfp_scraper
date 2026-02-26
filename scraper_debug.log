@@ -1,0 +1,13 @@
+2026-02-26 19:12:46,572 - INFO - [<string>:1] - Test Info
+2026-02-26 19:12:46,572 - DEBUG - [<string>:1] - Test Debug
+2026-02-26 19:14:22,668 - DEBUG - [test_logging_verification.py:6] - This is a DEBUG message (should go to file only)
+2026-02-26 19:14:22,668 - INFO - [test_logging_verification.py:7] - This is an INFO message (should go to file AND console)
+2026-02-26 19:14:22,668 - WARNING - [test_logging_verification.py:8] - This is a WARNING message
+2026-02-26 19:14:22,669 - ERROR - [test_logging_verification.py:12] - This is an ERROR message with traceback: division by zero
+Traceback (most recent call last):
+  File "/app/test_logging_verification.py", line 10, in test_logger
+    1 / 0
+    ~~^~~
+ZeroDivisionError: division by zero
+2026-02-26 19:16:45,443 - INFO - [pipeline.py:244] -   [Router] Custom domain detected. Routing directly to DeepSeek AI.
+2026-02-26 19:16:45,444 - INFO - [pipeline.py:242] -   [Router] Fast CSS extractor yielded 0 bids. Falling back to DeepSeek AI.
