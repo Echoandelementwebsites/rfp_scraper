@@ -87,7 +87,7 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
         # Configure Strategy
         strategy = LLMExtractionStrategy(
             llm_config=LLMConfig(
-                provider="openai/deepseek-chat",
+                provider="deepseek/deepseek-chat",
                 api_token=api_key,
                 base_url="https://api.deepseek.com",
                 temperature=0.0
