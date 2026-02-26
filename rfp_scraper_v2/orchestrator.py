@@ -244,18 +244,18 @@ async def discover_agency_only(agency: Agency, db, manager=None, job_id=None, ap
                 if procurement_url:
                     if manager: manager.add_log(job_id, f"✅ Found: {procurement_url}")
                     else: print(f"✅ Found: {procurement_url}")
-                    db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+                    await db.async_update_agency_procurement_url(agency.name, agency.state, procurement_url)
                 else:
                     if manager: manager.add_log(job_id, f"⚠️ No portal found for {agency.name}. Flagging as NOT_FOUND.")
                     else: print(f"⚠️ No portal found for {agency.name}. Flagging as NOT_FOUND.")
-                    db.update_agency_procurement_url(agency.name, agency.state, "NOT_FOUND")
+                    await db.async_update_agency_procurement_url(agency.name, agency.state, "NOT_FOUND")
             else:
                  if manager: manager.add_log(job_id, f"⚠️ No homepage URL for {agency.name}")
                  else: print(f"⚠️ No homepage URL for {agency.name}")
         else:
              if manager: manager.add_log(job_id, f"ℹ️ Already has portal: {procurement_url}")
              else: print(f"ℹ️ Already has portal: {procurement_url}")
-             db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+             await db.async_update_agency_procurement_url(agency.name, agency.state, procurement_url)
 
 async def run_discovery_orchestrator(target_states: List[str], manager=None, job_id: str = None, api_key: str = None):
     """
@@ -265,61 +265,66 @@ async def run_discovery_orchestrator(target_states: List[str], manager=None, job
         manager.add_log(job_id, "🚀 Starting V2 Discovery Orchestrator...")
 
     db = DatabaseHandler()
+    await db.connect_async()
 
-    # --- NEW: Implicit CISA Synchronization ---
-    if manager: manager.add_log(job_id, f"Synchronizing {len(target_states)} states with CISA Registry...")
-    cisa_manager = CisaManager()
-    states_df = db.get_all_states()
+    try:
+        # --- NEW: Implicit CISA Synchronization ---
+        if manager: manager.add_log(job_id, f"Synchronizing {len(target_states)} states with CISA Registry...")
+        cisa_manager = CisaManager()
+        states_df = db.get_all_states()
 
-    for target in target_states:
-        state_row = states_df[states_df['name'] == target]
-        if not state_row.empty:
-            state_id = int(state_row.iloc[0]['id'])
-            state_abbr = get_state_abbreviation(target)
-            if state_abbr:
-                cisa_manager.sync_state_database(db, state_id, state_abbr)
-    # ------------------------------------------
+        for target in target_states:
+            state_row = states_df[states_df['name'] == target]
+            if not state_row.empty:
+                state_id = int(state_row.iloc[0]['id'])
+                state_abbr = get_state_abbreviation(target)
+                if state_abbr:
+                    # Sync uses synchronous DB connection, which is fine before main loop
+                    cisa_manager.sync_state_database(db, state_id, state_abbr)
+        # ------------------------------------------
 
-    local_data = load_json("cities_towns_dictionary.json")
-    domain_patterns = local_data.get("domain_patterns", [])
+        local_data = load_json("cities_towns_dictionary.json")
+        domain_patterns = local_data.get("domain_patterns", [])
 
-    if manager: manager.add_log(job_id, f"Fetching targets from DB for {len(target_states)} states...")
+        if manager: manager.add_log(job_id, f"Fetching targets from DB for {len(target_states)} states...")
 
-    # 1. Pull local jurisdictions (Cities/Counties)
-    local_agencies = get_jurisdictions_for_discovery(db, target_states, domain_patterns)
+        # 1. Pull local jurisdictions (Cities/Counties)
+        local_agencies = get_jurisdictions_for_discovery(db, target_states, domain_patterns)
 
-    # 2. Pull state agencies (CISA Registry) and filter for those needing discovery
-    state_agencies = get_agencies_for_scraping(db, target_states)
-    state_agencies_needing_discovery = [a for a in state_agencies if not a.procurement_url]
+        # 2. Pull state agencies (CISA Registry) and filter for those needing discovery
+        state_agencies = get_agencies_for_scraping(db, target_states)
+        state_agencies_needing_discovery = [a for a in state_agencies if not a.procurement_url]
 
-    # 3. Combine both lists
-    all_agencies = local_agencies + state_agencies_needing_discovery
+        # 3. Combine both lists
+        all_agencies = local_agencies + state_agencies_needing_discovery
 
-    msg = f"Loaded {len(all_agencies)} total agencies/jurisdictions for discovery."
-    if manager: manager.add_log(job_id, msg)
+        msg = f"Loaded {len(all_agencies)} total agencies/jurisdictions for discovery."
+        if manager: manager.add_log(job_id, msg)
 
-    if not all_agencies:
-        if manager: manager.add_log(job_id, "⚠️ No jurisdictions found in DB. Go to Tab 1A and identify them first.")
-        return
+        if not all_agencies:
+            if manager: manager.add_log(job_id, "⚠️ No jurisdictions found in DB. Go to Tab 1A and identify them first.")
+            return
 
-    # Process Loop
-    sem_agencies = asyncio.Semaphore(5)
+        # Process Loop
+        sem_agencies = asyncio.Semaphore(5)
 
-    async def bounded_process(a):
-        async with sem_agencies:
-            try:
-                await discover_agency_only(a, db, manager, job_id, api_key)
-            except Exception as e:
-                err_msg = f"❌ Failed {a.name}: {e}"
-                if manager: manager.add_log(job_id, err_msg)
-                else: print(err_msg)
+        async def bounded_process(a):
+            async with sem_agencies:
+                try:
+                    await discover_agency_only(a, db, manager, job_id, api_key)
+                except Exception as e:
+                    err_msg = f"❌ Failed {a.name}: {e}"
+                    if manager: manager.add_log(job_id, err_msg)
+                    else: print(err_msg)
 
-    tasks = [bounded_process(a) for a in all_agencies]
+        tasks = [bounded_process(a) for a in all_agencies]
 
-    if tasks:
-        await asyncio.gather(*tasks)
+        if tasks:
+            await asyncio.gather(*tasks)
 
-    if manager: manager.add_log(job_id, "✅ Discovery Orchestration Complete.")
+        if manager: manager.add_log(job_id, "✅ Discovery Orchestration Complete.")
+    finally:
+        await db.close_async()
 
 def run_v2_discovery_task(job_id: str, manager, target_states: list, api_key: str):
     """
@@ -355,52 +360,56 @@ async def run_orchestrator(target_states: List[str], manager=None, job_id: str =
         print("🚀 Starting Orchestrator V2...")
 
     db = DatabaseHandler()
+    await db.connect_async()
 
-    if manager: manager.add_log(job_id, f"Fetching verified agencies from DB for {len(target_states)} states...")
-    all_agencies = get_agencies_for_scraping(db, target_states)
+    try:
+        if manager: manager.add_log(job_id, f"Fetching verified agencies from DB for {len(target_states)} states...")
+        all_agencies = get_agencies_for_scraping(db, target_states)
 
-    msg = f"Loaded {len(all_agencies)} target agencies for scraping."
-    if manager: manager.add_log(job_id, msg)
-    else: print(msg)
+        msg = f"Loaded {len(all_agencies)} target agencies for scraping."
+        if manager: manager.add_log(job_id, msg)
+        else: print(msg)
 
-    if not all_agencies:
-        if manager: manager.add_log(job_id, "⚠️ No agencies found in DB. Go to Tab 2 and run Discovery or CISA Repair first.")
-        return
+        if not all_agencies:
+            if manager: manager.add_log(job_id, "⚠️ No agencies found in DB. Go to Tab 2 and run Discovery or CISA Repair first.")
+            return
 
-    # Process Loop
-    sem_agencies = asyncio.Semaphore(5)
+        # Process Loop
+        sem_agencies = asyncio.Semaphore(5)
 
-    async def bounded_process(a):
-        async with sem_agencies:
-            try:
-                if manager: manager.add_log(job_id, f"🚀 Starting async extraction for {a.name}...")
-                await process_agency(a, db, api_key)
-                if manager: manager.add_log(job_id, f"✅ Finished {a.name}")
-            except Exception as e:
-                err_msg = f"❌ Failed {a.name}: {e}"
-                if manager: manager.add_log(job_id, err_msg)
-                else: print(err_msg)
+        async def bounded_process(a):
+            async with sem_agencies:
+                try:
+                    if manager: manager.add_log(job_id, f"🚀 Starting async extraction for {a.name}...")
+                    await process_agency(a, db, api_key)
+                    if manager: manager.add_log(job_id, f"✅ Finished {a.name}")
+                except Exception as e:
+                    err_msg = f"❌ Failed {a.name}: {e}"
+                    if manager: manager.add_log(job_id, err_msg)
+                    else: print(err_msg)
 
-    tasks = [bounded_process(a) for a in all_agencies]
+        tasks = [bounded_process(a) for a in all_agencies]
 
-    if tasks:
-        await asyncio.gather(*tasks)
+        if tasks:
+            await asyncio.gather(*tasks)
 
-    # --- Graceful Termination Sequence ---
-    termination_msg = (
-        f"✅ SESSION TERMINATED GRACEFULLY.\n"
-        f"All {len(all_agencies)} agency targets across {len(target_states)} states have been processed. "
-        f"Background task shutting down cleanly."
-    )
+        # --- Graceful Termination Sequence ---
+        termination_msg = (
+            f"✅ SESSION TERMINATED GRACEFULLY.\n"
+            f"All {len(all_agencies)} agency targets across {len(target_states)} states have been processed. "
+            f"Background task shutting down cleanly."
+        )
 
-    if manager:
-        manager.add_log(job_id, "━" * 40)
-        manager.add_log(job_id, termination_msg)
-        manager.add_log(job_id, "━" * 40)
-    else:
-        print("\n" + "━" * 40)
-        print(termination_msg)
-        print("━" * 40 + "\n")
+        if manager:
+            manager.add_log(job_id, "━" * 40)
+            manager.add_log(job_id, termination_msg)
+            manager.add_log(job_id, "━" * 40)
+        else:
+            print("\n" + "━" * 40)
+            print(termination_msg)
+            print("━" * 40 + "\n")
+    finally:
+        await db.close_async()
 
 def run_v2_scraping_task(job_id: str, manager, target_states: list, api_key: str):
     """

@@ -6,8 +6,9 @@ import requests
 import tempfile
 import PyPDF2
 from typing import List, Optional
+from urllib.parse import urljoin
 from crawl4ai import AsyncWebCrawler, LLMConfig
-from crawl4ai.extraction_strategy import LLMExtractionStrategy
+from crawl4ai.extraction_strategy import LLMExtractionStrategy, JsonCssExtractionStrategy
 from openai import AsyncOpenAI
 from pydantic import ValidationError
 
@@ -23,6 +24,13 @@ from rfp_scraper_v2.crawlers.prompts import (
     DISCOVERY_SYSTEM_PROMPT,
     EXTRACTION_INSTRUCTION,
     CLASSIFICATION_SYSTEM_PROMPT
+)
+from rfp_scraper_v2.crawlers.schemas import (
+    BONFIRE_SCHEMA,
+    IONWAVE_SCHEMA,
+    PLANETBIDS_SCHEMA,
+    OPENGOV_SCHEMA,
+    BIDNET_SCHEMA
 )
 
 async def discover_portal(crawler: AsyncWebCrawler, agency_url: str, api_key: str) -> Optional[str]:
@@ -51,15 +59,8 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str, api_key: st
         )
 
         content = response.choices[0].message.content
-        # Heuristic clean up if DeepSeek is chatty (though prompt says ONLY absolute URL)
-        # We try to extract URL.
-        # DeepSeek might return just the URL or a sentence.
-        # We can try to parse it or just take the content.
-        # Prompt says "Return ONLY the absolute URL".
-
         url = content.strip()
         if "null" in url.lower() or not url.startswith("http"):
-             # Fallback: sometimes LLM wraps in quotes or code blocks
              clean_url = url.replace('"', '').replace("'", "").replace("`", "")
              if clean_url.startswith("http"):
                  return clean_url
@@ -73,12 +74,12 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str, api_key: st
 
 async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: str) -> List[BidExtractionSchema]:
     """
-    Step 2: Extract bids using LLMExtractionStrategy.
+    Step 2: Extract bids using LLMExtractionStrategy (Document Hunter Mode).
     """
     try:
-        print(f"  [Extraction] Extracting from {portal_url}...")
+        print(f"  [Extraction] Extracting from {portal_url} (AI Mode)...")
 
-        # Configure Strategy: Chunking OFF, Standard Markdown ON
+        # Configure Strategy
         strategy = LLMExtractionStrategy(
             llm_config=LLMConfig(
                 provider="openai/deepseek-chat",
@@ -86,7 +87,7 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
                 base_url="https://api.deepseek.com",
                 temperature=0.0
             ),
-            # Dynamically inject the base URL so the AI can resolve relative links!
+            # Dynamically inject the base URL
             instruction=EXTRACTION_INSTRUCTION + f"\n\nBASE URL FOR RELATIVE LINKS: {portal_url}",
             schema=BidExtractionSchema.model_json_schema(),
             extraction_type="schema",
@@ -98,16 +99,15 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
             url=portal_url,
             process_iframes=True,
             extraction_strategy=strategy,
-            magic=True, # Enhance extraction
+            magic=True,
             wait_until="domcontentloaded",
-            delay_before_return_html=8.0
+            delay_before_return_html=5.0
         )
 
         if not result.success:
             print(f"  [Extraction] Failed to crawl {portal_url}: {result.error_message}")
             return []
 
-        # SAFETY GUARD: Ensure the AI actually returned content before parsing
         if not result.extracted_content:
             print(f"  [Extraction] AI returned no content for {portal_url}.")
             return []
@@ -121,6 +121,7 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
             content = re.sub(r"\s*```$", "", content)
 
         # 2. JSON Extraction Fallback (Non-Greedy Regex)
+        extracted_data = []
         try:
             extracted_data = json.loads(content)
         except json.JSONDecodeError:
@@ -137,18 +138,20 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
                  return []
 
         bids = []
-        # Ensure extracted_data is actually a list before looping
         if not isinstance(extracted_data, list):
             print(f"  [Extraction] Warning: Expected a list of bids, got {type(extracted_data)}.")
             return []
 
         for item in extracted_data:
             try:
+                # Basic sanitation
+                if not item.get("title") and not item.get("link"):
+                    continue
+
                 bid = BidExtractionSchema(**item)
                 bids.append(bid)
             except ValidationError as ve:
                 print(f"  [Extraction] Validation Error for item: {ve}")
-                # Continue processing other items
 
         return bids
 
@@ -156,16 +159,55 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
         print(f"  [Extraction] Error: {e}")
         return []
 
-async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, platform: str) -> List[BidExtractionSchema]:
+async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, schema: dict) -> List[BidExtractionSchema]:
     """
-    Executes standard CSS/XPath extraction for known platforms.
-    (Developer: Please implement standard Crawl4AI CSS extraction strategies here
-    for the specific platforms using standard table/list selectors).
+    Executes standard CSS extraction for known platforms using Crawl4AI's JsonCssExtractionStrategy.
     """
-    print(f"  [Extraction] Running fast CSS extractor for {platform}...")
-    # NOTE TO DEV: Implement basic CSS extractors for these platforms using Crawl4AI's
-    # JsonCssExtractionStrategy or equivalent DOM parsing. If it fails or finds 0, return [].
-    return []
+    print(f"  [Extraction] Running fast CSS extractor...")
+
+    try:
+        strategy = JsonCssExtractionStrategy(schema)
+        result = await crawler.arun(
+            url=portal_url,
+            extraction_strategy=strategy,
+            wait_until="domcontentloaded",
+            delay_before_return_html=5.0
+        )
+
+        if not result.success:
+            print(f"  [Extraction] CSS Extraction failed: {result.error_message}")
+            return []
+
+        content = result.extracted_content
+        if not content:
+            return []
+
+        data = json.loads(content)
+        bids = []
+
+        if isinstance(data, list):
+            for item in data:
+                try:
+                    # Clean/Normalize Link
+                    link = item.get("link", "")
+                    if link and not link.startswith("http") and not link.startswith("javascript"):
+                         link = urljoin(portal_url, link)
+                    item["link"] = link
+
+                    # Ensure minimal fields
+                    if not item.get("title"):
+                        continue
+
+                    bid = BidExtractionSchema(**item)
+                    bids.append(bid)
+                except ValidationError:
+                    continue
+
+        return bids
+
+    except Exception as e:
+        print(f"  [Extraction] Deterministic Error: {e}")
+        return []
 
 async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, api_key: str) -> List[BidExtractionSchema]:
     """
@@ -177,15 +219,15 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, api_key: str) 
 
     # 1. Deterministic Fast-Path
     if "bonfirehub.com" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, "Bonfire")
+        bids = await extract_deterministic(crawler, portal_url, BONFIRE_SCHEMA)
     elif "ionwave.net" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, "IonWave")
+        bids = await extract_deterministic(crawler, portal_url, IONWAVE_SCHEMA)
     elif "planetbids.com" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, "PlanetBids")
+        bids = await extract_deterministic(crawler, portal_url, PLANETBIDS_SCHEMA)
     elif "opengov.com" in url_lower or "procurenow.com" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, "OpenGov")
+        bids = await extract_deterministic(crawler, portal_url, OPENGOV_SCHEMA)
     elif "bidnetdirect.com" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, "BidNet")
+        bids = await extract_deterministic(crawler, portal_url, BIDNET_SCHEMA)
 
     # 2. The AI Safety Net (Fallback)
     if not bids:
@@ -203,6 +245,7 @@ async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
     """
     Step 3: Fetch full text from HTML or PDF.
     """
+    if not bid_link: return ""
     try:
         # Check if PDF
         if bid_link.lower().endswith(".pdf"):
@@ -232,6 +275,10 @@ async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
                 return ""
         else:
             # HTML
+            # Skip javascript: links
+            if bid_link.startswith("javascript:"):
+                return ""
+
             print(f"  [Detail] Fetching HTML: {bid_link}")
             result = await crawler.arun(url=bid_link)
             if result.success:
@@ -283,7 +330,8 @@ async def classify_and_save(db, bid_obj: BidExtractionSchema, full_text: str, st
                 slug=f"{bid_obj.clientName}-{bid_obj.title}"[:100].replace(" ", "-").lower() # Simple slug gen
             )
 
-            db.save_bid(db_bid, state)
+            # Use Async DB Save
+            await db.async_save_bid(db_bid, state)
         else:
             print(f"  [Classification] Skipped (Not Construction): {bid_obj.title}")
 
@@ -310,11 +358,13 @@ async def process_agency(agency: Agency, db, api_key: str):
                     procurement_url = await discover_portal(crawler, agency.homepage_url, api_key)
                     if procurement_url:
                         print(f"  Found Portal: {procurement_url}")
-                        try: db.update_agency_procurement_url(agency.name, agency.state, procurement_url)
+                        try:
+                            await db.async_update_agency_procurement_url(agency.name, agency.state, procurement_url)
                         except: pass
                     else:
                         print(f"  No procurement portal found. Flagging as NOT_FOUND.")
-                        try: db.update_agency_procurement_url(agency.name, agency.state, "NOT_FOUND")
+                        try:
+                            await db.async_update_agency_procurement_url(agency.name, agency.state, "NOT_FOUND")
                         except: pass
                         return
                 else:
@@ -330,8 +380,8 @@ async def process_agency(agency: Agency, db, api_key: str):
 
             # Step 3 & 4: Detail & Classification
             for bid in bids:
-                # CRITICAL GUARD: Do not re-download PDFs or re-run AI classification on existing bids
-                if db.url_already_scraped(bid.link):
+                # Check duplication using Async DB Method
+                if await db.async_url_already_scraped(bid.link):
                     print(f"  [Skip] Already scraped: {bid.link}")
                     continue
 
