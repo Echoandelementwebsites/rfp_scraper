@@ -38,7 +38,7 @@ class CrawlerEngine:
             magic=True,
             wait_until=wait_until,
             page_timeout=60000,
-            delay_before_return_html=8.0
+            delay_before_return_html=5.0
         )
 
     async def classify_text(self, text: str) -> List[str]:

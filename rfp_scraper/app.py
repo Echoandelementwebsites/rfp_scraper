@@ -4,7 +4,6 @@ import os
 import sys
 import time
 import io
-import sqlite3
 import xlsxwriter
 from playwright.sync_api import sync_playwright
 import datetime

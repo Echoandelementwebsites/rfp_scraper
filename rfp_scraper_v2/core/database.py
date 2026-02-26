@@ -1,22 +1,15 @@
 import os
-import sqlite3
 import datetime
 import json
 import pandas as pd
 import urllib.parse
 import hashlib
 import time
-from functools import wraps
 from typing import Optional, List, Dict, Any, Tuple
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import asyncpg
 from .models import Bid
-
-# Try importing Postgres drivers (psycopg2 or asyncpg)
-try:
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-    HAS_PG = True
-except ImportError:
-    HAS_PG = False
 
 # Static mapping for state abbreviation to full name
 ABBR_TO_STATE = {
@@ -33,235 +26,189 @@ ABBR_TO_STATE = {
     "DC": "District of Columbia"
 }
 
-def retry_on_locked(max_retries=5, delay=1.0):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # Check if using Postgres, in which case we might not need this retry logic
-            # but it doesn't hurt to catch OperationalError anyway if it happens there too?
-            # Usually this is for SQLite 'database is locked'.
-            last_err = None
-            for i in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except sqlite3.OperationalError as e:
-                    if "locked" in str(e).lower():
-                        last_err = e
-                        time.sleep(delay)
-                        continue
-                    raise e
-                except Exception as e:
-                    # Re-raise other exceptions immediately
-                    raise e
-            if last_err:
-                print(f"Database locked after {max_retries} retries: {last_err}")
-                raise last_err
-        return wrapper
-    return decorator
-
 class DatabaseHandler:
     def __init__(self, db_url: Optional[str] = None):
         """
         Initializes database connection.
-        Prioritizes DATABASE_URL from environment or passed explicitly.
-        Falls back to local SQLite.
+        Strictly requires DATABASE_URL from environment or passed explicitly.
         """
         self.db_url = db_url or os.getenv("DATABASE_URL")
-        self.is_postgres = bool(self.db_url and "postgres" in self.db_url)
+        if not self.db_url:
+             raise ValueError("CRITICAL: DATABASE_URL environment variable is required. SQLite is not supported.")
 
-        if self.is_postgres and not HAS_PG:
-            print("Warning: Postgres URL detected but psycopg2 not installed. Falling back to SQLite.")
-            self.is_postgres = False
-            self.db_url = None
-
-        if not self.is_postgres:
-            # Ensure SQLite file path
-            self.db_path = "rfp_scraper_v2/rfp_scraper_v2.db"
-            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-            self._init_sqlite()
-        else:
-            self._init_postgres()
-
-    @property
-    def _param_placeholder(self) -> str:
-        return "%s" if self.is_postgres else "?"
+        self.async_pool = None
+        self._init_postgres()
 
     def _get_connection(self):
-        if self.is_postgres:
-            return psycopg2.connect(self.db_url)
-        else:
-            return sqlite3.connect(self.db_path, check_same_thread=False, timeout=15.0)
-
-    def _init_sqlite(self):
-        conn = self._get_connection()
-        conn.execute("PRAGMA journal_mode=WAL;")
-        cursor = conn.cursor()
-
-        # --- Legacy Schema Tables ---
-
-        # States Table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS states (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE,
-                created_at TEXT
-            )
-        """)
-
-        # Local Jurisdictions Table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS local_jurisdictions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                state_id INTEGER,
-                name TEXT,
-                type TEXT, -- 'county', 'city', 'town'
-                created_at TEXT,
-                FOREIGN KEY(state_id) REFERENCES states(id),
-                UNIQUE(state_id, name, type)
-            )
-        """)
-
-        # Agencies Table (Legacy Schema + V2 fields)
-        # Using state_id instead of state string for relational integrity
-        # Added procurement_url, last_checked for V2
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS agencies (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                state_id INTEGER,
-                organization_name TEXT,
-                url TEXT,
-                procurement_url TEXT, -- NEW: Store the AI-discovered portal
-                verified INTEGER DEFAULT 0,
-                created_at TEXT,
-                category TEXT DEFAULT 'state_agency',
-                local_jurisdiction_id INTEGER,
-                last_checked TEXT,
-                FOREIGN KEY(state_id) REFERENCES states(id),
-                FOREIGN KEY(local_jurisdiction_id) REFERENCES local_jurisdictions(id),
-                UNIQUE(state_id, organization_name)
-            )
-        """)
-
-        # Discovery Log Table (Legacy)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS discovery_log (
-                url TEXT PRIMARY KEY,
-                state TEXT,
-                status TEXT, -- 'pending', 'processed', 'error'
-                last_attempted_at TEXT
-            )
-        """)
-
-        # --- V2 Schema Tables ---
-
-        # Bids Table (V2 Schema)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS bids (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slug TEXT UNIQUE,
-                client_name TEXT,
-                title TEXT,
-                deadline TEXT,
-                description TEXT,
-                link TEXT,
-                full_text TEXT,
-                csi_divisions TEXT, -- JSON Array
-                scraped_at TEXT,
-                state TEXT
-            )
-        """)
-
-        # Performance Indexes
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_bids_link ON bids(link)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agencies_state ON agencies(state_id)")
-
-        conn.commit()
-        conn.close()
+        """Returns a synchronous psycopg2 connection."""
+        return psycopg2.connect(self.db_url)
 
     def _init_postgres(self):
+        """Ensure tables exist using synchronous connection."""
         conn = self._get_connection()
         cursor = conn.cursor()
+        try:
+            # States Table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS states (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE,
+                    created_at TIMESTAMP
+                )
+            """)
 
-        # States Table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS states (
-                id SERIAL PRIMARY KEY,
-                name TEXT UNIQUE,
-                created_at TIMESTAMP
-            )
-        """)
+            # Local Jurisdictions Table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS local_jurisdictions (
+                    id SERIAL PRIMARY KEY,
+                    state_id INTEGER REFERENCES states(id),
+                    name TEXT,
+                    type TEXT,
+                    created_at TIMESTAMP,
+                    UNIQUE(state_id, name, type)
+                )
+            """)
 
-        # Local Jurisdictions Table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS local_jurisdictions (
-                id SERIAL PRIMARY KEY,
-                state_id INTEGER REFERENCES states(id),
-                name TEXT,
-                type TEXT,
-                created_at TIMESTAMP,
-                UNIQUE(state_id, name, type)
-            )
-        """)
+            # Agencies Table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS agencies (
+                    id SERIAL PRIMARY KEY,
+                    state_id INTEGER REFERENCES states(id),
+                    organization_name TEXT,
+                    url TEXT,
+                    procurement_url TEXT,
+                    verified INTEGER DEFAULT 0,
+                    created_at TIMESTAMP,
+                    category TEXT DEFAULT 'state_agency',
+                    local_jurisdiction_id INTEGER REFERENCES local_jurisdictions(id),
+                    last_checked TIMESTAMP,
+                    UNIQUE(state_id, organization_name)
+                )
+            """)
 
-        # Agencies Table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS agencies (
-                id SERIAL PRIMARY KEY,
-                state_id INTEGER REFERENCES states(id),
-                organization_name TEXT,
-                url TEXT,
-                procurement_url TEXT, -- NEW: Store the AI-discovered portal
-                verified INTEGER DEFAULT 0,
-                created_at TIMESTAMP,
-                category TEXT DEFAULT 'state_agency',
-                local_jurisdiction_id INTEGER REFERENCES local_jurisdictions(id),
-                last_checked TIMESTAMP,
-                UNIQUE(state_id, organization_name)
-            )
-        """)
+            # Discovery Log Table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS discovery_log (
+                    url TEXT PRIMARY KEY,
+                    state TEXT,
+                    status TEXT,
+                    last_attempted_at TIMESTAMP
+                )
+            """)
 
-        # Discovery Log Table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS discovery_log (
-                url TEXT PRIMARY KEY,
-                state TEXT,
-                status TEXT,
-                last_attempted_at TIMESTAMP
-            )
-        """)
+            # Bids Table (V2)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bids (
+                    id SERIAL PRIMARY KEY,
+                    slug TEXT UNIQUE,
+                    client_name TEXT,
+                    title TEXT,
+                    deadline DATE,
+                    description TEXT,
+                    link TEXT,
+                    full_text TEXT,
+                    csi_divisions JSONB,
+                    scraped_at TIMESTAMP DEFAULT NOW(),
+                    state TEXT
+                )
+            """)
 
-        # Bids Table (V2)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS bids (
-                id SERIAL PRIMARY KEY,
-                slug TEXT UNIQUE,
-                client_name TEXT,
-                title TEXT,
-                deadline DATE,
-                description TEXT,
-                link TEXT,
-                full_text TEXT,
-                csi_divisions JSONB,
-                scraped_at TIMESTAMP DEFAULT NOW(),
-                state TEXT
-            )
-        """)
+            # Indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_bids_link ON bids(link)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_agencies_state ON agencies(state_id)")
 
-        # Indexes
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_bids_link ON bids(link)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agencies_state ON agencies(state_id)")
+            conn.commit()
+        finally:
+            conn.close()
 
-        conn.commit()
-        conn.close()
+    # --- Async Methods (Using asyncpg) ---
 
-    # --- Helper Methods ---
+    async def connect_async(self):
+        """Initializes the asyncpg connection pool."""
+        if not self.async_pool:
+            print("Initializing asyncpg pool...")
+            self.async_pool = await asyncpg.create_pool(self.db_url)
+
+    async def close_async(self):
+        """Closes the asyncpg connection pool."""
+        if self.async_pool:
+            print("Closing asyncpg pool...")
+            await self.async_pool.close()
+            self.async_pool = None
+
+    async def async_save_bid(self, bid: Bid, state: str):
+        """Async version of save_bid."""
+        if not self.async_pool:
+            await self.connect_async()
+
+        scraped_at = datetime.datetime.now().isoformat()
+        csi_json = json.dumps(bid.csi_divisions) if bid.csi_divisions else None
+
+        # asyncpg uses $1, $2 placeholders
+        query = """
+            INSERT INTO bids (slug, client_name, title, deadline, description, link, full_text, csi_divisions, state, scraped_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ON CONFLICT (slug) DO UPDATE SET
+                deadline = EXCLUDED.deadline,
+                description = EXCLUDED.description,
+                full_text = EXCLUDED.full_text,
+                csi_divisions = EXCLUDED.csi_divisions,
+                scraped_at = EXCLUDED.scraped_at
+        """
+
+        deadline_val = bid.deadline
+        # Validate deadline format for Postgres DATE
+        if deadline_val:
+            try:
+                # Basic check YYYY-MM-DD
+                datetime.datetime.strptime(deadline_val, "%Y-%m-%d")
+            except ValueError:
+                deadline_val = None
+
+        try:
+             async with self.async_pool.acquire() as conn:
+                await conn.execute(query, bid.slug, bid.clientName, bid.title, deadline_val, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at)
+        except Exception as e:
+            print(f"Error saving bid {bid.slug} (Async): {e}")
+
+    async def async_url_already_scraped(self, url: str) -> bool:
+        if not url: return False
+        clean_url = self._normalize_url(url)
+
+        if not self.async_pool:
+            await self.connect_async()
+
+        query = "SELECT 1 FROM bids WHERE link LIKE $1"
+        try:
+            async with self.async_pool.acquire() as conn:
+                row = await conn.fetchrow(query, f"%{clean_url}%")
+                return row is not None
+        except Exception as e:
+            print(f"Error checking url {url} (Async): {e}")
+            return False
+
+    async def async_update_agency_procurement_url(self, name: str, state: str, procurement_url: str):
+        if not self.async_pool:
+            await self.connect_async()
+
+        query = """
+            UPDATE agencies
+            SET procurement_url = $1
+            WHERE organization_name = $2
+        """
+        try:
+            async with self.async_pool.acquire() as conn:
+                await conn.execute(query, procurement_url, name)
+        except Exception as e:
+            print(f"Error updating procurement url for {name} (Async): {e}")
+
+    # --- Sync Methods (psycopg2) ---
 
     def _get_state_id(self, state_abbr_or_name: str) -> Optional[int]:
         """Resolves state ID from abbreviation or full name."""
         if not state_abbr_or_name:
             return None
 
-        # Determine full name
         full_name = state_abbr_or_name
         if len(state_abbr_or_name) == 2:
              full_name = ABBR_TO_STATE.get(state_abbr_or_name.upper(), state_abbr_or_name)
@@ -269,32 +216,26 @@ class DatabaseHandler:
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            query = f"SELECT id FROM states WHERE name = {self._param_placeholder}"
+            query = "SELECT id FROM states WHERE name = %s"
             cursor.execute(query, (full_name,))
             row = cursor.fetchone()
             if row:
                 return row[0]
 
-            # If not found, try inserting strictly if it's a known US state?
-            # Or just return None.
-            # To be safe for V2 orchestrator, we might want to auto-create known states.
+            # Auto-create known states
             if full_name in ABBR_TO_STATE.values():
                 self.add_state(full_name)
-                # Retry fetch
                 cursor.execute(query, (full_name,))
                 row = cursor.fetchone()
                 if row:
                     return row[0]
-
             return None
         finally:
             conn.close()
 
     @staticmethod
     def _normalize_url(url: str) -> str:
-        """Normalize URL for deduplication checks."""
-        if not url:
-            return ""
+        if not url: return ""
         parsed = urllib.parse.urlparse(url)
         clean_url = f"{parsed.netloc}{parsed.path}"
         clean_url = clean_url.strip().lower()
@@ -319,22 +260,15 @@ class DatabaseHandler:
 
     @staticmethod
     def generate_slug(title: str, client_name: str, source_url: str) -> str:
-        """Generate a deterministic slug based on bid properties."""
         raw_string = f"{str(title).lower()}|{str(client_name).lower()}|{str(source_url).lower()}"
         return hashlib.md5(raw_string.encode('utf-8')).hexdigest()
 
-    # --- Legacy Methods (States) ---
-
-    @retry_on_locked()
     def add_state(self, name: str):
         conn = self._get_connection()
         cursor = conn.cursor()
         created_at = datetime.datetime.now().isoformat()
         try:
-            if self.is_postgres:
-                cursor.execute("INSERT INTO states (name, created_at) VALUES (%s, %s) ON CONFLICT (name) DO NOTHING", (name, created_at))
-            else:
-                cursor.execute("INSERT OR IGNORE INTO states (name, created_at) VALUES (?, ?)", (name, created_at))
+            cursor.execute("INSERT INTO states (name, created_at) VALUES (%s, %s) ON CONFLICT (name) DO NOTHING", (name, created_at))
             conn.commit()
         finally:
             conn.close()
@@ -349,30 +283,22 @@ class DatabaseHandler:
             conn.close()
         return df
 
-    # --- Legacy Methods (Local Jurisdictions) ---
-
-    @retry_on_locked()
     def append_local_jurisdiction(self, state_id: int, name: str, jurisdiction_type: str) -> int:
         conn = self._get_connection()
         cursor = conn.cursor()
         created_at = datetime.datetime.now().isoformat()
 
         # Check existence
-        query = f"SELECT id FROM local_jurisdictions WHERE state_id = {self._param_placeholder} AND name = {self._param_placeholder} AND type = {self._param_placeholder}"
+        query = "SELECT id FROM local_jurisdictions WHERE state_id = %s AND name = %s AND type = %s"
         cursor.execute(query, (state_id, name, jurisdiction_type))
         row = cursor.fetchone()
         if row:
             conn.close()
             return row[0]
 
-        # Insert
         try:
-            if self.is_postgres:
-                cursor.execute("INSERT INTO local_jurisdictions (state_id, name, type, created_at) VALUES (%s, %s, %s, %s) RETURNING id", (state_id, name, jurisdiction_type, created_at))
-                new_id = cursor.fetchone()[0]
-            else:
-                cursor.execute("INSERT INTO local_jurisdictions (state_id, name, type, created_at) VALUES (?, ?, ?, ?)", (state_id, name, jurisdiction_type, created_at))
-                new_id = cursor.lastrowid
+            cursor.execute("INSERT INTO local_jurisdictions (state_id, name, type, created_at) VALUES (%s, %s, %s, %s) RETURNING id", (state_id, name, jurisdiction_type, created_at))
+            new_id = cursor.fetchone()[0]
             conn.commit()
             return new_id
         finally:
@@ -382,7 +308,7 @@ class DatabaseHandler:
         conn = self._get_connection()
         try:
             if state_id:
-                query = f"SELECT * FROM local_jurisdictions WHERE state_id = {self._param_placeholder}"
+                query = "SELECT * FROM local_jurisdictions WHERE state_id = %s"
                 df = pd.read_sql_query(query, conn, params=(state_id,))
             else:
                 df = pd.read_sql_query("SELECT * FROM local_jurisdictions", conn)
@@ -392,8 +318,6 @@ class DatabaseHandler:
             conn.close()
         return df
 
-    # --- Legacy Methods (Agencies) ---
-
     def agency_exists(self, state_id: int, url: Optional[str] = None, name: Optional[str] = None, category: Optional[str] = None, local_jurisdiction_id: Optional[int] = None) -> bool:
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -401,7 +325,7 @@ class DatabaseHandler:
         try:
             if url:
                 normalized_url = self._normalize_url(url)
-                query = f"SELECT url FROM agencies WHERE state_id = {self._param_placeholder}"
+                query = "SELECT url FROM agencies WHERE state_id = %s"
                 cursor.execute(query, (state_id,))
                 rows = cursor.fetchall()
                 for row in rows:
@@ -411,10 +335,10 @@ class DatabaseHandler:
 
             if name and category:
                 if local_jurisdiction_id is None:
-                     query = f"SELECT 1 FROM agencies WHERE state_id = {self._param_placeholder} AND organization_name = {self._param_placeholder} AND category = {self._param_placeholder} AND local_jurisdiction_id IS NULL"
+                     query = "SELECT 1 FROM agencies WHERE state_id = %s AND organization_name = %s AND category = %s AND local_jurisdiction_id IS NULL"
                      cursor.execute(query, (state_id, name, category))
                 else:
-                     query = f"SELECT 1 FROM agencies WHERE state_id = {self._param_placeholder} AND organization_name = {self._param_placeholder} AND category = {self._param_placeholder} AND local_jurisdiction_id = {self._param_placeholder}"
+                     query = "SELECT 1 FROM agencies WHERE state_id = %s AND organization_name = %s AND category = %s AND local_jurisdiction_id = %s"
                      cursor.execute(query, (state_id, name, category, local_jurisdiction_id))
                 return cursor.fetchone() is not None
 
@@ -422,7 +346,6 @@ class DatabaseHandler:
         finally:
             conn.close()
 
-    @retry_on_locked()
     def add_agency(self, state_id: int, name: str, url: Optional[str] = None, verified: bool = False, category: str = 'state_agency', local_jurisdiction_id: Optional[int] = None):
         if url: url = url.strip()
 
@@ -435,17 +358,11 @@ class DatabaseHandler:
         verified_int = 1 if verified else 0
 
         try:
-            if self.is_postgres:
-                 cursor.execute("""
-                    INSERT INTO agencies (state_id, organization_name, url, verified, created_at, category, local_jurisdiction_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (state_id, organization_name) DO NOTHING
-                """, (state_id, name, url, verified_int, created_at, category, local_jurisdiction_id))
-            else:
-                 cursor.execute("""
-                    INSERT OR IGNORE INTO agencies (state_id, organization_name, url, verified, created_at, category, local_jurisdiction_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (state_id, name, url, verified_int, created_at, category, local_jurisdiction_id))
+            cursor.execute("""
+                INSERT INTO agencies (state_id, organization_name, url, verified, created_at, category, local_jurisdiction_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (state_id, organization_name) DO NOTHING
+            """, (state_id, name, url, verified_int, created_at, category, local_jurisdiction_id))
             conn.commit()
         except Exception as e:
             print(f"Error adding agency: {e}")
@@ -455,7 +372,6 @@ class DatabaseHandler:
     def get_all_agencies(self) -> pd.DataFrame:
         conn = self._get_connection()
         try:
-            # Join with states and local_jurisdictions to get labels
             query = """
                 SELECT
                     a.*,
@@ -478,7 +394,7 @@ class DatabaseHandler:
     def get_agencies_by_state(self, state_id: int) -> pd.DataFrame:
         conn = self._get_connection()
         try:
-            query = f"SELECT * FROM agencies WHERE state_id = {self._param_placeholder}"
+            query = "SELECT * FROM agencies WHERE state_id = %s"
             df = pd.read_sql_query(query, conn, params=(state_id,))
         except Exception:
             df = pd.DataFrame(columns=['id', 'state_id', 'organization_name', 'url', 'verified', 'created_at', 'category', 'local_jurisdiction_id'])
@@ -488,15 +404,13 @@ class DatabaseHandler:
 
     def get_agency_by_jurisdiction(self, state_id: int, category: str, local_jurisdiction_id: Optional[int]) -> Optional[dict]:
         conn = self._get_connection()
-        if not self.is_postgres:
-            conn.row_factory = sqlite3.Row
-        cursor = conn.cursor(cursor_factory=RealDictCursor) if self.is_postgres else conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         try:
             if local_jurisdiction_id is None:
                 return None
 
-            query = f"SELECT * FROM agencies WHERE state_id = {self._param_placeholder} AND category = {self._param_placeholder} AND local_jurisdiction_id = {self._param_placeholder}"
+            query = "SELECT * FROM agencies WHERE state_id = %s AND category = %s AND local_jurisdiction_id = %s"
             cursor.execute(query, (state_id, category, local_jurisdiction_id))
 
             row = cursor.fetchone()
@@ -508,16 +422,14 @@ class DatabaseHandler:
 
     def get_agency_by_name(self, state_id: int, name: str, category: Optional[str] = None) -> Optional[dict]:
         conn = self._get_connection()
-        if not self.is_postgres:
-            conn.row_factory = sqlite3.Row
-        cursor = conn.cursor(cursor_factory=RealDictCursor) if self.is_postgres else conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         try:
             if category:
-                query = f"SELECT * FROM agencies WHERE state_id = {self._param_placeholder} AND organization_name = {self._param_placeholder} AND category = {self._param_placeholder}"
+                query = "SELECT * FROM agencies WHERE state_id = %s AND organization_name = %s AND category = %s"
                 cursor.execute(query, (state_id, name, category))
             else:
-                 query = f"SELECT * FROM agencies WHERE state_id = {self._param_placeholder} AND organization_name = {self._param_placeholder}"
+                 query = "SELECT * FROM agencies WHERE state_id = %s AND organization_name = %s"
                  cursor.execute(query, (state_id, name))
 
             row = cursor.fetchone()
@@ -527,50 +439,41 @@ class DatabaseHandler:
         finally:
             conn.close()
 
-    @retry_on_locked()
     def update_agency_url(self, agency_id: int, new_url: str):
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            query = f"UPDATE agencies SET url = {self._param_placeholder}, verified = 1 WHERE id = {self._param_placeholder}"
+            query = "UPDATE agencies SET url = %s, verified = 1 WHERE id = %s"
             cursor.execute(query, (new_url, agency_id))
             conn.commit()
         finally:
             conn.close()
 
-    @retry_on_locked()
     def update_agency_name(self, agency_id: int, new_name: str):
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            query = f"UPDATE agencies SET organization_name = {self._param_placeholder} WHERE id = {self._param_placeholder}"
+            query = "UPDATE agencies SET organization_name = %s WHERE id = %s"
             cursor.execute(query, (new_name, agency_id))
             conn.commit()
         finally:
             conn.close()
 
-    @retry_on_locked()
     def delete_agency(self, agency_id: int):
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            query = f"DELETE FROM agencies WHERE id = {self._param_placeholder}"
+            query = "DELETE FROM agencies WHERE id = %s"
             cursor.execute(query, (agency_id,))
             conn.commit()
         finally:
             conn.close()
 
-    # --- Legacy Methods (Discovery Log) ---
-
-    @retry_on_locked()
     def add_discovered_url(self, url: str, state: str):
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            if self.is_postgres:
-                cursor.execute("INSERT INTO discovery_log (url, state, status, last_attempted_at) VALUES (%s, %s, 'pending', NULL) ON CONFLICT (url) DO NOTHING", (url, state))
-            else:
-                cursor.execute("INSERT OR IGNORE INTO discovery_log (url, state, status, last_attempted_at) VALUES (?, ?, 'pending', NULL)", (url, state))
+            cursor.execute("INSERT INTO discovery_log (url, state, status, last_attempted_at) VALUES (%s, %s, 'pending', NULL) ON CONFLICT (url) DO NOTHING", (url, state))
             conn.commit()
         finally:
             conn.close()
@@ -579,96 +482,62 @@ class DatabaseHandler:
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            query = f"SELECT url FROM discovery_log WHERE state = {self._param_placeholder} AND status = 'pending'"
+            query = "SELECT url FROM discovery_log WHERE state = %s AND status = 'pending'"
             cursor.execute(query, (state,))
             rows = cursor.fetchall()
             return [r[0] for r in rows]
         finally:
             conn.close()
 
-    @retry_on_locked()
     def mark_url_processed(self, url: str, status: str = 'processed'):
         conn = self._get_connection()
         cursor = conn.cursor()
         now = datetime.datetime.now().isoformat()
         try:
-            query = f"UPDATE discovery_log SET status = {self._param_placeholder}, last_attempted_at = {self._param_placeholder} WHERE url = {self._param_placeholder}"
+            query = "UPDATE discovery_log SET status = %s, last_attempted_at = %s WHERE url = %s"
             cursor.execute(query, (status, now, url))
             conn.commit()
         finally:
             conn.close()
 
-    # --- V2 Methods (Bids) ---
-
-    @retry_on_locked()
     def save_bid(self, bid: Bid, state: str):
-        """Save a processed bid to the database (V2)."""
+        """Sync save_bid for compatibility (though largely unused in v2 pipeline)."""
         conn = self._get_connection()
         cursor = conn.cursor()
 
         scraped_at = datetime.datetime.now().isoformat()
         csi_json = json.dumps(bid.csi_divisions) if bid.csi_divisions else None
 
+        # Determine deadline logic for sync
+        deadline_val = bid.deadline
+        if deadline_val:
+            try:
+                datetime.datetime.strptime(deadline_val, "%Y-%m-%d")
+            except ValueError:
+                deadline_val = None
+
         try:
-            if self.is_postgres:
-                cursor.execute("""
-                    INSERT INTO bids (slug, client_name, title, deadline, description, link, full_text, csi_divisions, state, scraped_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (slug) DO UPDATE SET
-                        deadline = EXCLUDED.deadline,
-                        description = EXCLUDED.description,
-                        full_text = EXCLUDED.full_text,
-                        csi_divisions = EXCLUDED.csi_divisions,
-                        scraped_at = EXCLUDED.scraped_at
-                """, (bid.slug, bid.clientName, bid.title, bid.deadline, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at))
-            else:
-                cursor.execute("""
-                    INSERT INTO bids (slug, client_name, title, deadline, description, link, full_text, csi_divisions, state, scraped_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(slug) DO UPDATE SET
-                        deadline=excluded.deadline,
-                        description=excluded.description,
-                        full_text=excluded.full_text,
-                        csi_divisions=excluded.csi_divisions,
-                        scraped_at=excluded.scraped_at
-                """, (bid.slug, bid.clientName, bid.title, bid.deadline, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at))
+            cursor.execute("""
+                INSERT INTO bids (slug, client_name, title, deadline, description, link, full_text, csi_divisions, state, scraped_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (slug) DO UPDATE SET
+                    deadline = EXCLUDED.deadline,
+                    description = EXCLUDED.description,
+                    full_text = EXCLUDED.full_text,
+                    csi_divisions = EXCLUDED.csi_divisions,
+                    scraped_at = EXCLUDED.scraped_at
+            """, (bid.slug, bid.clientName, bid.title, deadline_val, bid.description, bid.link, bid.full_text, csi_json, state, scraped_at))
             conn.commit()
         except Exception as e:
             print(f"Error saving bid {bid.slug}: {e}")
         finally:
             conn.close()
 
-    def insert_bid(self, slug: str, client_name: str, title: str, deadline: str, source_url: str, state: str = "Unknown", rfp_description: Optional[str] = None, matching_trades: Optional[str] = None):
-        """
-        Compatibility method for Legacy tasks (unused in UI but kept for integrity).
-        Adapts legacy args to V2 Bid object and calls save_bid.
-        """
-        # Convert legacy matching_trades (string) to csi_divisions (List[str])
-        csi = [matching_trades] if matching_trades else []
-
-        bid = Bid(
-            title=title,
-            clientName=client_name,
-            deadline=deadline,
-            description=rfp_description or "",
-            link=source_url,
-            full_text="",
-            csi_divisions=csi,
-            slug=slug
-        )
-        self.save_bid(bid, state)
-
     def get_bids(self, state: Optional[str] = None) -> pd.DataFrame:
-        """
-        Retrieve bids from V2 table, mapping columns to Legacy expectations.
-        - description -> rfp_description
-        - link -> source_url
-        - csi_divisions (JSON) -> matching_trades (CSV String)
-        """
         conn = self._get_connection()
         try:
             if state:
-                query = f"SELECT * FROM bids WHERE state = {self._param_placeholder}"
+                query = "SELECT * FROM bids WHERE state = %s"
                 df = pd.read_sql_query(query, conn, params=(state,))
             else:
                 df = pd.read_sql_query("SELECT * FROM bids", conn)
@@ -697,7 +566,6 @@ class DatabaseHandler:
             else:
                 df['matching_trades'] = ""
 
-            # Ensure minimal required columns exist
             required = ['slug', 'client_name', 'title', 'deadline', 'scraped_at', 'source_url', 'state', 'rfp_description', 'matching_trades']
             for col in required:
                 if col not in df.columns:
@@ -710,36 +578,27 @@ class DatabaseHandler:
         finally:
             conn.close()
 
-    @retry_on_locked()
     def update_agency_procurement_url(self, name: str, state: str, procurement_url: str):
-        """Saves the AI-discovered procurement portal URL to the agency record."""
-        query = """
-            UPDATE agencies
-            SET procurement_url = ?
-            WHERE organization_name = ?
-        """
-        if self.is_postgres:
-            query = query.replace("?", "%s")
-
-        params = (procurement_url, name)
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                cursor.execute(query, params)
-                conn.commit()
-            except Exception as e:
-                print(f"Database Error updating procurement URL for {name}: {e}")
-
-    def url_already_scraped(self, url: str) -> bool:
-        """Checks if a URL source (link in v2) has already been processed."""
-        if not url: return False
-        clean_url = self._normalize_url(url)
-
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            # Check link column in bids
-            query = f"SELECT 1 FROM bids WHERE link LIKE {self._param_placeholder}"
+             query = """
+                UPDATE agencies
+                SET procurement_url = %s
+                WHERE organization_name = %s
+            """
+             cursor.execute(query, (procurement_url, name))
+             conn.commit()
+        finally:
+            conn.close()
+
+    def url_already_scraped(self, url: str) -> bool:
+        if not url: return False
+        clean_url = self._normalize_url(url)
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            query = "SELECT 1 FROM bids WHERE link LIKE %s"
             cursor.execute(query, (f"%{clean_url}%",))
             return cursor.fetchone() is not None
         finally:
@@ -749,8 +608,23 @@ class DatabaseHandler:
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            query = f"SELECT 1 FROM bids WHERE slug = {self._param_placeholder}"
+            query = "SELECT 1 FROM bids WHERE slug = %s"
             cursor.execute(query, (slug,))
             return cursor.fetchone() is not None
         finally:
             conn.close()
+
+    def insert_bid(self, slug: str, client_name: str, title: str, deadline: str, source_url: str, state: str = "Unknown", rfp_description: Optional[str] = None, matching_trades: Optional[str] = None):
+        """Compatibility wrapper."""
+        csi = [matching_trades] if matching_trades else []
+        bid = Bid(
+            title=title,
+            clientName=client_name,
+            deadline=deadline,
+            description=rfp_description or "",
+            link=source_url,
+            full_text="",
+            csi_divisions=csi,
+            slug=slug
+        )
+        self.save_bid(bid, state)

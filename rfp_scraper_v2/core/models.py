@@ -10,16 +10,17 @@ class AgencySchema(BaseModel):
 
 class DiscoverySchema(BaseModel):
     procurement_url: Optional[str] = Field(
+        default=None,
         description="The absolute URL pointing to the agency's bids, RFPs, or purchasing portal. Return null if none exists."
     )
 
 class BidExtractionSchema(BaseModel):
     reasoning: Optional[str] = Field(default=None, description="Briefly explain why this active bid is being extracted and how you resolved its link.")
-    title: str = Field(default="Unknown Title", description="The official title or name of the project/RFP.")
-    clientName: str = Field(default="Unknown Client", description="The name of the agency issuing the bid.")
+    title: Optional[str] = Field(default="Unknown Title", description="The official title or name of the project/RFP.")
+    clientName: Optional[str] = Field(default="Unknown Client", description="The name of the agency issuing the bid.")
     deadline: Optional[str] = Field(default=None, description="The due date of the bid in YYYY-MM-DD format. Return empty string if unknown.")
     description: Optional[str] = Field(default=None, description="A brief 1-3 sentence summary of the work required.")
-    link: str = Field(default="", description="The absolute URL pointing to the bid details or PDF document. Critical: Must be an absolute URL.")
+    link: Optional[str] = Field(default="", description="The absolute URL pointing to the bid details or PDF document. Critical: Must be an absolute URL.")
 
 class ClassificationSchema(BaseModel):
     reasoning: Optional[str] = Field(
