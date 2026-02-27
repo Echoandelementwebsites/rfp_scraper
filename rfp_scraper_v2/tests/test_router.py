@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 from rfp_scraper_v2.crawlers import pipeline
 from rfp_scraper_v2.core.models import BidExtractionSchema
+from rfp_scraper_v2.crawlers.schemas import BONFIRE_SCHEMA
 
 @pytest.mark.asyncio
 class TestRouter:
@@ -17,6 +18,7 @@ class TestRouter:
     def setup(self):
         self.crawler = MagicMock()
         self.api_key = "dummy_key"
+        self.agency_name = "Test Agency"
 
     async def test_router_deterministic_bonfire(self):
         # Setup mock return for deterministic
@@ -27,10 +29,10 @@ class TestRouter:
             mock_det.return_value = mock_bids
 
             # Call router with Bonfire URL
-            bids = await pipeline.extract_bids(self.crawler, "https://example.bonfirehub.com/opportunities", self.api_key)
+            bids = await pipeline.extract_bids(self.crawler, "https://example.bonfirehub.com/opportunities", self.agency_name, self.api_key)
 
-            # Verify deterministic was called
-            mock_det.assert_called_once_with(self.crawler, "https://example.bonfirehub.com/opportunities", "Bonfire")
+            # Verify deterministic was called with agency_name
+            mock_det.assert_called_once_with(self.crawler, "https://example.bonfirehub.com/opportunities", self.agency_name, BONFIRE_SCHEMA)
             # Verify result matches
             assert bids == mock_bids, f"Expected {mock_bids}, got {bids}"
             print("  [PASS] Bonfire Router Test")
@@ -43,10 +45,10 @@ class TestRouter:
             mock_ai.return_value = mock_bids
 
             # Call router with unknown URL
-            bids = await pipeline.extract_bids(self.crawler, "https://unknown.com/bids", self.api_key)
+            bids = await pipeline.extract_bids(self.crawler, "https://unknown.com/bids", self.agency_name, self.api_key)
 
-            # Verify AI was called
-            mock_ai.assert_called_once_with(self.crawler, "https://unknown.com/bids", self.api_key)
+            # Verify AI was called with agency_name
+            mock_ai.assert_called_once_with(self.crawler, "https://unknown.com/bids", self.agency_name, self.api_key)
             assert bids == mock_bids
             print("  [PASS] AI Fallback (Unknown Domain) Test")
 
@@ -60,11 +62,11 @@ class TestRouter:
             mock_ai.return_value = mock_bids
 
             # Call router with Bonfire URL
-            bids = await pipeline.extract_bids(self.crawler, "https://example.bonfirehub.com/opportunities", self.api_key)
+            bids = await pipeline.extract_bids(self.crawler, "https://example.bonfirehub.com/opportunities", self.agency_name, self.api_key)
 
             # Verify deterministic called first, then AI
             mock_det.assert_called_once()
-            mock_ai.assert_called_once_with(self.crawler, "https://example.bonfirehub.com/opportunities", self.api_key)
+            mock_ai.assert_called_once_with(self.crawler, "https://example.bonfirehub.com/opportunities", self.agency_name, self.api_key)
             assert bids == mock_bids
             print("  [PASS] AI Fallback (Empty Deterministic) Test")
 

@@ -15,9 +15,11 @@ EXTRACTION_INSTRUCTION = """
 You are analyzing a custom municipal procurement website. Your sole objective is to extract the titles of active solicitations and the direct URLs to their associated documents (PDFs, specifications, addenda, or full descriptions).
 
 CRITICAL RULES:
-1. Do not invent or guess due dates, contract values, or descriptions if they are not explicitly clear in the text. Leave them as null or empty string.
-2. The `link` MUST be an absolute URL. If the link is relative, prepend the Base URL provided at the end of this prompt.
-3. Focus on finding the *document* or *detail page* link.
+1. You will be provided with the CURRENT DATE. You MUST completely ignore and exclude any bids, RFPs, or solicitations where the deadline or due date is in the past.
+2. DO NOT extract 'Bid Tabulations', 'Awarded Contracts', 'Intent to Award', or 'Bid Results'. We only want OPEN, ACTIVE solicitations.
+3. You must extract a comprehensive 1-3 sentence 'description' and the exact 'deadline' for each bid to satisfy the required JSON schema.
+4. The `link` MUST be an absolute URL. If the link is relative, prepend the Base URL provided at the end of this prompt.
+5. Focus on finding the *document* or *detail page* link.
 
 NEGATIVE CONSTRAINTS:
 - DO NOT extract Janitorial, Cleaning, or Pest Control bids.
@@ -65,6 +67,8 @@ Division 34 - Transportation
 Division 35 - Waterway and Marine Construction
 
 --- NEGATIVE CONSTRAINTS (What is NOT Construction) ---
+- AUTOMATIC REJECTIONS: If the full text snippet contains phrases like '404', 'Page Not Found', 'Doesn't seem to exist', or 'Closed to Bidding', you MUST classify is_construction_related as false, regardless of the title.
+- COMMODITY REJECTIONS: Pure commodity purchases (e.g., Security Cameras, Vehicles, Traffic Sign Blanks, Software, Janitorial Supplies) that do not explicitly require physical installation/construction labor by the contractor MUST be rejected (is_construction_related: false).
 - Janitorial, Custodial, or basic building cleaning (Set False).
 - Standard Lawn Care, mowing, or tree trimming WITHOUT hardscaping/earthwork (Set False).
 - Software, IT Services, Telecom billing, or SaaS platforms (Set False).
