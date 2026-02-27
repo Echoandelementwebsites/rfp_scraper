@@ -33,6 +33,23 @@ st.title("🏗️ National Construction RFP Scraper")
 # Initialize Helpers
 db = DatabaseHandler()
 
+# --- Cached Data Loaders for UI Performance ---
+@st.cache_data(ttl=300) # Cache for 5 minutes
+def get_cached_states():
+    return db.get_all_states()
+
+@st.cache_data(ttl=300)
+def get_cached_local_govs():
+    return db.get_local_jurisdictions()
+
+@st.cache_data(ttl=300)
+def get_cached_agencies():
+    return db.get_all_agencies()
+
+@st.cache_data(ttl=60) # Cache bids for 1 minute (needs more frequent updates)
+def get_cached_bids(state_filter=None):
+    return db.get_bids(state=state_filter)
+
 # Initialize Job Manager (Global Resource)
 @st.cache_resource
 def get_job_manager():
@@ -41,7 +58,7 @@ def get_job_manager():
 job_manager = get_job_manager()
 
 # Get available states from DB for scraper
-available_states_df = db.get_all_states()
+available_states_df = get_cached_states()
 available_states = available_states_df['name'].tolist() if not available_states_df.empty else []
 
 # --- Global Configuration (Sidebar) ---
@@ -77,6 +94,11 @@ else:
         st.sidebar.caption(last_log)
 
     if st.sidebar.button("Refresh Status"):
+        # Clear caches before refreshing
+        get_cached_states.clear()
+        get_cached_local_govs.clear()
+        get_cached_agencies.clear()
+        get_cached_bids.clear()
         st.rerun()
 
 
@@ -110,11 +132,15 @@ with tab_states:
                         st.success(f"Processed {count} states.")
                         if count == 0:
                             st.warning("No valid states found in response.")
+                        else:
+                            # Invalidate cache to show new states
+                            get_cached_states.clear()
+                            st.rerun()
                     else:
                         st.error("Failed to generate states (empty response).")
 
     # Display States Table
-    df_states = db.get_all_states()
+    df_states = get_cached_states()
     st.dataframe(df_states, use_container_width=True)
 
     # Export
@@ -136,7 +162,7 @@ with tab_local_gov:
     st.markdown("Identify Counties, Cities, and Towns using AI.")
 
     # Refresh states from DB
-    df_current_states_lg = db.get_all_states()
+    df_current_states_lg = get_cached_states()
     state_names_list_lg = df_current_states_lg['name'].tolist() if not df_current_states_lg.empty else []
 
     col_lg1, col_lg2 = st.columns(2)
@@ -193,11 +219,14 @@ with tab_local_gov:
                 progress_bar_lg.progress((i + 1) / total_lg_states)
 
             status_text_lg.success("Identification Complete!")
+            # Invalidate cache to show new jurisdictions
+            get_cached_local_govs.clear()
+            st.rerun()
 
     # Display Table
     st.subheader("Identified Local Governments")
 
-    df_local_govs = db.get_local_jurisdictions()
+    df_local_govs = get_cached_local_govs()
 
     # Join with states to get state name for better display
     if not df_local_govs.empty and not df_current_states_lg.empty:
@@ -249,7 +278,7 @@ with tab_agencies:
         agency_mode = st.radio("Discovery Mode", ["Single State", "All States"], key="agency_mode")
 
     # Refresh states from DB
-    df_current_states = db.get_all_states()
+    df_current_states = get_cached_states()
     state_names_list = df_current_states['name'].tolist() if not df_current_states.empty else []
 
     target_agency_states = []
@@ -281,7 +310,7 @@ with tab_agencies:
     # Display Agencies Table
     st.divider()
     st.subheader("Discovered Agencies")
-    df_agencies = db.get_all_agencies()
+    df_agencies = get_cached_agencies()
 
     # Apply Filter
     if agency_mode == "Single State" and selected_agency_state:
@@ -363,7 +392,7 @@ with tab_scraper:
 
     # 1. Load Data
     state_filter = selected_scraper_state if scraper_mode == "Single State" else None
-    persistent_df = db.get_bids(state=state_filter)
+    persistent_df = get_cached_bids(state_filter=state_filter)
 
     # 2. Filter Logic (Deadline >= Today)
     if not persistent_df.empty and 'deadline' in persistent_df.columns:
