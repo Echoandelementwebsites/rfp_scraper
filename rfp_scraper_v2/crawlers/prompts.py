@@ -20,6 +20,7 @@ CRITICAL RULES:
 3. You must extract a comprehensive 1-3 sentence 'description' and the exact 'deadline' for each bid to satisfy the required JSON schema.
 4. The `link` MUST be an absolute URL. If the link is relative, prepend the Base URL provided at the end of this prompt.
 5. Focus on finding the *document* or *detail page* link.
+6. PORTAL BAN: You must NEVER extract the main "Bids and Proposals" directory, homepage, or the current page itself as a bid. You must ONLY extract specific, individual project solicitations.
 
 NEGATIVE CONSTRAINTS:
 - DO NOT extract Janitorial, Cleaning, or Pest Control bids.
