@@ -455,11 +455,20 @@ async def process_agency(agency: Agency, db, api_key: str):
 
             # Step 3 & 4: Detail & Classification
             for bid in bids:
-                # Check duplication using Async DB Method
+                # 1. Shield against self-referencing portal links
+                clean_bid_link = bid.link.split('?')[0].strip('/').lower()
+                clean_portal = procurement_url.split('?')[0].strip('/').lower()
+
+                if clean_bid_link == clean_portal:
+                    logger.info(f"  [Skip] Bid link matches portal URL (Self-Reference): {bid.link}")
+                    continue
+
+                # 2. Check duplication using Async DB Method
                 if await db.async_url_already_scraped(bid.link):
                     logger.info(f"  [Skip] Already scraped: {bid.link}")
                     continue
 
+                # 3. Fetch Detail and Classify
                 full_text = await fetch_bid_detail(crawler, bid.link)
                 if full_text:
                     await classify_and_save(db, bid, full_text, agency.state, api_key)
