@@ -5,6 +5,7 @@ import re
 import requests
 import tempfile
 import pypdf
+import datetime
 from typing import List, Optional
 from urllib.parse import urljoin
 from crawl4ai import AsyncWebCrawler, LLMConfig
@@ -77,7 +78,7 @@ async def discover_portal(crawler: AsyncWebCrawler, agency_url: str, api_key: st
         logger.error(f"  [Discovery] Error: {e}", exc_info=True)
         return None
 
-async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: str) -> List[BidExtractionSchema]:
+async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, agency_name: str, api_key: str) -> List[BidExtractionSchema]:
     """
     Step 2: Extract bids using direct AsyncOpenAI call to bypass Crawl4AI's strict schema enforcement.
     """
@@ -108,7 +109,17 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
 
         logger.debug(f"[Extraction AI Input] Sending {len(truncated_markdown)} chars to LLM for {portal_url}")
 
-        instruction = EXTRACTION_INSTRUCTION + f"\n\nBASE URL FOR RELATIVE LINKS: {portal_url}\n\nIMPORTANT: You must return ONLY a raw JSON array of objects. Do not wrap it in a parent JSON object."
+        schema_json = json.dumps(BidExtractionSchema.model_json_schema(), indent=2)
+        current_date = datetime.date.today().isoformat()
+
+        instruction = (
+             EXTRACTION_INSTRUCTION +
+             f"\n\nCURRENT DATE: {current_date}"
+             f"\nISSUING AGENCY: {agency_name}"
+             f"\nBASE URL FOR RELATIVE LINKS: {portal_url}"
+             f"\n\nREQUIRED JSON SCHEMA FOR EACH OBJECT:\n{schema_json}"
+             f"\n\nIMPORTANT: You must return ONLY a raw JSON array of objects matching the schema above. Do not wrap it in a parent JSON object."
+        )
 
         response = await client.chat.completions.create(
             model="deepseek-chat",
@@ -167,7 +178,7 @@ async def extract_bids_ai(crawler: AsyncWebCrawler, portal_url: str, api_key: st
         logger.error(f"  [Extraction] Error: {e}", exc_info=True)
         return []
 
-async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, schema: dict) -> List[BidExtractionSchema]:
+async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, agency_name: str, schema: dict) -> List[BidExtractionSchema]:
     """
     Executes standard CSS extraction for known platforms using Crawl4AI's JsonCssExtractionStrategy.
     """
@@ -206,6 +217,9 @@ async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, schem
                     if not item.get("title"):
                         continue
 
+                    if not item.get("clientName") or item.get("clientName") == "Unknown Client":
+                        item["clientName"] = agency_name
+
                     bid = BidExtractionSchema(**item)
                     bids.append(bid)
                 except ValidationError:
@@ -217,7 +231,7 @@ async def extract_deterministic(crawler: AsyncWebCrawler, portal_url: str, schem
         logger.error(f"  [Extraction] Deterministic Error: {e}", exc_info=True)
         return []
 
-async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, api_key: str) -> List[BidExtractionSchema]:
+async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, agency_name: str, api_key: str) -> List[BidExtractionSchema]:
     """
     The Hybrid Router. Routes known domains to fast CSS extractors.
     Automatically falls back to DeepSeek AI if the domain is unknown or CSS yields 0 bids.
@@ -227,15 +241,15 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, api_key: str) 
 
     # 1. Deterministic Fast-Path
     if "bonfirehub.com" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, BONFIRE_SCHEMA)
+        bids = await extract_deterministic(crawler, portal_url, agency_name, BONFIRE_SCHEMA)
     elif "ionwave.net" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, IONWAVE_SCHEMA)
+        bids = await extract_deterministic(crawler, portal_url, agency_name, IONWAVE_SCHEMA)
     elif "planetbids.com" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, PLANETBIDS_SCHEMA)
+        bids = await extract_deterministic(crawler, portal_url, agency_name, PLANETBIDS_SCHEMA)
     elif "opengov.com" in url_lower or "procurenow.com" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, OPENGOV_SCHEMA)
+        bids = await extract_deterministic(crawler, portal_url, agency_name, OPENGOV_SCHEMA)
     elif "bidnetdirect.com" in url_lower:
-        bids = await extract_deterministic(crawler, portal_url, BIDNET_SCHEMA)
+        bids = await extract_deterministic(crawler, portal_url, agency_name, BIDNET_SCHEMA)
 
     # 2. The AI Safety Net (Fallback)
     if not bids:
@@ -245,7 +259,7 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, api_key: str) 
             logger.info(f"  [Router] Custom domain detected. Routing directly to DeepSeek AI.")
 
         # Route to the renamed AI function
-        bids = await extract_bids_ai(crawler, portal_url, api_key)
+        bids = await extract_bids_ai(crawler, portal_url, agency_name, api_key)
 
     return bids
 
@@ -387,7 +401,7 @@ async def process_agency(agency: Agency, db, api_key: str):
                 return
 
             # Step 2: Extraction
-            bids = await extract_bids(crawler, procurement_url, api_key)
+            bids = await extract_bids(crawler, procurement_url, agency.name, api_key)
             logger.info(f"  Found {len(bids)} potential bids.")
 
             # Step 3 & 4: Detail & Classification
