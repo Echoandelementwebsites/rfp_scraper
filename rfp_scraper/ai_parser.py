@@ -306,6 +306,58 @@ class DeepSeekClient:
             print(f"Error generating local jurisdictions for {state_name}: {e}")
             return {"counties": [], "cities": [], "towns": []}
 
+    def generate_state_ecosystem(self, state_name: str) -> dict:
+        """
+        Generates a comprehensive nested ecosystem of state agencies, counties, cities, and towns,
+        along with their specific construction/procurement departments.
+        """
+        if not self.api_key:
+            return {"state_agencies": [], "counties": [], "cities": [], "towns": []}
+
+        prompt = (
+            f"You are a construction procurement expert. Map out the government ecosystem for {state_name}.\n"
+            "Identify entities that issue construction, engineering, or public works RFPs.\n"
+            "1. 'state_agencies': List major state-level departments (e.g., Dept of Transportation, General Services, University Systems).\n"
+            "2. 'counties': List major counties. For each, list 2-3 specific departments (e.g., 'Public Works', 'Purchasing').\n"
+            "3. 'cities': List the top 30 largest cities. Include their relevant departments.\n"
+            "4. 'towns': List the top 20 major towns/villages. Include their relevant departments.\n\n"
+            "Return ONLY a JSON object with this exact structure:\n"
+            "{\n"
+            "  \"state_agencies\": [\"Dept of Transportation\", \"Building Commission\"],\n"
+            "  \"counties\": [{\"name\": \"Cook\", \"departments\": [\"Public Works\", \"Procurement\"]}],\n"
+            "  \"cities\": [{\"name\": \"Chicago\", \"departments\": [\"Water Management\", \"Purchasing\"]}],\n"
+            "  \"towns\": [{\"name\": \"Cicero\", \"departments\": [\"Engineering\"]}]\n"
+            "}"
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" },
+                max_tokens=8000
+            )
+
+            content = response.choices[0].message.content
+            data = self._clean_and_parse_json(content)
+
+            # Safely parse nested data, falling back to empty lists if LLM truncates
+            if isinstance(data, dict):
+                return {
+                    "state_agencies": data.get("state_agencies", []),
+                    "counties": data.get("counties", []),
+                    "cities": data.get("cities", []),
+                    "towns": data.get("towns", [])
+                }
+
+            return {"state_agencies": [], "counties": [], "cities": [], "towns": []}
+
+        except Exception as e:
+            print(f"Error generating ecosystem for {state_name}: {e}")
+            return {"state_agencies": [], "counties": [], "cities": [], "towns": []}
+
     def identify_best_agency_url(self, candidates: List[Dict], agency_name: str, domain_rules: List[str]) -> Optional[str]:
         """
         Identifies the best matching URL from a list of search candidates using AI.

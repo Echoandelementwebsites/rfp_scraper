@@ -192,7 +192,7 @@ with tab_local_gov:
             total_lg_states = len(target_lg_states)
 
             for i, state_name in enumerate(target_lg_states):
-                status_text_lg.text(f"Processing {state_name} ({i+1}/{total_lg_states})...")
+                status_text_lg.text(f"Mapping Ecosystem for {state_name} ({i+1}/{total_lg_states}). This may take a minute...")
 
                 # Get State ID
                 state_row = df_current_states_lg[df_current_states_lg['name'] == state_name]
@@ -200,27 +200,50 @@ with tab_local_gov:
                     continue
                 state_id = int(state_row.iloc[0]['id'])
 
-                # Call AI
-                jurisdictions = ai_client.generate_local_jurisdictions(state_name)
+                # Call AI Ecosystem Mapper (Replaces old generate_local_jurisdictions call)
+                ecosystem = ai_client.generate_state_ecosystem(state_name)
 
-                # Save to DB (Persistence to local_jurisdictions table)
-                # Counties
-                for county in jurisdictions.get("counties", []):
-                    db.append_local_jurisdiction(state_id, county, "county")
+                # Check for empty response (AI failure)
+                is_empty = not any(ecosystem.values())
+                if is_empty:
+                    st.warning(f"Warning: No ecosystem data returned for {state_name}. AI may have timed out or failed.")
 
-                # Cities
-                for city in jurisdictions.get("cities", []):
-                    db.append_local_jurisdiction(state_id, city, "city")
+                # 1. Save State Agencies (Linked only to state)
+                for agency_name in ecosystem.get("state_agencies", []):
+                    db.add_agency(state_id=state_id, name=f"{state_name} - {agency_name}", category="state_agency", local_jurisdiction_id=None)
 
-                # Towns
-                for town in jurisdictions.get("towns", []):
-                    db.append_local_jurisdiction(state_id, town, "town")
+                # 2. Save Counties & Departments
+                for county_obj in ecosystem.get("counties", []):
+                    name = county_obj.get("name")
+                    if not name: continue
+                    jur_id = db.append_local_jurisdiction(state_id, name, "county")
+                    for dept in county_obj.get("departments", []):
+                        db.add_agency(state_id=state_id, name=f"{name} County - {dept}", category="county_agency", local_jurisdiction_id=jur_id)
+
+                # 3. Save Cities & Departments
+                for city_obj in ecosystem.get("cities", []):
+                    name = city_obj.get("name")
+                    if not name: continue
+                    jur_id = db.append_local_jurisdiction(state_id, name, "city")
+                    for dept in city_obj.get("departments", []):
+                        db.add_agency(state_id=state_id, name=f"City of {name} - {dept}", category="city_agency", local_jurisdiction_id=jur_id)
+
+                # 4. Save Towns & Departments
+                for town_obj in ecosystem.get("towns", []):
+                    name = town_obj.get("name")
+                    if not name: continue
+                    jur_id = db.append_local_jurisdiction(state_id, name, "town")
+                    for dept in town_obj.get("departments", []):
+                        db.add_agency(state_id=state_id, name=f"Town of {name} - {dept}", category="town_agency", local_jurisdiction_id=jur_id)
 
                 progress_bar_lg.progress((i + 1) / total_lg_states)
 
-            status_text_lg.success("Identification Complete!")
-            # Invalidate cache to show new jurisdictions
+            # Crucial: Invalidate Cache so the UI instantly reflects the new database writes
             get_cached_local_govs.clear()
+            get_cached_agencies.clear()
+
+            status_text_lg.success("Ecosystem Mapping Complete!")
+            time.sleep(1)
             st.rerun()
 
     # Display Table
