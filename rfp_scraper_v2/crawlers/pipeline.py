@@ -5,6 +5,7 @@ import re
 import requests
 import tempfile
 import pypdf
+import docx
 import datetime
 from typing import List, Optional
 from urllib.parse import urljoin
@@ -263,51 +264,86 @@ async def extract_bids(crawler: AsyncWebCrawler, portal_url: str, agency_name: s
 
     return bids
 
-async def fetch_bid_detail(crawler: AsyncWebCrawler, bid_link: str) -> str:
-    """
-    Step 3: Fetch full text from HTML or PDF.
-    """
-    if not bid_link: return ""
+async def fetch_bid_detail(crawler: AsyncWebCrawler, url: str) -> str:
+    """Fetches the detailed scope of a bid by either downloading the document or crawling the page."""
+    if not url or url.lower() == "none" or url == "":
+        return ""
+
     try:
-        # Check if PDF
-        if bid_link.lower().endswith(".pdf"):
-            logger.info(f"  [Detail] Fetching PDF: {bid_link}")
+        # Standard headers to bypass basic firewalls (403 Forbidden)
+        browser_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        }
+
+        # 1. Handle PDFs directly using requests and pypdf
+        if ".pdf" in url.lower():
+            logger.info(f"  [Detail] Fetching PDF: {url}")
+            response = requests.get(url, stream=True, timeout=30, headers=browser_headers)
+            response.raise_for_status()
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+                for chunk in response.iter_content(chunk_size=8192):
+                    temp_pdf.write(chunk)
+                temp_pdf_path = temp_pdf.name
+
+            text_content = ""
             try:
-                # Use Stream to avoid loading large files into RAM
-                with requests.get(bid_link, stream=True, timeout=(10, 20)) as response:
-                    response.raise_for_status()
-
-                    # Create a temporary file to store the PDF
-                    with tempfile.NamedTemporaryFile(delete=True) as temp_pdf:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            temp_pdf.write(chunk)
-                        temp_pdf.flush()
-
-                        # Read from temp file
-                        temp_pdf.seek(0)
-                        pdf = pypdf.PdfReader(temp_pdf)
-                        text = ""
-                        # Extract up to 10 pages
-                        for i in range(min(len(pdf.pages), 10)):
-                            text += pdf.pages[i].extract_text() + "\n"
-                        return text
-
+                pdf = pypdf.PdfReader(temp_pdf_path)
+                for page in pdf.pages:
+                    extracted = page.extract_text()
+                    if extracted:
+                        text_content += extracted + "\n"
             except Exception as e:
-                logger.error(f"  [Detail] PDF Error: {e}", exc_info=True)
-                return ""
-        else:
-            # HTML
-            # Skip javascript: links
-            if bid_link.startswith("javascript:"):
-                return ""
+                logger.error(f"  [Detail] PDF Error: {e}")
+            finally:
+                if os.path.exists(temp_pdf_path):
+                    os.remove(temp_pdf_path)
 
-            logger.info(f"  [Detail] Fetching HTML: {bid_link}")
-            result = await crawler.arun(url=bid_link)
-            if result.success:
-                return result.markdown
-            else:
-                logger.warning(f"  [Detail] Failed: {result.error_message}")
-                return ""
+            return text_content.strip()
+
+        # 2. Handle DOCX files directly using python-docx
+        elif ".docx" in url.lower():
+            logger.info(f"  [Detail] Fetching DOCX: {url}")
+            response = requests.get(url, stream=True, timeout=30, headers=browser_headers)
+            response.raise_for_status()
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as temp_docx:
+                for chunk in response.iter_content(chunk_size=8192):
+                    temp_docx.write(chunk)
+                temp_docx_path = temp_docx.name
+
+            text_content = ""
+            try:
+                doc = docx.Document(temp_docx_path)
+                for para in doc.paragraphs:
+                    if para.text.strip():
+                        text_content += para.text.strip() + "\n"
+            except Exception as e:
+                logger.error(f"  [Detail] DOCX Error: {e}", exc_info=True)
+            finally:
+                if os.path.exists(temp_docx_path):
+                    os.remove(temp_docx_path)
+
+            return text_content.strip()
+
+        # 3. Bypass unsupported direct file downloads that crash Playwright
+        unsupported_exts = [".doc", ".xlsx", ".xls", ".zip", ".csv", ".rtf"]
+        if any(ext in url.lower() for ext in unsupported_exts):
+            logger.info(f"  [Detail] Skipping unsupported file type for crawling: {url}")
+            return "This link points to a downloadable file (Excel, Zip, older Word doc). Rely on the bid title and description to determine classification."
+
+        # 4. Fallback to Crawl4AI for standard HTML pages
+        logger.info(f"  [Detail] Fetching HTML: {url}")
+        if url.startswith("javascript:"):
+            return ""
+
+        result = await crawler.arun(url=url)
+        if result.success:
+            return result.markdown
+        else:
+            logger.warning(f"  [Detail] Failed: {result.error_message}")
+            return ""
 
     except Exception as e:
         logger.error(f"  [Detail] Error: {e}", exc_info=True)
