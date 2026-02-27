@@ -38,6 +38,10 @@ class ClassificationSchema(BaseModel):
         default=0,
         description="A score from 1-100 indicating confidence in the classification."
     )
+    comprehensive_scope: str = Field(
+        default="Scope details not found.",
+        description="A clean, readable 2-4 paragraph summary of the actual project requirements, materials, and labor. Completely ignore/exclude boilerplate legalese, table of contents, addresses, and website navigation menus."
+    )
 
 class Agency(BaseModel):
     """Internal model representing an agency being processed in the pipeline."""

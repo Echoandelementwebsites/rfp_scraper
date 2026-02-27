@@ -38,6 +38,7 @@ Your objective is to:
 1. Use the `reasoning` field to briefly analyze the core scope of work.
 2. Determine if this project is STRICTLY related to physical construction, infrastructure, architectural design, or heavy maintenance (`is_construction_related`).
 3. If True, classify the work into the top 1 to 5 most relevant standard CSI MasterFormat divisions using ONLY the provided Approved CSI List.
+4. SUMMARIZE THE SCOPE: You must generate a `comprehensive_scope` field. This should be a clean, readable 2-4 paragraph summary of the actual project requirements, materials, and labor. Completely ignore and exclude boilerplate legalese, table of contents, addresses, and website navigation menus. Focus purely on the "Work to be Done".
 
 --- APPROVED CSI MASTERFORMAT LIST ---
 Division 01 - General Requirements

@@ -338,7 +338,11 @@ async def fetch_bid_detail(crawler: AsyncWebCrawler, url: str) -> str:
         if url.startswith("javascript:"):
             return ""
 
-        result = await crawler.arun(url=url)
+        result = await crawler.arun(
+            url=url,
+            magic=True,
+            excluded_tags=['nav', 'footer', 'header', 'aside', 'menu']
+        )
         if result.success:
             return result.markdown
         else:
@@ -360,10 +364,19 @@ async def classify_and_save(db, bid_obj: BidExtractionSchema, full_text: str, st
 
         logger.debug(f"[Classification AI Input] Analyzing Bid: '{bid_obj.title}'. Scope snippet length: {len(truncated_text)}")
 
+        # Inject Schema into System Prompt
+        schema_json = json.dumps(ClassificationSchema.model_json_schema(), indent=2)
+
+        system_prompt = (
+            CLASSIFICATION_SYSTEM_PROMPT +
+            f"\n\nREQUIRED JSON SCHEMA:\n{schema_json}"
+            f"\n\nIMPORTANT: You must return ONLY a raw JSON object matching the schema above. Do not wrap it in markdown code blocks."
+        )
+
         response = await client.chat.completions.create(
             model="deepseek-chat",
             messages=[
-                {"role": "system", "content": CLASSIFICATION_SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Classify this bid scope:\nTitle: {bid_obj.title}\nDescription: {bid_obj.description}\n\nFull Text Snippet:\n{truncated_text}"}
             ],
             temperature=0.0,
@@ -380,14 +393,14 @@ async def classify_and_save(db, bid_obj: BidExtractionSchema, full_text: str, st
         if classification.is_construction_related:
             logger.info(f"  [Classification] SAVING BID: {bid_obj.title}")
 
-            # Map to DB Bid model
+            # Map to DB Bid model using the AI's cleaned scope
             db_bid = Bid(
                 title=bid_obj.title,
                 clientName=bid_obj.clientName,
                 deadline=bid_obj.deadline,
                 description=bid_obj.description,
                 link=bid_obj.link,
-                full_text=full_text,
+                full_text=classification.comprehensive_scope, # Saves the clean AI summary!
                 csi_divisions=classification.csi_divisions,
                 slug=f"{bid_obj.clientName}-{bid_obj.title}"[:100].replace(" ", "-").lower() # Simple slug gen
             )
