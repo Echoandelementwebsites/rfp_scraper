@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="log update 2">
+    <list default="true" id="0a5b42c1-4d8c-415c-9395-3f1bc484b931" name="Changes" comment="log update 3">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scraper_debug.log" beforeDir="false" afterPath="$PROJECT_DIR$/scraper_debug.log" afterDir="false" />
     </list>
@@ -140,7 +140,15 @@
       <option name="project" value="LOCAL" />
       <updated>1772138986543</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="log update 3">
+      <option name="closed" value="true" />
+      <created>1772178445858</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1772178445858</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -154,6 +162,7 @@
     <MESSAGE value="Updated reset_portals script" />
     <MESSAGE value="log update" />
     <MESSAGE value="log update 2" />
-    <option name="LAST_COMMIT_MESSAGE" value="log update 2" />
+    <MESSAGE value="log update 3" />
+    <option name="LAST_COMMIT_MESSAGE" value="log update 3" />
   </component>
 </project>
