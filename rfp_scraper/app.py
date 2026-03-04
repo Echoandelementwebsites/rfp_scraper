@@ -443,19 +443,23 @@ with tab_scraper:
         mask = (persistent_df['deadline_dt'] >= today) | (persistent_df['deadline_dt'].isna())
         persistent_df = persistent_df[mask].drop(columns=['deadline_dt'])
 
-    # Display Data (Exclude Description)
-    display_df = persistent_df.copy()
-    if 'rfp_description' in display_df.columns:
-        display_df = display_df.drop(columns=['rfp_description'])
+    # Define exact columns to display and export
+    desired_columns = [
+        'client_name', 'title', 'deadline', 'description',
+        'link', 'csi_divisions', 'full_text'
+    ]
 
-    # Optional: Rename for UI
-    if 'matching_trades' in display_df.columns:
-        display_df = display_df.rename(columns={'matching_trades': 'Trades'})
+    # Safely filter dataframe to only include desired columns that exist
+    if not persistent_df.empty:
+        available_columns = [col for col in desired_columns if col in persistent_df.columns]
+        display_df = persistent_df[available_columns].copy()
+    else:
+        display_df = persistent_df.copy()
 
     st.dataframe(display_df, use_container_width=True)
 
     # Export Section
-    if not persistent_df.empty:
+    if not display_df.empty:
         today_str = datetime.datetime.now().strftime("%Y%m%d")
         if scraper_mode == "Single State" and selected_scraper_state:
             state_slug = selected_scraper_state.replace(' ', '_')
@@ -463,26 +467,12 @@ with tab_scraper:
         else:
             base_filename = f"all_rfps_{today_str}"
 
-        # 1. CSV Download (Clean - No Description)
-        csv_df = persistent_df.copy()
-        if 'rfp_description' in csv_df.columns:
-            csv_df = csv_df.drop(columns=['rfp_description'])
-
-        csv_rfps = csv_df.to_csv(index=False).encode('utf-8')
+        # CSV Download (Clean - Only desired columns)
+        csv_rfps = display_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            "📥 Download RFPs CSV (Summary)",
+            "📥 Download RFPs CSV",
             csv_rfps,
             f"{base_filename}.csv",
             "text/csv",
             key='download-rfps-csv'
-        )
-
-        # 2. JSON Download (Full Data - With Description)
-        json_rfps = persistent_df.to_json(orient='records', indent=2).encode('utf-8')
-        st.download_button(
-            "📥 Download RFP .json (Full Data)",
-            json_rfps,
-            f"{base_filename}.json",
-            "application/json",
-            key='download-rfps-json'
         )
