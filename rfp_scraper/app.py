@@ -497,3 +497,13 @@ with tab_scraper:
             "text/csv",
             key='download-rfps-csv'
         )
+
+        # JSON Download (Using the exact same filtered/renamed data)
+        json_rfps = display_df.to_json(orient='records', indent=2).encode('utf-8')
+        st.download_button(
+            "📥 Download RFP .json",
+            json_rfps,
+            f"{base_filename}.json",
+            "application/json",
+            key='download-rfps-json'
+        )
