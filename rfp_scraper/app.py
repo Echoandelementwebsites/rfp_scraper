@@ -443,9 +443,9 @@ with tab_scraper:
         mask = (persistent_df['deadline_dt'] >= today) | (persistent_df['deadline_dt'].isna())
         persistent_df = persistent_df[mask].drop(columns=['deadline_dt'])
 
-    # Define exact columns to display and export
+    # Define exact database columns to pull
     desired_columns = [
-        'client_name', 'title', 'deadline', 'description',
+        'state', 'client_name', 'title', 'deadline', 'description',
         'link', 'csi_divisions', 'full_text'
     ]
 
@@ -453,10 +453,31 @@ with tab_scraper:
     if not persistent_df.empty:
         available_columns = [col for col in desired_columns if col in persistent_df.columns]
         display_df = persistent_df[available_columns].copy()
+
+        # Rename columns for a cleaner UI presentation
+        rename_map = {
+            'state': 'State',
+            'client_name': 'Client',
+            'title': 'Project Title',
+            'deadline': 'Deadline',
+            'description': 'Description',
+            'link': 'Source Link',
+            'csi_divisions': 'CSI Divisions',
+            'full_text': 'Scope'
+        }
+        display_df = display_df.rename(columns=rename_map)
     else:
         display_df = persistent_df.copy()
 
-    st.dataframe(display_df, use_container_width=True)
+    # Display using Streamlit's new column configs for readability
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        column_config={
+            "Scope": st.column_config.TextColumn("Scope", width="large"),
+            "Source Link": st.column_config.LinkColumn("Source Link")
+        }
+    )
 
     # Export Section
     if not display_df.empty:
@@ -467,7 +488,7 @@ with tab_scraper:
         else:
             base_filename = f"all_rfps_{today_str}"
 
-        # CSV Download (Clean - Only desired columns)
+        # CSV Download
         csv_rfps = display_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             "📥 Download RFPs CSV",
