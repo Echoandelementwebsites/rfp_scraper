@@ -545,13 +545,6 @@ class DatabaseHandler:
             else:
                 df = pd.read_sql_query("SELECT * FROM bids", conn)
 
-            # Column Mapping
-            rename_map = {
-                'description': 'rfp_description',
-                'link': 'source_url'
-            }
-            df = df.rename(columns=rename_map)
-
             # CSI Divisions Transformation
             if 'csi_divisions' in df.columns:
                 def transform_csi(val):
@@ -565,19 +558,12 @@ class DatabaseHandler:
                     except:
                         return str(val)
 
-                df['matching_trades'] = df['csi_divisions'].apply(transform_csi)
-            else:
-                df['matching_trades'] = ""
+                df['csi_divisions'] = df['csi_divisions'].apply(transform_csi)
 
-            required = ['slug', 'client_name', 'title', 'deadline', 'scraped_at', 'source_url', 'state', 'rfp_description', 'matching_trades']
-            for col in required:
-                if col not in df.columns:
-                    df[col] = None
-
-            return df[required]
+            return df
 
         except Exception:
-            return pd.DataFrame(columns=['slug', 'client_name', 'title', 'deadline', 'scraped_at', 'source_url', 'state', 'rfp_description', 'matching_trades'])
+            return pd.DataFrame(columns=['slug', 'client_name', 'title', 'deadline', 'description', 'link', 'full_text', 'csi_divisions', 'scraped_at', 'state'])
         finally:
             conn.close()
 
